@@ -27,7 +27,7 @@ Done:
 - 参考 CLI 与 Linux/Windows CI 配置、wheel/sdist 构建（后续周期已扩展到解释与订阅管理命令）。
 
 Tests:
-- 326 passed（unit 171 / integration 91 / security 53 / e2e 11）；包含 600 节点夹具、601 节点探测队列、故障注入和 CLI 端到端测试。
+- 327 passed（unit 171 / integration 91 / security 53 / e2e 12）；包含 600 节点夹具、601 节点探测队列、故障注入和 CLI 端到端测试。
 - GitHub Actions（ubuntu/windows × Python 3.11/3.12）四 job 全绿：run `36439441221`，含产物卫生与密钥门禁。
 - ruff lint 通过；wheel/sdist 构建通过，产物卫生检查见 `scripts/check_artifacts.py`。
 - `scripts/verify.sh` 已固化 lint/格式/离线测试/构建/产物检查，可一键复现上述门禁。
@@ -52,7 +52,7 @@ Done:
 - 修复潜在崩溃：最新探测状态成功但样本全部未 verified 时，Smart Selector 曾因 `None < 0.8` 抛 `TypeError`；现按"可用率 0"判为不合格并给出原因。
 
 Tests:
-- 已纳入上述 326 项；没有使用伪造在线节点结果。`tests/test_scoring_explanation.py` 与 `tests/test_node_details.py` 覆盖解释层与脱敏。
+- 已纳入上述 327 项；没有使用伪造在线节点结果。`tests/test_scoring_explanation.py` 与 `tests/test_node_details.py` 覆盖解释层与脱敏。
 
 Remaining:
 - 获审核心的 VLESS/VMess/Trojan/SS 真实代理握手和端到端测试。

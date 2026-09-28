@@ -4,7 +4,7 @@
 
 ## 已运行
 
-- `uv run pytest -q`：326 passed（unit 171 / integration 91 / security 53 / e2e 11）。全套测试无需互联网；四种 marker 子集之和与全量一致。
+- `uv run pytest -q`：327 passed（unit 171 / integration 91 / security 53 / e2e 12）。全套测试无需互联网；四种 marker 子集之和与全量一致。
 - `uv run ruff check .`：通过。
 - `uv run ruff format --check .`：通过。
 - `uv build`：生成 smart_accelerator-0.2.0-py3-none-any.whl 和对应 sdist。
