@@ -8,6 +8,7 @@
 | LKG / 原子替换 / 重启恢复 | PASS；失败注入、空内容、Master 损坏、取消、重新打开数据库 |
 | 条件请求 / 有限退避 / 随机调度 | PASS；304、5 次失败暂停、force 恢复策略 |
 | 日志与 SQLite 不含凭据 | PASS；敏感标记扫描、匿名 CLI 输出、参数错误不回显 |
+| 密文容量与引用感知 GC | PASS；写入记账上限、只删无引用密文、保留 master/验证器/节点、幂等可重跑 |
 | 门禁可复现（规格 §28） | PASS；scripts/verify.sh 覆盖 lint/格式/离线测试/构建/产物检查 |
 | HTTP CONNECT / SOCKS5 真实出口探测 | LOCAL_INTEGRATION_PASS；本地代理 + TLS + 认证 + 204/500/407/协商拒绝 |
 | 测速限并发 / 滚动历史 / 评分 / Smart Select | PASS；601 节点最多 8 路、最近 10 次、低丢包优先 |

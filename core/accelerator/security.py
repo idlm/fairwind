@@ -13,6 +13,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from accelerator.errors import SafeError
 
+REFERENCE_PATTERN = re.compile(r"[a-f0-9]{64}")
+
 
 def canonical_json(value: object) -> bytes:
     return json.dumps(
@@ -96,6 +98,12 @@ class SecretVault:
         self.key = key
         self.max_bytes = max_bytes
         self.cipher = AESGCM(key)
+        self.used_bytes = self._measure()
+
+    def _measure(self) -> int:
+        return sum(
+            path.stat().st_size for path in self.root.glob("*.secret") if not path.is_symlink()
+        )
 
     @classmethod
     def from_environment(cls, root: Path) -> "SecretVault":
@@ -122,8 +130,7 @@ class SecretVault:
             return reference
         nonce = secrets.token_bytes(12)
         encrypted = nonce + self.cipher.encrypt(nonce, plain, reference.encode())
-        used = sum(path.stat().st_size for path in self.root.glob("*.secret"))
-        if used + len(encrypted) > self.max_bytes:
+        if self.used_bytes + len(encrypted) > self.max_bytes:
             raise SafeError("STORAGE_FULL")
         temporary = self.root / ("." + secrets.token_hex(16))
         try:
@@ -133,6 +140,7 @@ class SecretVault:
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(temporary, target)
+            self.used_bytes += len(encrypted)
             if os.name != "nt":
                 directory_fd = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY)
                 try:
@@ -143,8 +151,27 @@ class SecretVault:
             temporary.unlink(missing_ok=True)
         return reference
 
+    def collect(self, referenced: set[str]) -> int:
+        """删除不再被引用的密文，返回删除的文件数。
+
+        调用方必须传入完整引用集合（Database.referenced_secrets()）；集合缺项会导致
+        有效密文被删除，因此该操作只能在持 operation_lock 的维护入口调用，不自动执行。
+        """
+        removed = 0
+        for path in self.root.glob("*.secret"):
+            if path.is_symlink():
+                continue
+            reference = path.name[: -len(".secret")]
+            if not REFERENCE_PATTERN.fullmatch(reference) or reference in referenced:
+                continue
+            size = path.stat().st_size
+            path.unlink(missing_ok=True)
+            self.used_bytes = max(0, self.used_bytes - size)
+            removed += 1
+        return removed
+
     def get(self, reference: str) -> object:
-        if not re.fullmatch(r"[a-f0-9]{64}", reference):
+        if not REFERENCE_PATTERN.fullmatch(reference):
             raise SafeError("SECRET_CORRUPT")
         try:
             path = self.root / (reference + ".secret")

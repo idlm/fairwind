@@ -7,10 +7,11 @@ import pytest
 from aiohttp import web
 
 from accelerator.errors import SafeError
-from accelerator.network import HttpFetcher, PublicResolver
+from accelerator.network import FetchResult, HttpFetcher, PublicResolver
 from accelerator.security import SecretVault, public_ip, validate_url
 from accelerator.storage import Database, operation_lock
-from conftest import FIXTURES
+from accelerator.subscription import SubscriptionEngine
+from conftest import FIXTURES, MASTER
 
 
 @pytest.mark.parametrize(
@@ -207,3 +208,46 @@ def test_lock_rejects_second_writer(tmp_path):
 def test_vault_path_traversal(vault):
     with pytest.raises(SafeError, match="SECRET_CORRUPT"):
         vault.get("../../etc/passwd")
+
+
+async def test_vault_gc_removes_only_unreferenced(database, vault, fetcher):
+    await SubscriptionEngine(database, vault, fetcher).update(MASTER)
+    orphan = vault.put({"url": "https://orphan.example/sub?token=synthetic-token"})
+    assert (vault.root / (orphan + ".secret")).exists()
+    assert vault.collect(database.referenced_secrets()) == 1
+    assert not (vault.root / (orphan + ".secret")).exists()
+    assert vault.collect(database.referenced_secrets()) == 0
+    assert vault.get(database.get_setting("master"))["urls"]
+    for row in database.nodes():
+        assert database.load_node(row).secret.server
+
+
+async def test_vault_gc_keeps_master_validators_and_nodes(database, vault, fetcher):
+    service = SubscriptionEngine(database, vault, fetcher)
+    await service.update(MASTER)
+    before = sorted(path.name for path in vault.root.glob("*.secret"))
+    assert vault.collect(database.referenced_secrets()) == 0
+    assert sorted(path.name for path in vault.root.glob("*.secret")) == before
+    fetcher.responses[MASTER] = FetchResult(304, b"", {"etag": "m1"})
+    result = await service.update(force=True)
+    assert result.nodes == 2 and result.unchanged == 0
+
+
+def test_vault_accounting_tracks_writes_and_collect(tmp_path):
+    vault = SecretVault(tmp_path / "accounting", b"c" * 32, max_bytes=4096)
+    reference = vault.put({"token": "synthetic-value"})
+    assert vault.used_bytes > 0
+    assert vault.collect(set()) == 1
+    assert vault.used_bytes == 0
+    assert vault.put({"token": "synthetic-value"}) == reference
+    assert vault.get(reference)["token"] == "synthetic-value"
+
+
+def test_vault_capacity_released_by_collect(tmp_path):
+    vault = SecretVault(tmp_path / "limit", b"d" * 32, max_bytes=64)
+    vault.put({"token": "synthetic-value"})
+    with pytest.raises(SafeError, match="STORAGE_FULL"):
+        vault.put({"token": "another-synthetic-value"})
+    assert vault.collect(set()) == 1
+    second = vault.put({"token": "another-synthetic-value"})
+    assert vault.get(second)["token"] == "another-synthetic-value"

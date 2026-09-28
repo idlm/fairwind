@@ -8,7 +8,7 @@ from pathlib import Path
 
 from accelerator.domain import NodeSecret, ProbeResult, ProxyNode
 from accelerator.errors import SafeError
-from accelerator.security import SecretVault, private_directory
+from accelerator.security import REFERENCE_PATTERN, SecretVault, private_directory
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS subscriptions (
@@ -134,6 +134,25 @@ class Database:
                 "SELECT * FROM subscriptions ORDER BY created_at, display_name"
             )
         ]
+
+    def referenced_secrets(self) -> set[str]:
+        """收集数据库中的全部密文引用，供 SecretVault.collect 使用。
+
+        覆盖 subscriptions 的 secret_ref/etag_ref/last_modified_ref、nodes.secret_ref，
+        以及 settings 中的引用（Master 快照与验证器）。要求集合完整，宁可多保留。
+        """
+        references: set[str] = set()
+        for query in (
+            "SELECT secret_ref FROM subscriptions",
+            "SELECT etag_ref FROM subscriptions WHERE etag_ref IS NOT NULL",
+            "SELECT last_modified_ref FROM subscriptions WHERE last_modified_ref IS NOT NULL",
+            "SELECT secret_ref FROM nodes",
+        ):
+            references.update(row[0] for row in self.connection.execute(query) if row[0])
+        for row in self.connection.execute("SELECT value FROM settings"):
+            if row[0] and REFERENCE_PATTERN.fullmatch(row[0]):
+                references.add(row[0])
+        return references
 
     def nodes(self) -> list[dict]:
         return [

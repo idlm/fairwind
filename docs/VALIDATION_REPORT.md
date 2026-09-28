@@ -4,7 +4,7 @@
 
 ## 已运行
 
-- `uv run pytest -q`：159 passed。全套测试无需互联网。
+- `uv run pytest -q`：163 passed。全套测试无需互联网。
 - `uv run ruff check .`：通过。
 - `uv run ruff format --check .`：通过。
 - `uv build`：生成 smart_accelerator-0.1.0-py3-none-any.whl 和对应 sdist。
@@ -18,7 +18,7 @@
 
 更新覆盖：多源并发、单源失败、空/损坏更新、304、Master LKG、原子事务故障注入、取消、有限重试、500+ 节点、重启恢复、来源删除与禁用。
 
-安全覆盖：私网/回环/特殊 scheme、DNS 混合地址、重定向、下载/总时限、压缩拒绝、总预算、AES-GCM 篡改、错误密钥、容量限制、权限、写锁、普通 SQLite 与 CLI 脱敏。
+安全覆盖：私网/回环/特殊 scheme、DNS 混合地址、重定向、下载/总时限、压缩拒绝、总预算、AES-GCM 篡改、错误密钥、容量限制与容量记账、引用感知 GC（只删无引用密文）、权限、写锁、普通 SQLite 与 CLI 脱敏。
 
 节点覆盖：601 节点上限 8 路、滚动 10 次、稳定性与丢包权重、陈旧/失败过滤、HTTP CONNECT 与 SOCKS5（含认证）的真实 TLS 204/500 回应与协商拒绝、tcp/handshake/http 分段延迟、未支持协议不误报可用、故障恢复和取消清理。
 
