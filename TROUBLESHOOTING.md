@@ -20,6 +20,10 @@
 - `BACKUP_TARGET_EXISTS` / `BACKUP_INVALID`：备份目标已存在，或备份文件不可用（非 SQLite、完整性检查失败）；不要覆盖现有备份，改用新路径或重新生成。
 - `RESTORE_NOT_CONFIRMED`：恢复必须显式加 `--yes`；恢复后旧库会保留为 `accelerator.sqlite3.previous` 以便回滚。
 - `CORE_UNSUPPORTED`：没有核心能力满足该节点（协议 / UDP / IPv6 / 平台）；不要静默丢弃节点或改写配置，应换用具备能力的核心或从候选中排除该节点。
+- `PROFILE_PUBKEY_REQUIRED`：未注入 `ACCELERATOR_PROFILE_PUBKEY`（或公钥非法）；这是设计上的拒绝，不要为了“跑通”而绕过，也不要向仓库提交密钥。
+- `PROFILE_SIGNATURE_INVALID`：信封签名不匹配或文档被改动；更新会被拒绝且现有注册表保持不变。
+- `ROLLBACK_REJECTED`：远端 `version` 未严格大于本地版本；按发布流程重新签名递增版本，不要就地改版本号。
+- `NO_PREVIOUS_REGISTRY`：尚无 LKG 可回退（首次更新前或首次更新失败时属于正常状态）。
 - `STORAGE_FULL`：密文存储达到容量上限；保留数据和密钥，按备份流程处理，禁止自动清空 LKG。
 
 提交问题时仅提供版本、平台、固定错误码与合成测试输入。不附带 URL、token、UUID、密码、DNS/浏览记录。

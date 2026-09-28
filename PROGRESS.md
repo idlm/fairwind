@@ -67,17 +67,19 @@ Remaining:
 - 先解除相应 M0 和核心链路门禁，再执行 TASK.md 后续阶段。未开发 GUI。
 
 Milestone 7
-███░░░░░░░ 30%（离线骨架完成，远程更新与核心接入未做）
+██████░░░░ 60%（离线骨架与远程更新完成，核心接入与真机未做）
 
 Done:
 - Game Profile 严格 schema 校验：未知字段、catch-all/非公网 CIDR、路径式进程名、IP 混入 domains 一律拒绝。
 - 平台能力门禁：缺能力直接 `UNSUPPORTED_SELECTOR`，不静默降级。
 - 规则生成：用户 3000 > 游戏 2000（按 selector 具体程度递减）> 默认 1000，事务性写入 `routing_rules`。
-- `scripts/game_profiles.py` 离线入口（校验 + 生成 + 可选写入）。
+- 远程更新：ed25519 签名、版本严格递增防回滚、1 MiB 限额、能力校验先行、原子替换并保留 LKG（`--restore-previous` 互换回退）。
+- 信任根由 `ACCELERATOR_PROFILE_PUBKEY` 注入；没有公钥时拒绝一切远程规则，仓库不内置密钥。
+- `scripts/game_profiles.py`（离线校验与生成）与 `scripts/profile_update.py`（远程更新入口）。
 
 Tests:
-- `tests/test_game_profiles.py` 43 项；空注册表是合法状态，未伪造游戏规则数据。
+- `tests/test_game_profiles.py` 43 项、`tests/test_profile_update.py` 7 项；空注册表是合法状态，未伪造游戏规则数据。
 
 Remaining:
-- 远程更新的签名、公钥分发、防回滚与 LKG（信任根需项目所有者决定）。
 - 接入获审核心的真实进程/域名/CIDR 路由与真机验证。
+- 公钥轮换流程与官方注册表发布渠道（需项目所有者提供密钥与发布位置）。

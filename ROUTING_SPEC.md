@@ -8,7 +8,7 @@ Windows Modern 研究 WFP 与成熟 TUN 驱动，进程规则必须在目标系�
 
 离线策略层已实现（`core/accelerator/dns.py`）：只输出解析路径决策——IPv6 默认明确阻断、启用后强制走代理（能力不足则阻断），Fake-IP 默认关闭且需要 TUN，代理 DNS 失败一律返回明确阻断；缓存在进程内存中，有 TTL 与容量上限，不落盘、不写日志。尚未接入真实隧道。
 
-规则远程更新需要签名、版本、防回滚、大小限制、校验、原子替换和 LKG。初始 profile 文件仅是 schema 示例，未经验证不能用于真实游戏加速。
+规则远程更新需要签名、版本、防回滚、大小限制、校验、原子替换和 LKG（已实现：ed25519 签名覆盖规范 JSON、`version` 严格递增、1 MiB 限额、替换前先做能力校验、原子写入并保留 `game_profiles.previous.json`；信任根由 `ACCELERATOR_PROFILE_PUBKEY` 注入，缺失即拒绝）。初始 profile 文件仅是 schema 示例，未经验证不能用于真实游戏加速。
 
 ## 优先级与门禁（已实现部分）
 

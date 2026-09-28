@@ -47,6 +47,8 @@ uv run python scripts/backup.py --destination FILE          # 一致性备份（
 uv run python scripts/backup.py --restore-from FILE --yes   # 受验证恢复（旧库保留为 accelerator.sqlite3.previous）
 uv run python scripts/vault_gc.py                           # 引用感知密文 GC，只删除已无引用的密文
 uv run python scripts/game_profiles.py REGISTRY --write     # Game Profile 校验与路由规则生成
+uv run python scripts/profile_update.py --file ENVELOPE.json --tun --process-rules
+                                                        # 受签名保护的远程规则更新（保留 LKG）
 scripts/dns_evidence.sh <master-host>                       # 只读复现 Master 解析归因证据
 ```
 
