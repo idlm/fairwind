@@ -2,15 +2,20 @@
 
 | 组件 | 已读取的上游根许可 | 本次引入 | 发布门禁 |
 |---|---|---|---|
-| Xray-core | MPL-2.0 | 否 | 固定 release/hash；审查文件级修改、源码可得性、NOTICE、二进制与移动链接方式 |
-| sing-box | GPL-3.0-or-later，另含名称/关联声明限制 | 否 | 审查链接/分发与产品许可，不得自行复制到闭源仓库 |
-| Mihomo | 下述固定 commit 的根 LICENSE 是 MIT；不能沿用未验证的 GPL 假设 | 否 | 必须继续审查全树文件与传递依赖，根 LICENSE 不能替代完整分发审查 |
+| Xray-core | MPL-2.0（全文 16725 字节，含 "Incompatible With Secondary Licenses" 声明） | 否 | 固定 release/hash；审查文件级修改、源码可得性、NOTICE、二进制与移动链接方式；不得与 GPL 核心混编 |
+| sing-box | GPL-3.0-or-later（**短式声明 791 字节，非全文**）＋"衍生作品不得使用其名称或暗示关联"的附加条款 | 否 | 审查链接/分发与产品许可；不得自行复制到闭源仓库；附加条款需法务结论 |
+| Mihomo | 固定 commit 的根 LICENSE 是 MIT（1049 字节，版权行 "Copyright 2023 KT"）；不能沿用未验证的 GPL 假设 | 否 | 必须继续审查全树文件与传递依赖，根 LICENSE 不能替代完整分发审查 |
 | Windows TUN driver | 选型待定 | 否 | 驱动许可证、再分发、签名和目标系统兼容验证 |
 | aiohttp / PyYAML / cryptography | Apache/MIT/BSD（依具体发行包） | CLI 依赖 | 锁版本、保留 LICENSE、生成 SBOM |
+
+门禁细节与逐项清单见 `docs/CORE_REVIEW_CHECKLIST.md`；接入模型见 `docs/CORE_INTEGRATION_ADR.md`（提议待批准）。
+
 
 ## 2026-09-28 上游证据
 
 通过 GitHub API 获取 commit，再读取固定 commit 的 LICENSE；未下载或执行核心二进制。记录的 HEAD 是检查时快照，不是选择用于发布的版本。
+
+同一日改用脚本复核（`uv run python scripts/check_core_licenses.py`，只读固定 commit 的 `LICENSE` 并比对 SHA-256，需要网络）：三个候选的哈希**全部 MATCH**，并额外核对了文件长度、行数与内容特征（见 `docs/CORE_REVIEW_CHECKLIST.md` 第 0 节）。该脚本可随时重跑，用于确认证据未被篡改；它不属于离线 CI 门禁。
 
 | Repository | Commit | LICENSE SHA-256 |
 |---|---|---|

@@ -118,7 +118,7 @@ async def test_all_five_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
 
     from test_node_engine import FakeProbe
 
-    from accelerator import cli
+    from accelerator import host
 
     class OfflineFetcher:
         async def __aenter__(self):
@@ -128,8 +128,8 @@ async def test_all_five_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
             return None
 
     monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
-    monkeypatch.setattr(cli, "HttpFetcher", OfflineFetcher)
-    monkeypatch.setattr(cli, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
+    monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
+    monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
     commands = [
         ["subscriptions", "update", "--master-url", MASTER],
         ["nodes", "list"],

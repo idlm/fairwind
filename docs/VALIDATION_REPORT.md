@@ -4,7 +4,7 @@
 
 ## 已运行
 
-- `uv run pytest -q`：250 passed。全套测试无需互联网；marker 分层子集 unit 150 / integration 39 / security 53 / e2e 8，四者之和与全量一致。
+- `uv run pytest -q`：257 passed。全套测试无需互联网；marker 分层子集 unit 150 / integration 46 / security 53 / e2e 8，四者之和与全量一致。
 - `uv run ruff check .`：通过。
 - `uv run ruff format --check .`：通过。
 - `uv build`：生成 smart_accelerator-0.1.0-py3-none-any.whl 和对应 sdist。
@@ -15,6 +15,7 @@
 - `scripts/game_profiles.py`：空注册表 0 规则、缺能力 UNSUPPORTED_SELECTOR、写入后 SQLite 读回 5 条规则。
 - `scripts/profile_update.py`：缺公钥 PROFILE_PUBKEY_REQUIRED、v1→v2 保留 LKG、重复 v1 触发 ROLLBACK_REJECTED、`--restore-previous` 互换回退。
 - `scripts/dns_evidence.sh`：指定 Master 域名的权威 NODATA 归因可一键复现。
+- `scripts/check_core_licenses.py`：三个候选核心的根 LICENSE 按固定 commit 重新拉取并比对 SHA-256，结果全部 MATCH（需要网络，不属于离线门禁）。
 - 在仓库外使用隔离环境安装已构建 wheel，`accelerator --version` 返回 0.1.0。
 
 ## 证据范围
@@ -32,6 +33,8 @@ DNS 覆盖：A/AAAA 决策矩阵（IPv6 永不直连解析）、Fake-IP 需 TUN 
 适配器覆盖：协议/UDP/IPv6 能力缺口判定、平台过滤、无匹配核心时明确失败、连接历史状态往返（不含凭据）。
 
 Game Profile 更新覆盖：ed25519 验签（篡改文档、换密钥、非法 Base64 均拒绝）、版本防回滚、信封结构与 1 MiB 限额、能力校验失败时不替换、LKG 保留与互换回退、缺公钥拒绝。
+
+宿主覆盖：能力声明如实（未接入核心时全 false）、`connect/disconnect` 明确拒绝、状态与节点列表脱敏、敏感操作需密钥、按操作持锁（并发得到 OPERATION_BUSY）、签名规则仅在传入能力时落库、备份与 GC 委派。
 
 ## 未通过或未运行
 

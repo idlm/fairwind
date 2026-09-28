@@ -50,7 +50,10 @@ uv run python scripts/game_profiles.py REGISTRY --write     # Game Profile 校�
 uv run python scripts/profile_update.py --file ENVELOPE.json --tun --process-rules
                                                         # 受签名保护的远程规则更新（保留 LKG）
 scripts/dns_evidence.sh <master-host>                       # 只读复现 Master 解析归因证据
+uv run python scripts/check_core_licenses.py                # 按固定 commit 复核候选核心根 LICENSE 哈希（需网络）
 ```
+
+宿主契约与平台落地要求见 `docs/HOST_CONTRACT.md`；候选核心审查门禁见 `docs/CORE_REVIEW_CHECKLIST.md`，接入模型见 `docs/CORE_INTEGRATION_ADR.md`（提议待批准）。
 
 备份只包含普通 SQLite；`secrets/` 密文目录必须一起备份（内容寻址、不可变）。恢复需要显式 `--yes`，并在替换前校验 schema 版本、`integrity_check` 与 `key_check`。归档、恢复与 GC 都必须持 `operation_lock`，不做自动清理。Master 主机名不写入版本库，由调用方按需传入。
 

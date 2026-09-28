@@ -1,0 +1,123 @@
+"""宿主服务层的离线测试：能力声明、脱敏、按操作持锁、签名规则落库。"""
+
+import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+from accelerator.errors import SafeError
+from accelerator.host import HostService
+from accelerator.storage import operation_lock
+from conftest import MASTER
+
+pytestmark = pytest.mark.integration
+
+
+class OfflineFetcher:
+    def __init__(self, fetcher):
+        self.fetcher = fetcher
+
+    async def __aenter__(self):
+        return self.fetcher
+
+    async def __aexit__(self, *args):
+        return None
+
+
+@pytest.fixture
+def service(tmp_path, vault):
+    return HostService(tmp_path, vault)
+
+
+def test_capabilities_are_honest_and_connection_refused(service):
+    capabilities = service.capabilities()
+    assert capabilities["core"] == "NOT_INTEGRATED"
+    assert capabilities["connections"] == "CORE_NOT_INTEGRATED"
+    assert capabilities["protocols"] == []
+    assert not any(capabilities[flag] for flag in ("tun", "udp", "ipv6", "process_rules"))
+    assert "nodes.test" in capabilities["operations"]
+    assert "connect" not in capabilities["operations"]
+    for operation in (service.connect, service.disconnect):
+        with pytest.raises(SafeError, match="CORE_NOT_INTEGRATED"):
+            operation()
+
+
+def test_status_is_disconnected_and_sanitized(service):
+    status = service.status()
+    assert status["state"] == "DISCONNECTED" and status["core"] == "NOT_INTEGRATED"
+    assert status["nodes"] == 0 and status["subscriptions"] == []
+    assert status["routing_rules"] == 0
+
+
+async def test_full_flow_shapes(tmp_path, vault, fetcher, monkeypatch):
+    from test_node_engine import FakeProbe
+
+    from accelerator import host
+
+    monkeypatch.setattr(host, "HttpFetcher", lambda: OfflineFetcher(fetcher))
+    monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
+    service = HostService(tmp_path, vault)
+    summary = await service.update_subscriptions(MASTER)
+    assert summary["nodes"] == 2 and summary["partial_failure"] is False
+    listing = service.list_nodes()
+    assert listing["count"] == 2
+    assert set(listing["nodes"][0]) == {
+        "id",
+        "country",
+        "protocol",
+        "tags",
+        "state",
+        "score",
+        "availability",
+        "failure_rate",
+        "latency_ms",
+        "jitter_ms",
+        "packet_loss",
+        "samples",
+        "quality",
+        "components",
+    }
+    assert len(listing["nodes"][0]["id"]) == 12
+    counts = await service.test_nodes(samples=3, concurrency=1)
+    assert counts["states"]["AVAILABLE"] == 2
+    assert counts["packet_loss"] == "UNKNOWN_UNLESS_MEASURED"
+    assert len(service.best_nodes()["best"]) == 2
+    assert service.status()["nodes"] == 2
+
+
+def test_sensitive_operations_require_key(tmp_path):
+    service = HostService(tmp_path, None)
+    with pytest.raises(SafeError, match="SECRET_KEY_REQUIRED"):
+        service.collect_garbage()
+    assert service.status()["nodes"] == 0
+
+
+async def test_profiles_apply_persists_rules_only_with_capabilities(service, tmp_path):
+    from test_profile_update import ALL_CAPABILITIES, document, envelope
+
+    key = Ed25519PrivateKey.generate()
+    report = service.apply_profiles(envelope(key, document(1)), key.public_key())
+    assert report["version"] == 1 and "rules_persisted" not in report
+    assert service.routing_rules()["rules"] == []
+    report = service.apply_profiles(
+        envelope(key, document(2)), key.public_key(), ALL_CAPABILITIES, "windows"
+    )
+    assert report["rules_persisted"] == 2
+    rules = service.routing_rules()["rules"]
+    assert [rule["rule"]["source"] for rule in rules] == ["steam", "steam"]
+    assert service.previous_profiles() == {"version": 1, "profiles": 1}
+    assert service.restore_previous_profiles() == {"version": 1, "profiles": 1}
+
+
+def test_backup_and_garbage_collection(service, tmp_path):
+    orphan = service.vault.put({"url": "https://orphan.example/sub?token=synthetic"})
+    report = service.backup(tmp_path / "snapshots" / "host.sqlite3")
+    assert report["pages"] > 0 and len(report["digest"]) == 64
+    collected = service.collect_garbage()
+    assert collected["removed"] == 1
+    assert not (service.vault.root / (orphan + ".secret")).exists()
+
+
+def test_each_operation_takes_the_lock(tmp_path, vault):
+    service = HostService(tmp_path, vault)
+    with operation_lock(tmp_path), pytest.raises(SafeError, match="OPERATION_BUSY"):
+        service.status()
+    assert service.status()["state"] == "DISCONNECTED"

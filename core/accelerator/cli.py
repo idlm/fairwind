@@ -4,18 +4,14 @@ import json
 import os
 import sqlite3
 import sys
-from dataclasses import asdict
 from pathlib import Path
 
 from accelerator import __version__
 from accelerator.errors import SafeError
-from accelerator.network import HttpFetcher
-from accelerator.probing import UDP_TARGET_DEFAULT, NodeTester, ReferenceProbe
-from accelerator.scoring import SmartSelector, score_history
-from accelerator.security import SecretVault, canonical_host, private_directory, public_ip
+from accelerator.host import DEFAULT_PROBE_TARGET, HostService
+from accelerator.probing import UDP_TARGET_DEFAULT
+from accelerator.security import SecretVault, canonical_host, public_ip
 from accelerator.socks import is_ip_literal
-from accelerator.storage import Database, operation_lock
-from accelerator.subscription import SubscriptionEngine
 
 
 class SafeArgumentParser(argparse.ArgumentParser):
@@ -51,7 +47,7 @@ def make_parser() -> argparse.ArgumentParser:
     testing = nodes.add_parser("test")
     testing.add_argument("--samples", type=int, default=3)
     testing.add_argument("--concurrency", type=int, default=8)
-    testing.add_argument("--target", default="https://www.gstatic.com/generate_204")
+    testing.add_argument("--target", default=DEFAULT_PROBE_TARGET)
     testing.add_argument("--udp-target", default=None)
     testing.add_argument("--no-udp", action="store_true")
     best = nodes.add_parser("best")
@@ -86,87 +82,33 @@ def emit(value: object) -> None:
 
 
 async def execute(args: argparse.Namespace) -> int:
-    private_directory(args.data_dir)
-    for name in ("master", "subscriptions", "nodes", "geo"):
-        private_directory(args.data_dir / "cache" / name)
     sensitive = args.command == "subscriptions" or (
         args.command == "nodes" and args.action == "test"
     )
     vault = SecretVault.from_environment(args.data_dir / "secrets") if sensitive else None
-    with operation_lock(args.data_dir):
-        database = Database(args.data_dir, vault)
-        try:
-            if args.command == "subscriptions":
-                async with HttpFetcher() as fetcher:
-                    engine = SubscriptionEngine(database, vault, fetcher, interval=args.interval)
-                    summary = await engine.update(args.master_url, args.force)
-                emit(asdict(summary))
-                return 2 if summary.failed or summary.errors else 0
-            if args.command == "status":
-                emit(
-                    {
-                        "version": __version__,
-                        "state": "DISCONNECTED",
-                        "core": "NOT_INTEGRATED",
-                        "nodes": len(database.nodes()),
-                        "subscriptions": [
-                            {
-                                key: row[key]
-                                for key in (
-                                    "display_name",
-                                    "last_checked_at",
-                                    "last_success_at",
-                                    "node_count",
-                                    "enabled",
-                                    "failure_count",
-                                    "status",
-                                )
-                            }
-                            for row in database.subscriptions()
-                        ],
-                    }
-                )
-            elif args.action == "test":
-                backend = ReferenceProbe(
-                    args.target, udp_target=None if args.no_udp else udp_target(args.udp_target)
-                )
-                tester = NodeTester(database, backend, args.concurrency)
-                counts = await tester.run(args.samples)
-                emit(
-                    {
-                        "states": counts,
-                        "packet_loss": "UNKNOWN_UNLESS_MEASURED",
-                        "udp_measurement": "DISABLED" if args.no_udp else "SOCKS5_ONLY",
-                        "note": "TCP_ONLY_IS_NOT_PROXY_AVAILABILITY",
-                    }
-                )
-            elif args.action == "best":
-                ranked = SmartSelector().select(
-                    [(row, database.history(row["id"])) for row in database.nodes()],
-                    args.country,
-                )
-                emit({"best": ranked, "status": "OK" if ranked else "NO_ELIGIBLE_NODE"})
-            else:
-                rows = []
-                for row in database.nodes():
-                    if args.country and row["country"] != args.country.upper():
-                        continue
-                    history = database.history(row["id"])
-                    score = score_history(history)
-                    rows.append(
-                        {
-                            "id": row["id"][:12],
-                            "country": row["country"],
-                            "protocol": row["protocol"],
-                            "tags": json.loads(row["tags"]),
-                            "state": history[0]["state"] if history else "UNTESTED",
-                            **asdict(score),
-                        }
-                    )
-                emit({"nodes": rows, "count": len(rows)})
-            return 0
-        finally:
-            database.close()
+    service = HostService(args.data_dir, vault)
+    if args.command == "subscriptions":
+        summary = await service.update_subscriptions(args.master_url, args.force, args.interval)
+        emit(summary)
+        return 2 if summary["partial_failure"] else 0
+    if args.command == "status":
+        emit(service.status())
+        return 0
+    if args.action == "test":
+        emit(
+            await service.test_nodes(
+                samples=args.samples,
+                concurrency=args.concurrency,
+                target=args.target,
+                udp_target=None if args.no_udp else udp_target(args.udp_target),
+            )
+        )
+        return 0
+    if args.action == "best":
+        emit(service.best_nodes(args.country))
+        return 0
+    emit(service.list_nodes(args.country))
+    return 0
 
 
 def main() -> int:
