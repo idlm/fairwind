@@ -13,6 +13,8 @@
 - `PROXY_CONNECT_FAILED` / `PROXY_AUTH_FAILED`：代理 CONNECT 或 SOCKS5 协商被拒、认证失败；检查节点凭据与本机出口，不要把该节点当作可用。
 - `PROXY_HTTP_FAILED`：代理隧道建立成功但出口返回非 204；按不可用处理。
 - `PROBE_TLS_FAILED`：探测目标证书校验失败；不要关闭证书验证，检查节点是否劫持流量。
+- `PROXY_UDP_FAILED`：SOCKS5 UDP ASSOCIATE 被中继拒绝；该节点丢包保持 null，不影响 HTTP 出口结论。
+- `packet_loss` 为 null 表示未测量（非 SOCKS5、中继不支持、`--no-udp` 或 `udp: false`），不代表零丢包；不要把 HTTP 失败率当作 UDP 丢包。
 - `STORAGE_FULL`：密文存储达到容量上限；保留数据和密钥，按备份流程处理，禁止自动清空 LKG。
 
 提交问题时仅提供版本、平台、固定错误码与合成测试输入。不附带 URL、token、UUID、密码、DNS/浏览记录。

@@ -1,13 +1,14 @@
 """SOCKS5（RFC 1928 + RFC 1929）参考探测的离线集成测试。"""
 
 import asyncio
+import contextlib
 import socket
 import struct
 from types import SimpleNamespace
 
 import pytest
 
-from accelerator import probing
+from accelerator import probing, socks
 from accelerator.domain import TestState
 from accelerator.probing import ReferenceProbe
 
@@ -20,14 +21,26 @@ ATYP_IPV4 = 1
 ATYP_DOMAIN = 3
 ATYP_IPV6 = 4
 CMD_CONNECT = 1
+CMD_UDP_ASSOCIATE = 3
 
 
 @pytest.fixture
 async def socks5_fixture(probe_tls, monkeypatch):
     monkeypatch.setattr(probing, "client_ssl_context", lambda: probe_tls.client_context)
     monkeypatch.setattr(probing, "public_ip", lambda address: address == "127.0.0.1")
-    state = {"connects": 0, "reply": 0, "status": 204, "require_auth": False}
+    state = {
+        "connects": 0,
+        "reply": 0,
+        "status": 204,
+        "require_auth": False,
+        "udp": True,
+        "udp_associates": 0,
+        "udp_drop": False,
+        "udp_datagrams": 0,
+        "udp_replies": 0,
+    }
     active_tasks = set()
+    loop = asyncio.get_running_loop()
 
     async def endpoint(reader, writer):
         try:
@@ -44,6 +57,33 @@ async def socks5_fixture(probe_tls, monkeypatch):
         endpoint, "127.0.0.1", 0, ssl=probe_tls.server_context
     )
     endpoint_port = endpoint_server.sockets[0].getsockname()[1]
+
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket.setblocking(False)
+    udp_socket.bind(("127.0.0.1", 0))
+    udp_port = udp_socket.getsockname()[1]
+
+    async def udp_relay():
+        while True:
+            try:
+                async with asyncio.timeout(0.05):
+                    data, peer = await loop.sock_recvfrom(udp_socket, 4096)
+            except TimeoutError:
+                continue
+            except OSError:
+                return
+            parsed = socks.parse_datagram(data)
+            state["udp_datagrams"] += 1
+            if parsed is None or state["udp_drop"]:
+                continue
+            host, port, payload = parsed
+            if not payload.startswith(struct.pack(">H", socks.DNS_PROBE_ID)):
+                continue
+            answer = payload[:2] + b"\x81\x80\x00\x01\x00\x01\x00\x00\x00\x00"
+            udp_socket.sendto(socks.wrap_datagram(host, port, answer), peer)
+            state["udp_replies"] += 1
+
+    relay_task = asyncio.create_task(udp_relay())
 
     async def read_address(reader, address_type):
         if address_type == ATYP_IPV4:
@@ -94,6 +134,20 @@ async def socks5_fixture(probe_tls, monkeypatch):
                     return
             request = await reader.readexactly(4)
             _, port = await read_address(reader, request[3])
+            if request[1] == CMD_UDP_ASSOCIATE:
+                if not state["udp"]:
+                    await refuse(writer, 7)
+                    return
+                state["udp_associates"] += 1
+                writer.write(
+                    bytes([SOCKS_VERSION, 0, 0, ATYP_IPV4])
+                    + socket.inet_aton("127.0.0.1")
+                    + struct.pack(">H", udp_port)
+                )
+                await writer.drain()
+                while await reader.read(1024):
+                    pass
+                return
             if request[1] != CMD_CONNECT or port != endpoint_port:
                 await refuse(writer, 7)
                 return
@@ -122,9 +176,13 @@ async def socks5_fixture(probe_tls, monkeypatch):
 
     server = await asyncio.start_server(handle, "127.0.0.1", 0)
     port = server.sockets[0].getsockname()[1]
-    yield SimpleNamespace(port=port, endpoint_port=endpoint_port, state=state)
+    yield SimpleNamespace(port=port, endpoint_port=endpoint_port, udp_port=udp_port, state=state)
     server.close()
     endpoint_server.close()
+    relay_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await relay_task
+    udp_socket.close()
     await server.wait_closed()
     await endpoint_server.wait_closed()
     if active_tasks:
@@ -180,3 +238,53 @@ async def test_socks5_http_failure_not_available(parser, socks5_fixture):
     result = await ReferenceProbe(target(socks5_fixture.endpoint_port)).test_node(node)
     assert result.state == TestState.UNAVAILABLE and result.error_code == "PROXY_HTTP_FAILED"
     assert socks5_fixture.state["connects"] == 1
+
+
+def udp_probe(fixture, samples=3, udp_target=("127.0.0.1", 0)):
+    target_host, target_port = udp_target
+    return ReferenceProbe(
+        target(fixture.endpoint_port),
+        udp_target=(target_host, target_port or fixture.udp_port),
+        udp_samples=samples,
+    )
+
+
+async def test_socks5_udp_loss_measured(parser, socks5_fixture):
+    node = socks_node(parser, socks5_fixture.port, with_credentials=False)
+    result = await udp_probe(socks5_fixture).test_node(node)
+    assert result.state == TestState.AVAILABLE and result.verified
+    assert result.packet_loss == 0.0
+    assert socks5_fixture.state["udp_associates"] == 1
+    assert socks5_fixture.state["udp_replies"] == socks5_fixture.state["udp_datagrams"] == 3
+
+
+async def test_socks5_udp_full_loss_stays_available(parser, socks5_fixture):
+    socks5_fixture.state["udp_drop"] = True
+    node = socks_node(parser, socks5_fixture.port, with_credentials=False)
+    result = await udp_probe(socks5_fixture, samples=1).test_node(node)
+    assert result.state == TestState.AVAILABLE
+    assert result.packet_loss == 1.0
+
+
+async def test_socks5_udp_relay_refusal_keeps_unknown(parser, socks5_fixture):
+    socks5_fixture.state["udp"] = False
+    node = socks_node(parser, socks5_fixture.port, with_credentials=False)
+    result = await udp_probe(socks5_fixture, samples=1).test_node(node)
+    assert result.state == TestState.AVAILABLE
+    assert result.packet_loss is None
+
+
+async def test_socks5_udp_disabled_skips_measurement(parser, socks5_fixture):
+    node = socks_node(parser, socks5_fixture.port, with_credentials=False)
+    backend = ReferenceProbe(target(socks5_fixture.endpoint_port), udp_target=None)
+    result = await backend.test_node(node)
+    assert result.state == TestState.AVAILABLE and result.packet_loss is None
+    assert socks5_fixture.state["udp_associates"] == 0
+
+
+async def test_socks5_udp_option_false_skips_measurement(parser, socks5_fixture):
+    node = socks_node(parser, socks5_fixture.port, with_credentials=False)
+    node.secret.options["udp"] = False
+    result = await udp_probe(socks5_fixture, samples=1).test_node(node)
+    assert result.state == TestState.AVAILABLE and result.packet_loss is None
+    assert socks5_fixture.state["udp_associates"] == 0

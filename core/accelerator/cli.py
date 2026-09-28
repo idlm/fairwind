@@ -10,9 +10,10 @@ from pathlib import Path
 from accelerator import __version__
 from accelerator.errors import SafeError
 from accelerator.network import HttpFetcher
-from accelerator.probing import NodeTester, ReferenceProbe
+from accelerator.probing import UDP_TARGET_DEFAULT, NodeTester, ReferenceProbe
 from accelerator.scoring import SmartSelector, score_history
-from accelerator.security import SecretVault, private_directory
+from accelerator.security import SecretVault, canonical_host, private_directory, public_ip
+from accelerator.socks import is_ip_literal
 from accelerator.storage import Database, operation_lock
 from accelerator.subscription import SubscriptionEngine
 
@@ -51,10 +52,33 @@ def make_parser() -> argparse.ArgumentParser:
     testing.add_argument("--samples", type=int, default=3)
     testing.add_argument("--concurrency", type=int, default=8)
     testing.add_argument("--target", default="https://www.gstatic.com/generate_204")
+    testing.add_argument("--udp-target", default=None)
+    testing.add_argument("--no-udp", action="store_true")
     best = nodes.add_parser("best")
     best.add_argument("--country")
     commands.add_parser("status")
     return parser
+
+
+def udp_target(value: str | None) -> tuple[str, int] | None:
+    """解析 --udp-target；缺省使用内置公共 DNS 目标，非法输入直接拒绝。"""
+    if value is None:
+        return UDP_TARGET_DEFAULT
+    if value.startswith("["):
+        host, separator, rest = value[1:].partition("]")
+        port = rest.removeprefix(":")
+        if not separator or not port.isdigit():
+            raise SafeError("ARGUMENT_INVALID")
+    else:
+        host, separator, port = value.rpartition(":")
+        if not separator or not port.isdigit():
+            raise SafeError("ARGUMENT_INVALID")
+    if not 1 <= int(port) <= 65535:
+        raise SafeError("ARGUMENT_INVALID")
+    host = canonical_host(host)
+    if is_ip_literal(host) and not public_ip(host):
+        raise SafeError("ARGUMENT_INVALID")
+    return host, int(port)
 
 
 def emit(value: object) -> None:
@@ -103,12 +127,16 @@ async def execute(args: argparse.Namespace) -> int:
                     }
                 )
             elif args.action == "test":
-                tester = NodeTester(database, ReferenceProbe(args.target), args.concurrency)
+                backend = ReferenceProbe(
+                    args.target, udp_target=None if args.no_udp else udp_target(args.udp_target)
+                )
+                tester = NodeTester(database, backend, args.concurrency)
                 counts = await tester.run(args.samples)
                 emit(
                     {
                         "states": counts,
                         "packet_loss": "UNKNOWN_UNLESS_MEASURED",
+                        "udp_measurement": "DISABLED" if args.no_udp else "SOCKS5_ONLY",
                         "note": "TCP_ONLY_IS_NOT_PROXY_AVAILABILITY",
                     }
                 )

@@ -11,20 +11,28 @@ from urllib.parse import urlsplit
 from accelerator.domain import ProbeResult, ProxyNode, TestState
 from accelerator.errors import SafeError
 from accelerator.security import public_ip, validate_url
+from accelerator.socks import (
+    CONNECT,
+    MAX_DATAGRAM,
+    UDP_ASSOCIATE,
+    command,
+    dns_probe_query,
+    handshake,
+    is_dns_probe_response,
+    is_ip_literal,
+    parse_datagram,
+    wrap_datagram,
+)
 from accelerator.storage import Database
 
 MAX_CONCURRENT_TESTS = 8
 HTTP_OK = 200
 HTTP_NO_CONTENT = 204
-SOCKS_VERSION = 5
-SOCKS_NO_AUTH = 0
-SOCKS_USERNAME_PASSWORD = 2
-SOCKS_SUCCEEDED = 0
-SOCKS_AUTH_SUCCEEDED = 0
-SOCKS_CONNECT = 1
-SOCKS_IPV4 = 1
-SOCKS_DOMAIN = 3
-SOCKS_IPV6 = 4
+UDP_TARGET_DEFAULT = ("1.1.1.1", 53)
+UDP_SAMPLES = 5
+UDP_SAMPLE_TIMEOUT = 1.5
+UDP_MEASURE_TIMEOUT = 10.0
+UDP_FULL_LOSS = 1.0
 
 
 def client_ssl_context() -> ssl.SSLContext:
@@ -38,17 +46,10 @@ def supported_kind(node: ProxyNode) -> str | None:
         return None
     if node.protocol == "http" and not set(node.secret.options) - {"security"}:
         return "http"
-    if node.protocol == "socks" and not set(node.secret.options) - {"version"}:
+    if node.protocol == "socks" and not set(node.secret.options) - {"version", "udp"}:
         if node.secret.options.get("version", "5") == "5":
             return "socks"
     return None
-
-
-async def _read_exactly(reader: asyncio.StreamReader, count: int) -> bytes:
-    try:
-        return await reader.readexactly(count)
-    except asyncio.IncompleteReadError:
-        raise SafeError("PROXY_CONNECT_FAILED") from None
 
 
 async def _read_status_line(reader: asyncio.StreamReader, error_code: str) -> int:
@@ -72,39 +73,18 @@ async def _discard_headers(reader: asyncio.StreamReader, error_code: str) -> Non
         raise SafeError(error_code) from None
 
 
-async def _discard_bound_address(reader: asyncio.StreamReader, address_type: int) -> None:
-    if address_type == SOCKS_IPV4:
-        await _read_exactly(reader, 6)
-    elif address_type == SOCKS_IPV6:
-        await _read_exactly(reader, 18)
-    elif address_type == SOCKS_DOMAIN:
-        length = await _read_exactly(reader, 1)
-        await _read_exactly(reader, length[0] + 2)
-    else:
-        raise SafeError("PROXY_CONNECT_FAILED")
-
-
-def _encode_address(host: str, port: int) -> bytes:
-    try:
-        packed = socket.inet_pton(socket.AF_INET, host)
-    except OSError:
-        try:
-            packed = socket.inet_pton(socket.AF_INET6, host)
-        except OSError:
-            encoded = host.encode("idna")
-            if not encoded or len(encoded) > 255:
-                raise SafeError("PROBE_UNSUPPORTED") from None
-            return bytes([SOCKS_DOMAIN, len(encoded)]) + encoded + struct.pack(">H", port)
-        return bytes([SOCKS_IPV6]) + packed + struct.pack(">H", port)
-    return bytes([SOCKS_IPV4]) + packed + struct.pack(">H", port)
-
-
 class ProbeBackend(Protocol):
     async def test_node(self, node: ProxyNode) -> ProbeResult: ...
 
 
 class ReferenceProbe:
-    def __init__(self, target: str = "https://www.gstatic.com/generate_204", timeout: float = 10):
+    def __init__(
+        self,
+        target: str = "https://www.gstatic.com/generate_204",
+        timeout: float = 10,
+        udp_target: tuple[str, int] | None = UDP_TARGET_DEFAULT,
+        udp_samples: int = UDP_SAMPLES,
+    ):
         self.target = validate_url(target)
         parts = urlsplit(self.target)
         if parts.scheme != "https":
@@ -113,6 +93,8 @@ class ReferenceProbe:
         self.target_port = parts.port or 443
         self.target_path = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
         self.timeout = timeout
+        self.udp_target = udp_target
+        self.udp_samples = udp_samples
 
     async def test_node(self, node: ProxyNode) -> ProbeResult:
         kind = supported_kind(node)
@@ -132,6 +114,8 @@ class ReferenceProbe:
         except (OSError, ValueError, struct.error):
             result.state = TestState.UNAVAILABLE
             result.error_code = "PROBE_FAILED"
+        if kind == "socks" and result.state == TestState.AVAILABLE:
+            await self._measure_udp(node, result)
         return result
 
     async def _measure(self, node: ProxyNode, kind: str | None, result: ProbeResult) -> None:
@@ -181,38 +165,65 @@ class ReferenceProbe:
     async def _socks_connect(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, node: ProxyNode
     ) -> None:
-        credentials = node.secret.credentials
-        username = credentials.get("username", "")
-        password = credentials.get("password", "")
-        method = SOCKS_USERNAME_PASSWORD if username else SOCKS_NO_AUTH
-        writer.write(bytes([SOCKS_VERSION, 1, method]))
-        await writer.drain()
-        greeting = await _read_exactly(reader, 2)
-        if greeting[0] != SOCKS_VERSION:
-            raise SafeError("PROXY_CONNECT_FAILED")
-        if greeting[1] == SOCKS_USERNAME_PASSWORD:
-            if not 1 <= len(username) <= 255 or len(password) > 255:
-                raise SafeError("PROXY_AUTH_FAILED")
-            writer.write(
-                bytes([1, len(username)])
-                + username.encode()
-                + bytes([len(password)])
-                + password.encode()
+        await handshake(reader, writer, node)
+        await command(reader, writer, CONNECT, self.target_host, self.target_port)
+
+    async def _measure_udp(self, node: ProxyNode, result: ProbeResult) -> None:
+        """测量 UDP 丢包；不支持或失败时保持 null，不影响已确认的出口可用性结论。"""
+        if self.udp_target is None or node.secret.options.get("udp") is False:
+            return
+        try:
+            async with asyncio.timeout(UDP_MEASURE_TIMEOUT):
+                result.packet_loss = await self._udp_loss(node)
+        except (TimeoutError, SafeError, OSError, ValueError, struct.error):
+            result.packet_loss = None
+
+    async def _udp_loss(self, node: ProxyNode) -> float:
+        target_host, target_port = self.udp_target
+        if is_ip_literal(target_host) and not public_ip(target_host):
+            raise SafeError("URL_REJECTED")
+        loop = asyncio.get_running_loop()
+        addresses = await loop.getaddrinfo(
+            node.secret.server, node.secret.port, type=socket.SOCK_STREAM
+        )
+        if not addresses or any(not public_ip(record[4][0]) for record in addresses):
+            raise SafeError("URL_REJECTED")
+        proxy = addresses[0][4][0]
+        family = socket.AF_INET6 if ":" in proxy else socket.AF_INET
+        wildcard = "::" if family == socket.AF_INET6 else "0.0.0.0"
+        sock = socket.socket(family, socket.SOCK_DGRAM)
+        reader, writer = await asyncio.open_connection(proxy, node.secret.port)
+        try:
+            sock.setblocking(False)
+            sock.bind((wildcard, 0))
+            await handshake(reader, writer, node)
+            relay_host, relay_port = await command(
+                reader, writer, UDP_ASSOCIATE, wildcard, sock.getsockname()[1], "PROXY_UDP_FAILED"
             )
-            await writer.drain()
-            auth = await _read_exactly(reader, 2)
-            if auth[1] != SOCKS_AUTH_SUCCEEDED:
-                raise SafeError("PROXY_AUTH_FAILED")
-        elif greeting[1] != SOCKS_NO_AUTH:
-            raise SafeError("PROXY_AUTH_FAILED")
-        request = bytes([SOCKS_VERSION, SOCKS_CONNECT, 0])
-        request += _encode_address(self.target_host, self.target_port)
-        writer.write(request)
-        await writer.drain()
-        header = await _read_exactly(reader, 4)
-        if header[0] != SOCKS_VERSION or header[1] != SOCKS_SUCCEEDED:
-            raise SafeError("PROXY_CONNECT_FAILED")
-        await _discard_bound_address(reader, header[3])
+            if relay_host in {"", "0.0.0.0", "::"}:
+                relay_host = proxy
+            if not is_ip_literal(relay_host) or not public_ip(relay_host):
+                raise SafeError("URL_REJECTED")
+            payload = wrap_datagram(target_host, target_port, dns_probe_query())
+            received = 0
+            for _ in range(self.udp_samples):
+                await loop.sock_sendto(sock, payload, (relay_host, relay_port))
+                try:
+                    async with asyncio.timeout(UDP_SAMPLE_TIMEOUT):
+                        while True:
+                            data, _ = await loop.sock_recvfrom(sock, MAX_DATAGRAM)
+                            parsed = parse_datagram(data)
+                            if parsed and is_dns_probe_response(parsed[2]):
+                                received += 1
+                                break
+                except TimeoutError:
+                    continue
+            return round(UDP_FULL_LOSS - received / self.udp_samples, 3)
+        finally:
+            sock.close()
+            writer.close()
+            with contextlib.suppress(Exception):
+                await writer.wait_closed()
 
     async def _verify_exit(
         self,

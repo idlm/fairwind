@@ -12,7 +12,7 @@
 | 门禁可复现（规格 §28） | PASS；scripts/verify.sh 覆盖 lint/格式/离线测试/构建/产物检查 |
 | HTTP CONNECT / SOCKS5 真实出口探测 | LOCAL_INTEGRATION_PASS；本地代理 + TLS + 认证 + 204/500/407/协商拒绝 |
 | 测速限并发 / 滚动历史 / 评分 / Smart Select | PASS；601 节点最多 8 路、最近 10 次、低丢包优先 |
-| 分段延迟 tcp/handshake/http | PASS；三段独立测量；packet_loss 仍为 UNKNOWN |
+| 分段延迟与 UDP 丢包 | PASS；tcp/handshake/http 三段独立测量；SOCKS5 经 UDP ASSOCIATE 实测丢包，中继不支持时保持 null |
 | 有限重试 / 熔断 / Failover 控制器 | ADAPTER_FIXTURE_PASS；真实核心运行时尚未验证 |
 | 用户指定 Master 在线读取 | BLOCKED_EXTERNAL_REQUIREMENT；域名权威区无 A/AAAA 记录（NOERROR-NODATA，2026-09-28 复核），非本机解析器问题 |
 | VLESS/VMess/Trojan/SS 真实代理测试 | BLOCKED_EXTERNAL_REQUIREMENT；未嵌入获审核心，TCP 成功保持 UNTESTED；SOCKS5 改由参考探测覆盖 |

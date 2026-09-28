@@ -5,7 +5,9 @@ import sys
 
 import pytest
 
-from accelerator.cli import execute, make_parser
+from accelerator.cli import execute, make_parser, udp_target
+from accelerator.errors import SafeError
+from accelerator.probing import UDP_TARGET_DEFAULT
 from accelerator.subscription import SubscriptionEngine
 from conftest import MASTER
 
@@ -50,6 +52,23 @@ def test_cli_sensitive_command_missing_key(tmp_path):
     assert result.returncode == 2
     assert json.loads(result.stdout) == {"error": "SECRET_KEY_REQUIRED"}
     assert "synthetic-master-token" not in result.stdout + result.stderr
+
+
+def test_udp_target_parsing():
+    assert udp_target(None) == UDP_TARGET_DEFAULT
+    assert udp_target("1.1.1.1:53") == ("1.1.1.1", 53)
+    assert udp_target("example.com:5353") == ("example.com", 5353)
+    assert udp_target("[2606:4700:4700::1111]:53") == ("2606:4700:4700::1111", 53)
+    for invalid in (
+        "1.1.1.1",
+        "1.1.1.1:",
+        "1.1.1.1:0",
+        "1.1.1.1:99999",
+        "127.0.0.1:53",
+        "example.com:abc",
+    ):
+        with pytest.raises(SafeError, match="ARGUMENT_INVALID"):
+            udp_target(invalid)
 
 
 def test_invalid_cli_argument_not_echoed(tmp_path):
@@ -108,7 +127,7 @@ async def test_all_five_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
 
     monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
     monkeypatch.setattr(cli, "HttpFetcher", OfflineFetcher)
-    monkeypatch.setattr(cli, "ReferenceProbe", lambda target: FakeProbe())
+    monkeypatch.setattr(cli, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
     commands = [
         ["subscriptions", "update", "--master-url", MASTER],
         ["nodes", "list"],
