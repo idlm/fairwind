@@ -21,6 +21,28 @@ commit 重新拉取 `LICENSE` 并比对 SHA-256（需要网络，因此**不属�
 说明其许可文本需要法务判断；Xray 的 secondary-license 声明说明其代码**不能**与 GPL 代码混编进同一作品。
 **完整审查仍未完成**，因此三个候选当前都不得进入产品。
 
+## 0.1 身份核实（必须在许可审查之前）
+
+**教训**：许可哈希一致**不等于**候选有效。哈希只能证明"记录的那个文件还在"，无法证明"这个仓库就是我们要找的代理内核"。因此取证第一步必须是核实仓库身份。
+
+2026-09-28 用 `scripts/check_core_licenses.py`（GitHub API + 固定 commit 原始文件）复核实测：
+
+| 候选 | 仓库 | API 描述 | SPDX | Stars | commit 存在 | 处置 |
+|---|---|---|---|---|---|---|
+| Xray-core | `XTLS/Xray-core` | "Xray, Penetrates Everything. Also the best v2ray-core…" | MPL-2.0 | 41,830 | ✅ | AWAITING_OWNER_APPROVAL |
+| sing-box | `SagerNet/sing-box` | "The universal proxy platform" | **NOASSERTION** | 38,387 | ✅ | AWAITING_LEGAL_REVIEW |
+| ~~Mihomo~~ | `MetaCubeX/mihomo` | "A simple Python Pydantic model for Honkai: Star Rail parsed data…" | MIT | 34,485 | ✅ | **REJECTED_INVALID_IDENTITY** |
+
+脚本现在会打印 `blocked` / `awaiting_owner_or_legal` 两个分组，并在存在被否决候选时以非零退出——
+避免"哈希全对所以一切正常"的假安全感。
+
+身份核实清单：
+
+- [x] 仓库身份（描述 / SPDX / star 数 / 最近推送）由 API 取证并由脚本断言
+- [x] 固定 commit 存在性
+- [ ] 用途匹配：确认该仓库确实是代理内核，且支持目标协议集合（**不能只看名字**）
+- [ ] 与 `CORE_ADAPTER_SPEC.md` 的能力需求逐条对照
+
 ## 1. 版本与可复现证据
 
 - [ ] 选定发布版本（tag + commit，区别于本清单第 0 节的取证 commit）

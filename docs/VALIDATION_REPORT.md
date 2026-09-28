@@ -15,7 +15,7 @@
 - `scripts/game_profiles.py`：空注册表 0 规则、缺能力 UNSUPPORTED_SELECTOR、写入后 SQLite 读回 5 条规则。
 - `scripts/profile_update.py`：缺公钥 PROFILE_PUBKEY_REQUIRED、v1→v2 保留 LKG、重复 v1 触发 ROLLBACK_REJECTED、`--restore-previous` 互换回退。
 - `scripts/dns_evidence.sh`：指定 Master 域名的权威 NODATA 归因可一键复现。
-- `scripts/check_core_licenses.py`：三个候选核心的根 LICENSE 按固定 commit 重新拉取并比对 SHA-256，结果全部 MATCH（需要网络，不属于离线门禁）。
+- `scripts/check_core_licenses.py`：按固定 commit 复核**仓库身份（API 描述/SPDX/stars）+ commit 存在性 + LICENSE SHA-256**；实测三条哈希全部 MATCH，但身份核实发现 `MetaCubeX/mihomo` 并非代理内核，该候选被判 `REJECTED_INVALID_IDENTITY` 并使脚本以 exit 1 退出（需要网络，不属于离线门禁）。
 - 在仓库外使用隔离环境安装已构建 wheel，`accelerator --version` 返回 0.1.0。
 
 ## 证据范围

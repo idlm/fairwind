@@ -19,8 +19,9 @@ Mihomo 的根 LICENSE 是 MIT，但全树未审。
 
 1. **集成模型：进程隔离 sidecar。** 核心作为独立进程运行，业务层只通过版本化 IPC 契约调用；
    不在同一进程内链接核心代码。
-2. **候选优先级：第一阶段 Xray-core**（与 `CORE_ADAPTER_SPEC.md` 既定顺序一致），sing-box 与
-   Mihomo 暂不引入。
+2. **候选优先级：第一阶段 Xray-core**（与 `CORE_ADAPTER_SPEC.md` 既定顺序一致）。
+   2026-09-28 更正候选状态：**Mihomo 候选作废**（`MetaCubeX/mihomo` 经身份核实不是代理内核），
+   sing-box 待法务结论，因此目前**只有 Xray-core 是可用候选**。
 3. **门禁：任何核心进入产品前，必须走完 `CORE_REVIEW_CHECKLIST.md` 第 1–6 节**，未完成项为空才可批准。
 4. **禁止事项照旧**：不把核心二进制提交进仓库、不静态链接 GPL 核心、不做 DLL 注入或 Hook、
    不依赖单一核心而不经 Adapter。
