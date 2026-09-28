@@ -67,3 +67,20 @@ Core Adapter → Core Process/Library → Local Config Generator → Health Chec
 ```
 
 签名材料与凭据**不得写入源码、不得提交 Git**（`.p12` / `.keystore` / 私钥 / 签名口令一律禁止），也不得创建假证书。
+
+## 已发布基线记录：`v0.1.0-reference`
+
+| 项 | 值 |
+|---|---|
+| 收口 commit | `cf4835473fa7a2c46fa55ab5babb2d92f938a3e3` |
+| tag | `v0.1.0-reference`（annotated，指向上述 commit；**不可修改、不可 force-move**） |
+| Release URL | https://github.com/idlm/smart-accelerator/releases/tag/v0.1.0-reference |
+| 清单 | `docs/validation/VA-0.1.0-2026-09-28.manifest.json` |
+| 人读证据 | `docs/VALIDATION_REPORT.md` |
+| Gate 退出码 | lint / format / tests / build / artifact_hygiene / secret_gate 全部 `0` |
+| 测试 | `281 passed`（unit 150 / integration 70 / security 53 / e2e 8） |
+| 资产 | `smart_accelerator-0.1.0-py3-none-any.whl`、`smart_accelerator-0.1.0.tar.gz`、`VA-0.1.0-2026-09-28.zip`、`SHA256SUMS.txt`、`SBOM.json`、`TEST_REPORT.md`、`RELEASE_MANIFEST.json`（共 7 个） |
+| 资产摘要 | whl `686215fd…`、sdist `518faf85…`、TEST_REPORT `4d975b09…`、SBOM `9e753649…`、证据包 `2c5d2ba4…`（与 manifest 一致） |
+| 复核 | 2026-09-28 现场重查：`gh release view` 的 7 个资产 digest 与 manifest 逐项一致；tag 解引用仍为收口 commit |
+
+tag 之后的独立 docs commit（`880921b`）只新增上述清单，不改动已发布代码。B 周期（`v0.2.0` 开发线）的所有改动都在 tag 之后，不回写该 tag。

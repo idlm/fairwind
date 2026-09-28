@@ -2,6 +2,15 @@
 
 更新时间：2026-09-28。百分比为工作项进度，不代表可发布平台完成度。
 
+## 已发布基线：`v0.1.0-reference`
+
+- 收口 commit `cf4835473fa7a2c46fa55ab5babb2d92f938a3e3`，annotated tag `v0.1.0-reference`（**不可修改、不可 force-move**）。
+- Release：https://github.com/idlm/smart-accelerator/releases/tag/v0.1.0-reference — 7 个资产：wheel / sdist / `VA-0.1.0-2026-09-28.zip` 证据包 / `SHA256SUMS.txt` / `SBOM.json` / `TEST_REPORT.md` / `RELEASE_MANIFEST.json`。
+- Release Gate 六项退出码全 `0`；`281 passed`（unit 150 / integration 70 / security 53 / e2e 8）。
+- 清单 `docs/validation/VA-0.1.0-2026-09-28.manifest.json`；人读证据 `docs/VALIDATION_REPORT.md`；完整机器证据只作为 Release 资产（`evidence/` 已 gitignore）。
+- 2026-09-28 现场复核：`gh release view` 的 7 个资产 digest 与 manifest 逐项一致，tag 解引用仍为收口 commit。
+- tag 之后的一切改动都在 `v0.2.0` 开发线（本轮不打 tag），不回写该 tag；当前工作区能力见下方 Milestone 与 `CHANGELOG.md`。
+
 Milestone 0
 ██░░░░░░░░ 20%
 
