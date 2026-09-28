@@ -53,6 +53,14 @@ def make_parser() -> argparse.ArgumentParser:
     testing.add_argument("--no-udp", action="store_true")
     best = nodes.add_parser("best")
     best.add_argument("--country")
+    explaining = nodes.add_parser("explain")
+    explaining.add_argument("node_id")
+    route = commands.add_parser("route").add_subparsers(dest="action", required=True)
+    route_explain = route.add_parser("explain")
+    route_explain.add_argument("host")
+    route_explain.add_argument("--port", type=int)
+    route_explain.add_argument("--protocol", choices=("tcp", "udp"))
+    route_explain.add_argument("--process")
     commands.add_parser("status")
     serving = commands.add_parser("serve")
     serving.add_argument("--port", type=int, default=8765)
@@ -112,6 +120,12 @@ async def execute(args: argparse.Namespace) -> int:
         return 2 if summary["partial_failure"] else 0
     if args.command == "status":
         emit(service.status())
+        return 0
+    if args.command == "route":
+        emit(service.explain_route(args.host, args.port, args.protocol, args.process))
+        return 0
+    if args.action == "explain":
+        emit(service.node_detail(args.node_id))
         return 0
     if args.action == "test":
         emit(

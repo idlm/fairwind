@@ -4,21 +4,21 @@
 
 ## 已运行
 
-- `uv run pytest -q`：281 passed。全套测试无需互联网；marker 分层子集 unit 150 / integration 70 / security 53 / e2e 8，四者之和与全量一致。
+- `uv run pytest -q`：313 passed（unit 171 / integration 79 / security 53 / e2e 10）。全套测试无需互联网；四种 marker 子集之和与全量一致。
 - `uv run ruff check .`：通过。
 - `uv run ruff format --check .`：通过。
-- `uv build`：生成 smart_accelerator-0.1.0-py3-none-any.whl 和对应 sdist。
+- `uv build`：生成 smart_accelerator-0.2.0-py3-none-any.whl 和对应 sdist。
 - `scripts/verify.sh`：把上述 lint、格式、离线测试、构建与产物卫生检查固化为一条命令。
-- wheel 内容检查：20 个业务模块且与 `core/accelerator/*.py` 集合完全一致（漏打包即失败）、console_scripts 正确、wheel 不含 tests/scripts/profiles；wheel/sdist 均无 .secret / .sqlite3 / 环境缓存数据。
+- wheel 内容检查：业务模块集合与 `core/accelerator/*.py` 完全一致（漏打包即失败）、console_scripts 正确、wheel 不含 tests/scripts/profiles；wheel/sdist 均无 .secret / .sqlite3 / 环境缓存数据。
 - `scripts/backup.py`：状态检查（含 `required_secrets` / `missing_secrets`）、备份（页数/字节数/SHA-256）、密文快照（`--with-secrets`）、受验证恢复（缺 `--yes` 返回 RESTORE_NOT_CONFIRMED）。**缺密文的恢复被拒绝**（`SECRET_SNAPSHOT_INCOMPLETE`），补回密文后恢复成功且节点仍可解密。
 - `scripts/vault_gc.py`：删除孤儿密文 1→0、二次运行 0、缺密钥返回 SECRET_KEY_REQUIRED。
 - `scripts/game_profiles.py`：空注册表 0 规则、缺能力 UNSUPPORTED_SELECTOR、写入后 SQLite 读回 5 条规则。
 - `scripts/profile_update.py`：缺公钥 PROFILE_PUBKEY_REQUIRED、v1→v2 保留 LKG、重复 v1 触发 ROLLBACK_REJECTED、`--restore-previous` 互换回退。
-- `accelerator serve`：控制面端到端冒烟——无令牌 401、`/version` 显示 `NOT_INTEGRATED`、`/proxies` 空集、`POST /api/host/connect` 400、`/ui/` 返回面板且带 `X-Frame-Options: DENY`、未知字段 400。
+- `accelerator serve`：控制面端到端冒烟——无令牌 401、`/version` 显示 `NOT_INTEGRATED`、`/proxies` 空集、`POST /api/host/connect` 400、`/ui/` 返回面板且带 `X-Frame-Options: DENY`、未知字段 400。B 周期追加真实 socket 冒烟：`GET /api/host/route?host=example.com&port=443&protocol=tcp` 返回 `DEFAULT` 并回显 query、缺 `host` 返回 `ARGUMENT_INVALID`、`GET /api/host/nodes/zz` 与 `/deadbeef` 分别返回 `NODE_ID_INVALID` / `NODE_NOT_FOUND`、`GET /api/host/nodes/best` 未被 `/nodes/{id}` 路由吞掉（仍返回 `NO_ELIGIBLE_NODE`）、面板含两个 explain 入口。
 - `scripts/check_secrets.py`：受控文件密钥/路径门禁——当前 102 个文件 0 致命；负例验证（私钥块、`tests/` 之外的 `?token=` URL、`prod.env`、`*.sqlite3`、`*.secret`）全部被拦截并 exit 1。
 - `.gitattributes` 强制 LF（CI 矩阵含 windows runner）；实测 102 个受控文件均无 CR，因此不会改动任何夹具的语义。
 - `scripts/check_core_licenses.py`：按固定 commit 复核**仓库身份（API 描述/SPDX/stars）+ commit 存在性 + LICENSE SHA-256**；实测三条哈希全部 MATCH，但身份核实发现 `MetaCubeX/mihomo` 并非代理内核，该候选被判 `REJECTED_INVALID_IDENTITY` 并使脚本以 exit 1 退出（需要网络，不属于离线门禁）。
-- 在仓库外使用隔离环境安装已构建 wheel，`accelerator --version` 返回 0.1.0。
+- 在仓库外使用隔离环境安装已构建 wheel（`uv venv` + `uv pip install dist/smart_accelerator-0.2.0-py3-none-any.whl`）：`accelerator --version` 返回 0.2.0；`HostService.node_detail` / `explain_route`、`scoring.explain_score`、`routing.match_route` 均存在；空数据目录下 `route explain steam.example --port 443` 退出 0 并返回 `DEFAULT`，`nodes explain zz` / `nodes explain deadbeef` 分别以 `NODE_ID_INVALID` / `NODE_NOT_FOUND` 退出 2。证明新代码确实进入分发包，而不是只在源码树里可用。
 
 ## 证据范围
 
@@ -37,6 +37,8 @@ DNS 覆盖：A/AAAA 决策矩阵（IPv6 永不直连解析）、Fake-IP 需 TUN 
 Game Profile 更新覆盖：ed25519 验签（篡改文档、换密钥、非法 Base64 均拒绝）、版本防回滚、信封结构与 1 MiB 限额、能力校验失败时不替换、LKG 保留与互换回退、缺公钥拒绝。
 
 宿主覆盖：能力声明如实（未接入核心时全 false）、`connect/disconnect` 明确拒绝、状态与节点列表脱敏、敏感操作需密钥、按操作持锁（并发得到 OPERATION_BUSY）、签名规则仅在传入能力时落库、备份与 GC 委派。
+
+解释层覆盖（B 周期）：分数解释的分项实际值与 `score_history.components` 逐项相等、总分等于分项之和（证明没有隐藏负分项）、分项字段集合固定（无 `penalty`）、未测量输入如实列出并按保守基准计分、质量档位理由与档位阶梯来自同一函数；资格解释逐条对应 Smart Selector 的真实阈值（窗口 21600s / 最少 3 样本 / 可用率 0.8 / 最新状态），四种排除原因各自可复现，并验证"最新状态成功但样本全未 verified"由崩溃（`None < 0.8`）改为判不合格；选择解释与 `SmartSelector.select` 的选中集合、排序（含 `rank = score + 国家偏好 2` 与并列按 id）完全一致。节点详情覆盖前缀唯一命中/歧义/不存在/非法、来源订阅显示名（不含订阅标识）、最近 10 条历史字段集合，并对两个合成节点（含 trojan 密码与 UUID 型 URI）断言响应里不含密码、UUID、私钥、订阅 URL、服务器名或 `secret_ref`。路由解释覆盖首个命中与优先级顺序、用户规则压过游戏规则、进程 basename、端口/协议、CIDR 需 IP 字面量、域名精确匹配且不做通配符（`sub.game.example.com` 不命中 `game.example.com`）、缺失维度不猜、空规则表与未知 selector 均返回 `DEFAULT`。
 
 控制面覆盖：令牌文件 0600 与复用、符号链接拒绝、未授权一律 401、Clash 兼容子集如实返回（端口 0 / 空连接 / 0 流量且标注"未测量"）、`connect` 明确拒绝、未知字段与非法 JSON 400、超限 413、参数越界 400（history limit）、扩展端点形状（summary/subscriptions/dns/profiles/history）、面板不可逃逸 `/ui` 根、**仅绑定 127.0.0.1（真实 socket 断言）**、面板无外部资源引用、**面板结构对应规格 §22 五页且禁用项标注原因**。
 

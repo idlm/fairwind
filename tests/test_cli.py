@@ -14,7 +14,10 @@ from conftest import MASTER
 pytestmark = pytest.mark.e2e
 
 
-@pytest.mark.parametrize("command", [["status"], ["nodes", "list"], ["nodes", "best"]])
+@pytest.mark.parametrize(
+    "command",
+    [["status"], ["nodes", "list"], ["nodes", "best"], ["route", "explain", "example.com"]],
+)
 def test_cli_read_commands_without_key(tmp_path, command):
     environment = {
         key: value for key, value in os.environ.items() if key != "ACCELERATOR_SECRET_KEY"
@@ -147,3 +150,65 @@ async def test_all_five_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
     assert outputs[2]["states"]["AVAILABLE"] == 2
     assert len(outputs[3]["best"]) == 2
     assert outputs[4]["state"] == "DISCONNECTED"
+
+
+async def test_explain_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
+    import base64
+
+    from test_node_engine import FakeProbe
+
+    from accelerator import host
+
+    class OfflineFetcher:
+        async def __aenter__(self):
+            return fetcher
+
+        async def __aexit__(self, *args):
+            return None
+
+    monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
+    monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
+    monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
+    for command in (
+        ["subscriptions", "update", "--master-url", MASTER],
+        ["nodes", "test"],
+        ["nodes", "list"],
+    ):
+        args = make_parser().parse_args(["--data-dir", str(tmp_path), *command])
+        assert await execute(args) == 0
+        captured = capsys.readouterr()
+        if command[0] == "nodes" and command[1] == "list":
+            node_id = json.loads(captured.out)["nodes"][0]["id"]
+
+    args = make_parser().parse_args(["--data-dir", str(tmp_path), "nodes", "explain", node_id])
+    assert await execute(args) == 0
+    captured = capsys.readouterr()
+    detail = json.loads(captured.out)
+    assert detail["node"]["id"] == node_id and detail["state"] == "AVAILABLE"
+    assert detail["score_explanation"]["score"] == detail["score"]
+    assert detail["eligibility"]["status"] == "SELECTABLE"
+    assert len(detail["history"]) == 3
+    assert detail["note"] == "SENSITIVE_FIELDS_EXCLUDED"
+    for forbidden in (
+        "synthetic-password",
+        "synthetic-master-token",
+        "synthetic-source-token",
+        "hk.example",
+        "jp.example",
+        "source-a.example",
+        "11111111-1111-4111",
+    ):
+        assert forbidden not in captured.out + captured.err
+
+    route = make_parser().parse_args(
+        ["--data-dir", str(tmp_path), "route", "explain", "unknown.example", "--port", "443"]
+    )
+    assert await execute(route) == 0
+    explained = json.loads(capsys.readouterr().out)
+    assert explained["decision"] == "DEFAULT" and explained["matched_rule"] is None
+    assert explained["query"] == {"host": "unknown.example", "port": 443}
+    assert "未接入核心" in explained["note"]
+
+    invalid = make_parser().parse_args(["--data-dir", str(tmp_path), "nodes", "explain", "zz"])
+    with pytest.raises(SafeError, match="NODE_ID_INVALID"):
+        await execute(invalid)

@@ -247,3 +247,82 @@ def test_panel_matches_spec_information_architecture():
     assert 'id="connect" disabled' in text
     assert "不会、也不能声称已连接" in text
     assert "不填 0 冒充" in text
+    assert 'id="explain-node"' in text and 'id="explain-route"' in text
+    assert "/api/host/nodes/" in text and "/api/host/route?" in text
+    assert "评分分项" in text
+
+
+async def test_node_detail_and_route_endpoints_validate_input(control):
+    client, token, _ = control
+    headers = authorization(token)
+    invalid = await client.get("/api/host/nodes/zz", headers=headers)
+    assert invalid.status == 400 and await invalid.json() == {"error": "NODE_ID_INVALID"}
+    missing = await client.get("/api/host/nodes/deadbeef", headers=headers)
+    assert missing.status == 400 and await missing.json() == {"error": "NODE_NOT_FOUND"}
+    best = await client.get("/api/host/nodes/best", headers=headers)
+    assert best.status == 200 and (await best.json())["best"] == []
+    no_host = await client.get("/api/host/route", headers=headers)
+    assert no_host.status == 400 and await no_host.json() == {"error": "ARGUMENT_INVALID"}
+    for query in ("host=example.com&port=0", "host=example.com&port=abc", "host="):
+        response = await client.get(f"/api/host/route?{query}", headers=headers)
+        assert response.status == 400, query
+
+
+async def test_route_endpoint_returns_real_reasoning(control):
+    client, token, _ = control
+    headers = authorization(token)
+    response = await client.get(
+        "/api/host/route?host=steam.example&port=443&protocol=tcp", headers=headers
+    )
+    assert response.status == 200
+    payload = await response.json()
+    assert payload["decision"] == "DEFAULT" and payload["matched_rule"] is None
+    assert payload["evaluated"] == 0 and payload["considered"] == []
+    assert payload["query"] == {"host": "steam.example", "port": 443, "protocol": "tcp"}
+    assert "未接入核心" in payload["note"]
+    assert set(payload["semantics"]) == {"priority", "domains", "cidrs", "missing_dimension"}
+
+
+async def test_node_detail_endpoint_is_sanitized(tmp_path, vault, fetcher, monkeypatch):
+    from test_node_engine import FakeProbe
+
+    from accelerator import host
+
+    class OfflineFetcher:
+        async def __aenter__(self):
+            return fetcher
+
+        async def __aexit__(self, *args):
+            return None
+
+    monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
+    monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
+    token = load_or_create_token(tmp_path)
+    service = HostService(tmp_path, vault)
+    await service.update_subscriptions(MASTER)
+    await service.test_nodes(samples=3, concurrency=1)
+    node_id = service.list_nodes()["nodes"][0]["id"]
+    client = TestClient(TestServer(build_app(service, token)))
+    await client.start_server()
+    try:
+        headers = authorization(token)
+        response = await client.get(f"/api/host/nodes/{node_id}", headers=headers)
+        assert response.status == 200
+        body = await response.text()
+        detail = await response.json()
+        assert detail["node"]["id"] == node_id
+        assert detail["score_explanation"]["score"] == detail["score"]
+        assert detail["eligibility"]["status"] == "SELECTABLE"
+        assert [item["name"] for item in detail["score_explanation"]["components"]] == [
+            "latency",
+            "stability",
+            "packet_loss",
+            "recent_success",
+            "protocol",
+        ]
+        for forbidden in FORBIDDEN_IN_RESPONSE:
+            assert forbidden not in body
+        uppercase = await client.get(f"/api/host/nodes/{node_id.upper()}", headers=headers)
+        assert uppercase.status == 200
+    finally:
+        await client.close()

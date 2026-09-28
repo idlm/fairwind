@@ -191,6 +191,29 @@ async def handle_host_best(request: web.Request) -> web.Response:
     return _json(_service(request).best_nodes(request.query.get("country")))
 
 
+async def handle_host_node_detail(request: web.Request) -> web.Response:
+    """节点详情 + 分数解释 + 资格解释（只读，字段不含凭据）。"""
+    return _json(_service(request).node_detail(request.match_info["id"]))
+
+
+async def handle_host_route_explain(request: web.Request) -> web.Response:
+    """路由解释；缺 host 或非法 port 直接拒绝，不猜测。"""
+    host = request.query.get("host")
+    if not host:
+        raise SafeError("ARGUMENT_INVALID")
+    port = request.query.get("port")
+    if port is not None and (not port.isdigit() or not 1 <= int(port) <= 65535):
+        raise SafeError("ARGUMENT_INVALID")
+    return _json(
+        _service(request).explain_route(
+            host,
+            int(port) if port is not None else None,
+            request.query.get("protocol"),
+            request.query.get("process"),
+        )
+    )
+
+
 async def handle_host_routing(request: web.Request) -> web.Response:
     return _json(_service(request).routing_rules())
 
@@ -288,7 +311,9 @@ def build_app(service: HostService, token: str) -> web.Application:
     app.router.add_get(f"{HOST_PREFIX}/capabilities", handle_host_capabilities)
     app.router.add_get(f"{HOST_PREFIX}/nodes", handle_host_nodes)
     app.router.add_get(f"{HOST_PREFIX}/nodes/best", handle_host_best)
+    app.router.add_get(f"{HOST_PREFIX}/nodes/{{id}}", handle_host_node_detail)
     app.router.add_get(f"{HOST_PREFIX}/routing", handle_host_routing)
+    app.router.add_get(f"{HOST_PREFIX}/route", handle_host_route_explain)
     app.router.add_get(f"{HOST_PREFIX}/subscriptions", handle_host_subscriptions)
     app.router.add_get(f"{HOST_PREFIX}/summary", handle_host_summary)
     app.router.add_get(f"{HOST_PREFIX}/dns", handle_host_dns)

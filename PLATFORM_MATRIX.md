@@ -10,4 +10,4 @@
 
 CI runner 的操作系统版本不能替代目标平台验收。暂无原生安装包或 APK/IPA 产物。
 
-宿主契约（`docs/HOST_CONTRACT.md`）与参考服务层（`core/accelerator/host.py`）已就绪并通过离线测试：12 个操作、能力声明如实、连接操作明确拒绝、按操作持锁、输出脱敏。平台实现仍未开始，本表状态不变。
+宿主契约（`docs/HOST_CONTRACT.md`）与参考服务层（`core/accelerator/host.py`）已就绪并通过离线测试：14 个操作（含只读的 `node_detail` 与 `explain_route`）、能力声明如实、连接操作明确拒绝、按操作持锁、输出脱敏。平台实现仍未开始，本表状态不变。

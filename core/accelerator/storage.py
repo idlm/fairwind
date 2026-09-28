@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import re
 import shutil
 import sqlite3
 import time
@@ -50,6 +51,8 @@ PRAGMA user_version=1;
 
 
 SCHEMA_VERSION = 1
+# 节点 id 是十六进制摘要；前缀查询因此不会引入 LIKE 通配符。
+NODE_ID_PATTERN = re.compile(r"[0-9a-f]{4,64}")
 REFERENCE_COLUMN_QUERIES = (
     "SELECT secret_ref FROM subscriptions",
     "SELECT etag_ref FROM subscriptions WHERE etag_ref IS NOT NULL",
@@ -305,6 +308,41 @@ class Database:
                 "SELECT nodes.* FROM nodes WHERE EXISTS (SELECT 1 FROM node_sources ns "
                 "JOIN subscriptions sub ON ns.source_id=sub.id "
                 "WHERE ns.node_id=nodes.id AND sub.enabled=1) ORDER BY country, id"
+            )
+        ]
+
+    def find_node(self, prefix: str) -> dict:
+        """按 id 前缀查找**唯一**节点；不可见（无启用订阅来源）的节点与不存在一律视为找不到。
+
+        前缀必须是 4–64 位十六进制，因此 `LIKE` 不会被注入通配符；多个命中直接拒绝，
+        让调用方给出更长的前缀，而不是随便挑一个。
+        """
+        candidate = (prefix or "").strip().lower()
+        if not NODE_ID_PATTERN.fullmatch(candidate):
+            raise SafeError("NODE_ID_INVALID")
+        rows = [
+            dict(row)
+            for row in self.connection.execute(
+                "SELECT nodes.* FROM nodes WHERE nodes.id LIKE ? || '%' AND EXISTS "
+                "(SELECT 1 FROM node_sources ns JOIN subscriptions sub ON ns.source_id=sub.id "
+                "WHERE ns.node_id=nodes.id AND sub.enabled=1) ORDER BY id LIMIT 2",
+                (candidate,),
+            )
+        ]
+        if not rows:
+            raise SafeError("NODE_NOT_FOUND")
+        if len(rows) > 1:
+            raise SafeError("NODE_ID_AMBIGUOUS")
+        return rows[0]
+
+    def node_sources(self, node_id: str) -> list[str]:
+        """节点来源订阅的显示名；只有 `display_name`，**不含** id / url_hash。"""
+        return [
+            row[0]
+            for row in self.connection.execute(
+                "SELECT sub.display_name FROM node_sources ns JOIN subscriptions sub "
+                "ON ns.source_id=sub.id WHERE ns.node_id=? ORDER BY sub.display_name",
+                (node_id,),
             )
         ]
 

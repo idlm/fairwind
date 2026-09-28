@@ -4,6 +4,31 @@
 
 格式参考 Keep a Changelog；版本语义为参考基线，而非已发布产品。
 
+## [0.2.0] — 2026-09-28
+
+可解释性基线（B 周期，**不打 tag**）：把**既有** Domain Logic 暴露为节点详情、分数/资格/选择解释与路由解释。解释层不新增算法、不新增权重、不虚构负分项。
+
+### Implemented
+
+- **节点详情**：`HostService.node_detail()` / `GET /api/host/nodes/{id}` / `accelerator nodes explain NODE_ID` — 地区、协议、传输、TLS、标签、状态、延迟/抖动/丢包、成功率/失败率、最近测试时间、评分与质量、来源订阅显示名、最近 10 条探测历史；**绝不含** password、UUID、私钥、完整订阅 URL、token 或 `secret_ref`
+- **节点 id 前缀查询**：4–64 位十六进制，唯一命中；歧义 / 不存在 / 非法分别返回 `NODE_ID_AMBIGUOUS` / `NODE_NOT_FOUND` / `NODE_ID_INVALID`（前缀受字符集校验，不引入 `LIKE` 通配符）
+- **分数解释**：`scoring.explain_score()` 给出分项实际值/上限（latency ≤25、stability ≤25、packet_loss ≤30、recent_success ≤15、protocol 5）、**真实公式与输入**、未测量输入清单、质量档位判定理由；分项与总分直接取自 `score_history()` 同一实现
+- **资格解释**：`scoring.explain_eligibility()` 与 Smart Selector 共享同一判定函数，逐条列出窗口 / 最新状态 / 样本数 / 可用率阈值与实测值，并明确"资格排除不是扣分"
+- **选择解释**：`scoring.explain_selection()` 输出真实 `rank = score + 国家偏好 2 分`、并列按 id 升序，以及被排除节点及其失败项
+- **路由解释**：`routing.match_route()` / `routing.explain_route()` / `accelerator route explain HOST` / `GET /api/host/route?host=` — 按 `ROUTING_SPEC` 优先级做首个命中匹配，返回动作、命中规则（id/selector/value/priority/source）与判定理由；未命中为 `DEFAULT`
+- 面板新增「解释节点」与「路由解释」两处只读入口（调用与 CLI 相同的两个 API，不绕过 Domain Layer）
+- 修复潜在崩溃：最新探测状态为成功但样本全部未 `verified` 时，Smart Selector 曾因 `None < 0.8` 抛 `TypeError`；现按"可用率 0"判为不合格并给出原因
+
+### Not Yet Implemented
+
+- 与 0.1.0 相同：真实代理隧道、核心运行时接入、TUN/系统代理、原生 UI、代码签名与真机验证
+- 订阅管理 UI、可观测性（指标/日志/流量统计）不在本周期范围
+
+### Notes
+
+- 本周期只递增版本号，**不打 tag**；A 阶段 tag `v0.1.0-reference` 未移动，`evidence/` 仍在 `.gitignore` 中。
+- 解释层的每条"理由"都必须能对应到代码里的阈值或公式；数据模型没有的语义（如域名通配符 `*.example.com`）不会被发明出来——域名规则是精确匹配。
+
 ## [0.1.0-reference] — 2026-09-28
 
 第一个稳定参考基线：核心领域模型、参考算法与可复现的验证门禁。

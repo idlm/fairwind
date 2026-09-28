@@ -17,9 +17,20 @@ from accelerator.errors import SafeError
 from accelerator.network import HttpFetcher
 from accelerator.probing import UDP_TARGET_DEFAULT, NodeTester, ReferenceProbe
 from accelerator.profile_update import ProfileRegistry, load_public_key
-from accelerator.routing import generate_rules
-from accelerator.scoring import SmartSelector, score_history
-from accelerator.security import SecretVault, private_directory
+from accelerator.routing import (
+    RouteRule,
+    generate_rules,
+)
+from accelerator.routing import (
+    explain_route as explain_route_rules,
+)
+from accelerator.scoring import (
+    SmartSelector,
+    explain_eligibility,
+    explain_score,
+    score_history,
+)
+from accelerator.security import SecretVault, canonical_host, private_directory
 from accelerator.storage import Database, operation_lock
 from accelerator.subscription import SubscriptionEngine
 
@@ -42,13 +53,30 @@ OPERATIONS = (
     "nodes.list",
     "nodes.test",
     "nodes.best",
+    "nodes.detail",
     "profiles.apply",
     "profiles.previous",
     "profiles.restore",
     "routing.rules",
+    "routing.explain",
     "backup",
     "storage.gc",
 )
+NODE_ID_DISPLAY = 12
+HISTORY_FIELDS = (
+    "tested_at",
+    "state",
+    "tcp_ms",
+    "handshake_ms",
+    "http_ms",
+    "jitter_ms",
+    "packet_loss",
+    "verified",
+    "error_code",
+)
+ROUTING_PROTOCOLS = ("tcp", "udp")
+PORT_MIN = 1
+PORT_MAX = 65535
 
 
 class HostService:
@@ -129,6 +157,49 @@ class HostService:
                     }
                 )
         return {"nodes": rows, "count": len(rows)}
+
+    def node_detail(self, node_id: str) -> dict:
+        """节点详情（含分数解释与资格解释）。
+
+        只暴露已有数据：**不含** password、UUID、私钥、完整订阅 URL、token 或 secret_ref。
+        前缀不合法 / 找不到 / 有歧义，分别抛 `NODE_ID_INVALID` / `NODE_NOT_FOUND` /
+        `NODE_ID_AMBIGUOUS`。
+        """
+        with self._database() as database:
+            row = database.find_node(node_id)
+            history = database.history(row["id"])
+            sources = database.node_sources(row["id"])
+        explained = explain_score(history)
+        eligibility = explain_eligibility(history)
+        latest = history[0] if history else None
+        return {
+            "node": {
+                "id": row["id"][:NODE_ID_DISPLAY],
+                "protocol": row["protocol"],
+                "transport": row["transport"],
+                "tls": bool(row["tls"]),
+                "country": row["country"],
+                "region": row["region"],
+                "city": row["city"],
+                "tags": json.loads(row["tags"]),
+                "created_at": row["created_at"],
+            },
+            "state": latest["state"] if latest else "UNTESTED",
+            "last_tested_at": latest["tested_at"] if latest else None,
+            "latency_ms": explained["inputs"]["median_http_ms"],
+            "jitter_ms": explained["inputs"]["jitter_ms"],
+            "packet_loss": explained["inputs"]["packet_loss"],
+            "success_rate": explained["availability"],
+            "failure_rate": explained["failure_rate"],
+            "score": explained["score"],
+            "quality": explained["quality"],
+            "score_explanation": explained,
+            "eligibility": eligibility,
+            "history": [{key: item[key] for key in HISTORY_FIELDS} for item in history],
+            "sources": sources,
+            "core": "NOT_INTEGRATED",
+            "note": "SENSITIVE_FIELDS_EXCLUDED",
+        }
 
     def subscriptions(self) -> dict:
         """订阅列表：只有匿名显示名与计数，**不含** url_hash/id。"""
@@ -235,6 +306,45 @@ class HostService:
     def routing_rules(self) -> dict:
         with self._database() as database:
             return {"rules": database.routing_rules()}
+
+    def explain_route(
+        self,
+        host: str,
+        port: int | None = None,
+        protocol: str | None = None,
+        process: str | None = None,
+    ) -> dict:
+        """路由解释：按 `ROUTING_SPEC` 优先级给出 DIRECT/PROXY/DEFAULT 与真实理由。
+
+        查询维度缺失就不算命中（不猜）；规则表来自已落库的游戏规则，未接入核心时不会声称已连接。
+        """
+        query: dict = {"host": canonical_host(host)}
+        if port is not None:
+            if not PORT_MIN <= port <= PORT_MAX:
+                raise SafeError("ARGUMENT_INVALID")
+            query["port"] = port
+        if protocol is not None:
+            if protocol.lower() not in ROUTING_PROTOCOLS:
+                raise SafeError("ARGUMENT_INVALID")
+            query["protocol"] = protocol.lower()
+        if process is not None:
+            if not process.strip():
+                raise SafeError("ARGUMENT_INVALID")
+            query["process"] = process.strip()
+        with self._database() as database:
+            rows = database.routing_rules()
+        rules = [
+            RouteRule(
+                id=row["id"],
+                priority=row["priority"],
+                action=row["rule"]["action"],
+                selector=row["rule"]["selector"],
+                value=row["rule"]["value"],
+                source=row["rule"]["source"],
+            )
+            for row in rows
+        ]
+        return explain_route_rules(rules, query)
 
     def apply_profiles(
         self,

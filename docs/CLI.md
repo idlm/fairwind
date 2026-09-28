@@ -9,7 +9,9 @@
 | accelerator nodes list [--country JP] | 本机节点、分类、状态与解释性分项；不输出名称/服务器/凭据 |
 | accelerator nodes test [--samples 3] [--concurrency 8] [--udp-target HOST:PORT] [--no-udp] | 有限工作队列；历史最多 10 条；SOCKS5 经 UDP ASSOCIATE 实测丢包，其余保持 null |
 | accelerator nodes best [--country JP] | 至少 3 个最近有效测试样本、成功率 ≥80%、当前可用；地理偏好仅轻量加权 |
+| accelerator nodes explain NODE_ID | 节点详情 + 分数解释 + 资格解释；NODE_ID 为列表中的 12 位前缀（4–64 位十六进制均可，唯一命中）。**不含**凭据/订阅 URL |
 | accelerator status | 持久化节点、订阅与固定 DISCONNECTED；不会声称存在后台隧道 |
+| accelerator route explain HOST [--port P] [--protocol tcp\|udp] [--process NAME] | 按已落库规则给出生效动作（PROXY / DIRECT / DEFAULT）与命中的规则；未命中即 `DEFAULT`，不会声称已连接 |
 | accelerator serve [--port 8765] | 在 127.0.0.1 启动控制面与静态面板；token 写入 `<data-dir>/control.token`（0600），面板地址用 URL 片段携带 token |
 
 全局 `--data-dir PATH` 必须放在子命令前。只读命令不要求密钥；更新和测速要求 ACCELERATOR_SECRET_KEY。CLI 默认不显示高级脱敏 URL，不提供原始日志导出。
@@ -23,3 +25,23 @@ UDP 丢包只在 SOCKS5 且出口已验证可用时测量：通过 UDP ASSOCIATE
 实测得到的 `packet_loss` 会进入评分（未测量仍按保守中值计分），因此可测量 UDP 的节点在丢包分项上可能高于不可测量节点。
 
 固定错误码：`PROXY_CONNECT_FAILED`（CONNECT/SOCKS5 协商被拒）、`PROXY_AUTH_FAILED`（代理认证失败）、`PROXY_HTTP_FAILED`（出口返回非 204）、`PROBE_TLS_FAILED`（目标证书校验失败）、`PROBE_UNSUPPORTED`（无可用验证后端）、`PROBE_TIMEOUT`、`PROBE_FAILED`、`URL_REJECTED`；`PROXY_UDP_FAILED` 仅用于 UDP 丢包测量，不会改变节点状态。
+
+## 解释命令（Explain Mode）
+
+`nodes explain` 与 `route explain` 是**只读解释器**：它们不新增评分、权重或路由理由，只把既有 Domain Logic 的实际计算过程与判定条件原样输出。
+
+`accelerator nodes explain NODE_ID` 返回：
+
+- `node`：短 id、协议、传输、TLS、地区/区域/城市、标签、创建时间；`state` 与 `last_tested_at` 取自最近一次探测
+- `latency_ms` / `jitter_ms` / `packet_loss` / `success_rate` / `failure_rate` / `score` / `quality`
+- `score_explanation.components[]`：分项 `name`、`actual`、`maximum`（latency 25、stability 25、packet_loss 30、recent_success 15、protocol 5）、`formula`（代入实际数值的公式）与 `inputs`
+- `score_explanation.unknown_inputs`：未测量输入（如抖动/丢包）；未测量项按固定保守基准计分，**不伪造测量值**
+- `score_explanation.quality_reason`：质量档位的判定依据
+- `eligibility`：`SELECTABLE` / `EXCLUDED` 与逐条 `checks`（窗口、最新状态、样本数、可用率）、`failed_checks`、`excluded_reason`、`thresholds`
+- `history`：最近 10 条探测（`tested_at`/`state`/三段延迟/抖动/丢包/`verified`/`error_code`）、`sources`（订阅显示名）
+
+该算法**没有独立负分项**，因此输出里不存在 `penalty` 之类的字段：分数未拿满用"实际值/上限 + 公式 + 输入"表达，资格排除用 `eligibility` 表达，两者不混为一谈。
+
+`accelerator route explain HOST` 返回 `decision`（`PROXY` / `DIRECT` / `DEFAULT`）、`matched_rule`（`id`/`selector`/`value`/`priority`/`source`）、`reason`、`considered`（按优先级被评估的规则及每条未命中原因）、`query` 与 `semantics`。规则语义与 `ROUTING_SPEC.md` 一致：优先级数值越大越优先（用户 3000 > 游戏 2000 > 默认 1000），首个命中即决定；查询未提供的维度（进程/端口/协议）不算命中；域名规则是**精确匹配**（数据模型没有通配符语义）；CIDR 规则要求主机是 IP 字面量。
+
+固定错误码：`NODE_ID_INVALID`（前缀不是 4–64 位十六进制）、`NODE_NOT_FOUND`（不存在或来源订阅已禁用）、`NODE_ID_AMBIGUOUS`（前缀命中多个节点）、`ARGUMENT_INVALID`（端口越界、协议非 tcp/udp、端口非数字）、`HOST_REJECTED`（主机名为空/非法）。

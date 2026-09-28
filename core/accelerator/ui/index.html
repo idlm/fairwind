@@ -105,6 +105,12 @@
       <tbody id="nodes"><tr><td colspan="7" class="muted">尚未加载</td></tr></tbody>
     </table>
     <p class="muted">分类来自本地 classifier（名称/地区识别），评分来自最近 10 次真实探测；未测量项显示为「-」。</p>
+    <div class="row">
+      <input id="explain-node-id" placeholder="节点 ID（列表中的 12 位前缀）" autocomplete="off" style="min-width:220px">
+      <button id="explain-node">解释节点</button>
+      <span class="muted" id="explain-node-note"></span>
+    </div>
+    <pre id="explain-node-output">输入节点 ID：查看评分分项（实际值/上限/公式）与资格判定。只读，且不含任何凭据。</pre>
   </div>
 </section>
 
@@ -149,6 +155,16 @@
       <div class="row"><button id="apply-profiles">应用</button></div>
       <pre id="profiles-result">尚未执行</pre>
       <p class="muted">未传平台能力时只做签名/版本/schema 校验并落库注册表，不生成规则。</p>
+    </div>
+    <div class="card">
+      <h2>路由解释</h2>
+      <div class="row"><input id="explain-route-host" placeholder="主机名，如 steam.example" autocomplete="off"></div>
+      <div class="row">
+        <input id="explain-route-port" placeholder="端口（可选）" autocomplete="off" style="width:120px">
+        <input id="explain-route-protocol" placeholder="协议 tcp/udp（可选）" autocomplete="off" style="width:150px">
+      </div>
+      <div class="row"><button id="explain-route">解释</button></div>
+      <pre id="explain-route-output">按已落库规则给出动作与命中理由（未接入核心时不会声称已连接）。</pre>
     </div>
   </div>
 </section>
@@ -384,6 +400,27 @@ document.getElementById("token-save").addEventListener("click", () => {
   state.token = document.getElementById("token-input").value.trim();
   sessionStorage.setItem("accelerator.token", state.token);
   loadStatus();
+});
+document.getElementById("explain-node").addEventListener("click", async () => {
+  const id = document.getElementById("explain-node-id").value.trim();
+  if (!id) { text("explain-node-note", "缺少节点 ID"); return; }
+  try {
+    const detail = await call("/api/host/nodes/" + encodeURIComponent(id));
+    text("explain-node-note", "评分 " + detail.score + " · " + detail.quality + " · " + detail.eligibility.status);
+    text("explain-node-output", JSON.stringify(detail, null, 2));
+  } catch (error) { fail("explain-node-output", error); }
+});
+document.getElementById("explain-route").addEventListener("click", async () => {
+  const host = document.getElementById("explain-route-host").value.trim();
+  if (!host) { text("explain-route-output", "缺少主机名"); return; }
+  const port = document.getElementById("explain-route-port").value.trim();
+  const protocol = document.getElementById("explain-route-protocol").value.trim();
+  const query = ["host=" + encodeURIComponent(host)];
+  if (port) { query.push("port=" + encodeURIComponent(port)); }
+  if (protocol) { query.push("protocol=" + encodeURIComponent(protocol)); }
+  try {
+    text("explain-route-output", JSON.stringify(await call("/api/host/route?" + query.join("&")), null, 2));
+  } catch (error) { fail("explain-route-output", error); }
 });
 document.getElementById("forget-token").addEventListener("click", () => {
   sessionStorage.removeItem("accelerator.token");
