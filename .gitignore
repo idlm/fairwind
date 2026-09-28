@@ -13,3 +13,4 @@ build/
 .accelerator/
 cache/
 secrets/
+evidence/

@@ -39,6 +39,14 @@ uv build
 
 门禁已固化为 `scripts/verify.sh`（lint、格式、离线测试、构建与产物卫生检查：wheel/sdist 不得包含 `.secret`、`.sqlite3` 等敏感文件）。
 
+## 当前状态（`v0.1.0-reference`）
+
+**已实现（离线可验证）**：Master 一层加载与多源并发（单源失败隔离）、URI / Base64 / Clash·Mihomo YAML / sing-box JSON 严格解析、规范化与语义去重、地区分类、受限探测（HTTP CONNECT、SOCKS5、UDP 丢包实测）、滚动历史与可解释评分、Smart Select、Game Profile 校验与路由规则生成、签名远程更新与 LKG、AES-GCM 密文存储与引用感知 GC、SQLite 迁移/备份/恢复、DNS 策略引擎、本机控制面（Clash 兼容子集）与五页静态面板、五个 CLI 命令。
+
+**尚未实现（不依赖它们做任何宣称）**：真实代理隧道连接、Windows TUN 与系统代理、Android VpnService、iOS NetworkExtension、任何代理核心的运行时接入、代码签名、Apple entitlement、真机验证。核心接入模型仍是 `docs/CORE_INTEGRATION_ADR.md` 的**提议**（候选仅 Xray-core，待批准），因此 `connect` 类操作固定返回 `CORE_NOT_INTEGRATED`。
+
+能力边界与版本历史见 `CHANGELOG.md`；验证证据见 `docs/VALIDATION_REPORT.md`（人读）与对应 Release 的机器证据资产。
+
 ## 维护与诊断
 
 ```bash
