@@ -13,4 +13,8 @@
 
 全局 `--data-dir PATH` 必须放在子命令前。只读命令不要求密钥；更新和测速要求 ACCELERATOR_SECRET_KEY。CLI 默认不显示高级脱敏 URL，不提供原始日志导出。
 
-HTTP 探测通过 CONNECT 请求 HTTPS 204 测试地址，证书验证开启。TCP/HTTP 延迟分别记录，独立握手延迟和网络层丢包尚未测量，保持 null。HTTP 请求失败率不冒充 UDP packet loss。其他协议在接入获审核心前不进入 AVAILABLE。
+探测只覆盖可离线验证的代理类型：HTTP CONNECT 与 SOCKS5（RFC 1928 + RFC 1929，支持无认证与用户名/密码）。其余协议在接入获审核心前保持 UNTESTED，不进入 AVAILABLE。探测通过代理请求配置的 HTTPS 204 测试地址，证书验证开启，不接受重定向。
+
+延迟分三段独立记录：`tcp_ms`（到代理的 TCP 连接）、`handshake_ms`（代理协议协商 + 到目标的 TLS 握手）、`http_ms`（隧道内 HTTP 请求到响应）。网络层 UDP 丢包尚未测量，`packet_loss` 保持 null；HTTP 请求失败率不冒充 UDP packet loss。
+
+固定错误码：`PROXY_CONNECT_FAILED`（CONNECT/SOCKS5 协商被拒）、`PROXY_AUTH_FAILED`（代理认证失败）、`PROXY_HTTP_FAILED`（出口返回非 204）、`PROBE_TLS_FAILED`（目标证书校验失败）、`PROBE_UNSUPPORTED`（无可用验证后端）、`PROBE_TIMEOUT`、`PROBE_FAILED`、`URL_REJECTED`。

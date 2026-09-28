@@ -33,20 +33,21 @@ Remaining:
 - BLOCKED_EXTERNAL_REQUIREMENT：指定 Master 域名在其权威区没有发布 A/AAAA 记录（NOERROR-NODATA；2026-09-28 经权威 NS 与 1.1.1.1/8.8.8.8 复核，非本机解析器故障），真实多订阅联网验收未通过；改用可解析的等价 Master 可重跑。
 
 Milestone 2
-██████░░░░ 60%
+███████░░░ 70%（离线实现完成，真实核心与 UDP 丢包阻塞）
 
 Done:
 - 上限 8 路工作队列；最近 10 次历史；availability、failure rate、HTTP 延迟变化与解释性评分。
 - Smart Select 排除单次快测、陈旧、未验证、频繁失败及当前失败节点。
-- 本地真实 HTTP CONNECT + HTTPS 204 探测，验证认证错误与出口错误的拒绝。
+- 本地真实 HTTP CONNECT 与 SOCKS5（含用户名/密码认证）探测，验证认证错误、协商拒绝与出口错误的拒绝。
+- 延迟拆分为 tcp_ms / handshake_ms / http_ms 三段独立测量。
 - Retry/backoff/circuit breaker/failover 控制器与取消清理通过可控 adapter 测试。
 
 Tests:
-- 已纳入上述 154 项；没有使用伪造在线节点结果。
+- 已纳入上述 159 项；没有使用伪造在线节点结果。
 
 Remaining:
-- 获审核心的 VLESS/VMess/Trojan/SS/SOCKS 真实代理握手和端到端测试。
-- 独立 handshake latency、实测网络层/UDP 丢包和长期稳定性；未知项保持 null。
+- 获审核心的 VLESS/VMess/Trojan/SS 真实代理握手和端到端测试。
+- 实测网络层/UDP 丢包和长期稳定性；未知项保持 null（packet_loss 仍为 null）。
 - 真实核心运行时 Failover 与 DNS/IPv6 泄漏验收。
 
 Milestone 3–8

@@ -1,15 +1,8 @@
 import asyncio
 import base64
 import contextlib
-import datetime
-import ssl
 
-import aiohttp.connector
 import pytest
-from cryptography import x509
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID
 
 from accelerator import probing
 from accelerator.domain import TestState
@@ -17,37 +10,8 @@ from accelerator.probing import ReferenceProbe
 
 
 @pytest.fixture
-async def proxy_fixture(tmp_path, monkeypatch):
-    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "probe.example")])
-    now = datetime.datetime.now(datetime.UTC)
-    certificate = (
-        x509.CertificateBuilder()
-        .subject_name(subject)
-        .issuer_name(subject)
-        .public_key(private_key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(now - datetime.timedelta(days=1))
-        .not_valid_after(now + datetime.timedelta(days=1))
-        .add_extension(x509.SubjectAlternativeName([x509.DNSName("probe.example")]), critical=False)
-        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
-        .sign(private_key, hashes.SHA256())
-    )
-    cert_path = tmp_path / "fixture-cert.pem"
-    key_path = tmp_path / "fixture-key.pem"
-    certificate_pem = certificate.public_bytes(serialization.Encoding.PEM)
-    cert_path.write_bytes(certificate_pem)
-    key_path.write_bytes(
-        private_key.private_bytes(
-            serialization.Encoding.PEM,
-            serialization.PrivateFormat.PKCS8,
-            serialization.NoEncryption(),
-        )
-    )
-    server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    server_context.load_cert_chain(cert_path, key_path)
-    client_context = ssl.create_default_context(cadata=certificate_pem.decode())
-    monkeypatch.setattr(aiohttp.connector, "_SSL_CONTEXT_VERIFIED", client_context)
+async def proxy_fixture(probe_tls, monkeypatch):
+    monkeypatch.setattr(probing, "client_ssl_context", lambda: probe_tls.client_context)
     monkeypatch.setattr(probing, "public_ip", lambda address: address == "127.0.0.1")
     state = {"status": 204, "connects": 0}
     active_tasks = set()
@@ -65,7 +29,9 @@ async def proxy_fixture(tmp_path, monkeypatch):
             with contextlib.suppress(ConnectionError):
                 await writer.wait_closed()
 
-    endpoint_server = await asyncio.start_server(endpoint, "127.0.0.1", 0, ssl=server_context)
+    endpoint_server = await asyncio.start_server(
+        endpoint, "127.0.0.1", 0, ssl=probe_tls.server_context
+    )
     endpoint_port = endpoint_server.sockets[0].getsockname()[1]
 
     async def tunnel(reader, writer):
@@ -122,7 +88,8 @@ async def test_real_connect_tls_and_authentication(parser, proxy_fixture):
     result = await backend.test_node(node)
     assert result.state == TestState.AVAILABLE and result.verified
     assert result.tcp_ms is not None and result.http_ms is not None
-    assert result.packet_loss is None and result.handshake_ms is None
+    assert result.handshake_ms is not None and result.handshake_ms > 0
+    assert result.packet_loss is None
     assert state["connects"] == 1
     node.secret.credentials["password"] = "wrong-fixture-password"
     result = await backend.test_node(node)
