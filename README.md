@@ -41,7 +41,8 @@ uv build
 ## 维护与诊断
 
 ```bash
-scripts/verify.sh                                           # 一键门禁
+scripts/verify.sh                                           # 一键门禁（lint/格式/测试/构建/产物卫生）
+uv run python scripts/check_artifacts.py                    # 产物卫生：敏感文件 + 模块集合必须与源码一致
 uv run python scripts/backup.py --status                    # schema 版本、完整性、节点/订阅/规则计数、密文缺失数
 uv run python scripts/backup.py --destination FILE --with-secrets
                                                         # 一致性备份：SQLite + 密文快照（缺一不可）

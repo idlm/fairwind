@@ -9,7 +9,7 @@
 - `uv run ruff format --check .`：通过。
 - `uv build`：生成 smart_accelerator-0.1.0-py3-none-any.whl 和对应 sdist。
 - `scripts/verify.sh`：把上述 lint、格式、离线测试、构建与产物卫生检查固化为一条命令。
-- wheel 内容检查：18 个业务模块，console_scripts 正确；wheel/sdist 均无 .secret / .sqlite3 / 环境缓存数据。
+- wheel 内容检查：20 个业务模块且与 `core/accelerator/*.py` 集合完全一致（漏打包即失败）、console_scripts 正确、wheel 不含 tests/scripts/profiles；wheel/sdist 均无 .secret / .sqlite3 / 环境缓存数据。
 - `scripts/backup.py`：状态检查（含 `required_secrets` / `missing_secrets`）、备份（页数/字节数/SHA-256）、密文快照（`--with-secrets`）、受验证恢复（缺 `--yes` 返回 RESTORE_NOT_CONFIRMED）。**缺密文的恢复被拒绝**（`SECRET_SNAPSHOT_INCOMPLETE`），补回密文后恢复成功且节点仍可解密。
 - `scripts/vault_gc.py`：删除孤儿密文 1→0、二次运行 0、缺密钥返回 SECRET_KEY_REQUIRED。
 - `scripts/game_profiles.py`：空注册表 0 规则、缺能力 UNSUPPORTED_SELECTOR、写入后 SQLite 读回 5 条规则。
