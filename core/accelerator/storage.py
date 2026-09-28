@@ -8,7 +8,8 @@ from pathlib import Path
 
 from accelerator.domain import NodeSecret, ProbeResult, ProxyNode
 from accelerator.errors import SafeError
-from accelerator.security import REFERENCE_PATTERN, SecretVault, private_directory
+from accelerator.routing import RouteRule, rule_payload
+from accelerator.security import REFERENCE_PATTERN, SecretVault, canonical_json, private_directory
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS subscriptions (
@@ -153,6 +154,26 @@ class Database:
             if row[0] and REFERENCE_PATTERN.fullmatch(row[0]):
                 references.add(row[0])
         return references
+
+    def replace_routing_rules(self, rules: list[RouteRule]) -> None:
+        """事务性替换路由规则表；空列表等价于清空（尚无可用游戏规则）。"""
+        with self.connection:
+            self.connection.execute("DELETE FROM routing_rules")
+            self.connection.executemany(
+                "INSERT INTO routing_rules VALUES (?,?,?)",
+                [
+                    (rule.id, rule.priority, canonical_json(rule_payload(rule)).decode())
+                    for rule in rules
+                ],
+            )
+
+    def routing_rules(self) -> list[dict]:
+        return [
+            {"id": row[0], "priority": row[1], "rule": json.loads(row[2])}
+            for row in self.connection.execute(
+                "SELECT id, priority, rule FROM routing_rules ORDER BY priority DESC, id"
+            )
+        ]
 
     def nodes(self) -> list[dict]:
         return [

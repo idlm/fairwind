@@ -10,7 +10,7 @@ SQLite 使用外键、WAL、显式事务与 `user_version` 迁移版本。
 | node_stats | TCP/handshake/HTTP 延迟、抖动、实测丢包(可空)、代理 availability、failure rate、状态、测试时间；每节点保留最近 10 条 |
 | settings | 非敏感配置、Master 的加密引用及缓存验证器引用 |
 | connection_history | 固定状态/错误码，不包含凭据 |
-| game_profiles / routing_rules | 版本化规则预留，禁止脚本 |
+| game_profiles / routing_rules | 版本化规则预留，禁止脚本；routing_rules 现已由 Game Profile 生成器事务性写入（canonical JSON，priority 数值越大越优先），尚未接入核心 |
 
 `ProxyNode` 的完整连接参数（server、port、SNI、传输 path/host、认证、原始名称）放在单独加密 Secret Model；普通节点表只保存展示与分类所需字段。多来源不存在唯一 source_id，以 `node_sources` 为准。
 

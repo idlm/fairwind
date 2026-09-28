@@ -51,14 +51,30 @@ Remaining:
 - 长期稳定性与真实网络的丢包基线；未知项保持 null。
 - 真实核心运行时 Failover 与 DNS/IPv6 泄漏验收。
 
-Milestone 3–8
+Milestone 3–6、8
 ░░░░░░░░░░ 0%
 
 Done:
-- 平台、adapter、Game Profile 的边界文档。
+- 平台与 adapter 的边界文档。
 
 Tests:
-- 原生平台、GUI、安装包、签名、游戏规则更新尚未实现或验收。
+- 原生平台、GUI、安装包与签名尚未实现或验收。
 
 Remaining:
 - 先解除相应 M0 和核心链路门禁，再执行 TASK.md 后续阶段。未开发 GUI。
+
+Milestone 7
+███░░░░░░░ 30%（离线骨架完成，远程更新与核心接入未做）
+
+Done:
+- Game Profile 严格 schema 校验：未知字段、catch-all/非公网 CIDR、路径式进程名、IP 混入 domains 一律拒绝。
+- 平台能力门禁：缺能力直接 `UNSUPPORTED_SELECTOR`，不静默降级。
+- 规则生成：用户 3000 > 游戏 2000（按 selector 具体程度递减）> 默认 1000，事务性写入 `routing_rules`。
+- `scripts/game_profiles.py` 离线入口（校验 + 生成 + 可选写入）。
+
+Tests:
+- `tests/test_game_profiles.py` 43 项；空注册表是合法状态，未伪造游戏规则数据。
+
+Remaining:
+- 远程更新的签名、公钥分发、防回滚与 LKG（信任根需项目所有者决定）。
+- 接入获审核心的真实进程/域名/CIDR 路由与真机验证。
