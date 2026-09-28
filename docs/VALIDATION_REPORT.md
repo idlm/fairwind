@@ -15,6 +15,8 @@
 - `scripts/game_profiles.py`：空注册表 0 规则、缺能力 UNSUPPORTED_SELECTOR、写入后 SQLite 读回 5 条规则。
 - `scripts/profile_update.py`：缺公钥 PROFILE_PUBKEY_REQUIRED、v1→v2 保留 LKG、重复 v1 触发 ROLLBACK_REJECTED、`--restore-previous` 互换回退。
 - `accelerator serve`：控制面端到端冒烟——无令牌 401、`/version` 显示 `NOT_INTEGRATED`、`/proxies` 空集、`POST /api/host/connect` 400、`/ui/` 返回面板且带 `X-Frame-Options: DENY`、未知字段 400。
+- `scripts/check_secrets.py`：受控文件密钥/路径门禁——当前 102 个文件 0 致命；负例验证（私钥块、`tests/` 之外的 `?token=` URL、`prod.env`、`*.sqlite3`、`*.secret`）全部被拦截并 exit 1。
+- `.gitattributes` 强制 LF（CI 矩阵含 windows runner）；实测 102 个受控文件均无 CR，因此不会改动任何夹具的语义。
 - `scripts/check_core_licenses.py`：按固定 commit 复核**仓库身份（API 描述/SPDX/stars）+ commit 存在性 + LICENSE SHA-256**；实测三条哈希全部 MATCH，但身份核实发现 `MetaCubeX/mihomo` 并非代理内核，该候选被判 `REJECTED_INVALID_IDENTITY` 并使脚本以 exit 1 退出（需要网络，不属于离线门禁）。
 - 在仓库外使用隔离环境安装已构建 wheel，`accelerator --version` 返回 0.1.0。
 

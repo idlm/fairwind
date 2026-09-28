@@ -1,0 +1,5 @@
+# 统一换行：CI 矩阵含 windows runner，强制 LF 可避免 ruff format --check 在 Windows 上失败。
+* text=auto eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf

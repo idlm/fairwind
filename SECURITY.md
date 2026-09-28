@@ -11,3 +11,5 @@
 真实源地址通过外部配置提供，不提交 Git。无遥测、无自动上传。漏洞报告不得附带真实订阅或凭据，使用合成可复现数据。
 
 控制面（`accelerator serve`）只监听 127.0.0.1，强制 `Authorization: Bearer <token>`（token 文件 0600，不写日志、不回显），不使用 `*` CORS，请求体有上限，面板响应带 `X-Frame-Options: DENY` 与同源 CSP，静态面板不可逃逸 `/ui` 根。控制面不提供任何"声称已连接"的能力：未接入核心时 `POST /api/host/connect` 返回 `CORE_NOT_INTEGRATED`。`panel_url` 会把 token 放在 URL 片段里以便浏览器使用——不要分享该 URL，也不要把它粘贴到聊天、工单或截图里。
+
+发布前门禁：`scripts/check_secrets.py` 对**受控文件**做密钥与路径扫描——私钥块与常见令牌前缀、运行期/敏感路径（`.secret` / `.sqlite3` / `*.env` / `secrets/` / `.venv/` / `dist/` / 缓存目录）、以及 `tests/` 之外的凭据式 URL（`?token=` / `?sub=` 等）一律致命并以非零退出；`tests/` 下的合成夹具（保留域名 + 合成值）是唯一允许出现凭据式 URL 的位置。该门禁已接入 `scripts/verify.sh`，因此推送或发布前必然执行。

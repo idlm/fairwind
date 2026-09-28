@@ -20,5 +20,7 @@ echo "== uv build =="
 uv build
 echo "== artifact hygiene =="
 uv run python scripts/check_artifacts.py
+echo "== secret gate =="
+uv run python scripts/check_secrets.py
 
 echo "VERIFY_OK"
