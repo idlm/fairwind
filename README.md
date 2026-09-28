@@ -60,6 +60,10 @@ uv run python scripts/check_core_licenses.py                # 按固定 commit �
 
 宿主契约与平台落地要求见 `docs/HOST_CONTRACT.md`；候选核心审查门禁见 `docs/CORE_REVIEW_CHECKLIST.md`，接入模型见 `docs/CORE_INTEGRATION_ADR.md`（提议待批准）。
 
+## 许可
+
+本项目以 **MIT** 许可发布，见根目录 `LICENSE`。第三方依赖与候选代理核心的许可状态、以及"项目 MIT 不等于核心已获批"的边界，见 `THIRD_PARTY_LICENSES.md` 与 `LICENSE_MATRIX.md`。
+
 备份只包含普通 SQLite；**必须**同时保留 `--with-secrets` 生成的密文快照（`FILE.secrets/`），否则恢复会被拒绝（`SECRET_SNAPSHOT_INCOMPLETE`）——这是刻意的：缺密文的库恢复后所有节点都无法解密。恢复需要显式 `--yes`，并在替换前校验 schema 版本、`integrity_check`、`key_check` 与密文完整性。归档、恢复与 GC 都必须持 `operation_lock`，不做自动清理。Master 主机名不写入版本库，由调用方按需传入。
 
 所有输出默认采用匿名订阅编号、节点短 ID 与固定错误码，不输出原始订阅地址、节点名称或凭据。测试夹具中的地址使用保留域名，认证字段均为合成值。

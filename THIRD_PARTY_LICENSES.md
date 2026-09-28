@@ -4,7 +4,7 @@
 
 参考 CLI 依赖：aiohttp（Apache-2.0 / MIT，按版本核实）、PyYAML（MIT）、cryptography（Apache-2.0 / BSD-3-Clause）。开发工具 pytest（MIT）、ruff（MIT）、构建后端 hatchling（MIT）。传递依赖与精确版本记录于 uv.lock，分发前应生成完整 SBOM/NOTICE 并复核 wheel 自带 LICENSE。
 
-本项目自身许可尚未由所有者选择；不要假设可以公开发行闭源或开源产品。此文档是工程审查记录，不是法律意见或已完成发行许可结论。
+本项目自身许可由所有者于 2026-09-28 选定为 **MIT**（见仓库根 `LICENSE`）。此文档仍是工程审查记录，不是法律意见；候选代理核心（Xray-core / sing-box 等）的许可与分发审查**另行门禁且尚未完成**，因此"项目本身是 MIT"**不代表**任何第三方核心已获准引入或分发。
 
 ## 已安装运行时依赖元数据快照
 

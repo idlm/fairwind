@@ -16,6 +16,7 @@ ENTRY_POINT = "accelerator = accelerator.cli:main"
 WHEEL_PACKAGE = "accelerator/"
 WHEEL_NON_PACKAGE_PREFIXES = ("tests/", "scripts/", "profiles/")
 REQUIRED_WHEEL_MEMBERS = ("accelerator/ui/index.html",)
+REQUIRED_WHEEL_SUFFIXES = (".dist-info/licenses/LICENSE",)
 FORBIDDEN = (
     re.compile(r"\.secret$"),
     re.compile(r"\.sqlite3"),
@@ -84,6 +85,14 @@ def main() -> int:
             missing_assets = [name for name in REQUIRED_WHEEL_MEMBERS if name not in names]
             if missing_assets:
                 print(f"  MISSING_ASSET {missing_assets}")
+                failures += 1
+            missing_licenses = [
+                suffix
+                for suffix in REQUIRED_WHEEL_SUFFIXES
+                if not any(name.endswith(suffix) for name in names)
+            ]
+            if missing_licenses:
+                print(f"  MISSING_LICENSE {missing_licenses}")
                 failures += 1
     print("ARTIFACT_CHECK_FAILED" if failures else "ARTIFACT_CHECK_OK")
     return 1 if failures else 0
