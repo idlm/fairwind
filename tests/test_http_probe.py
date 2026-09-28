@@ -8,6 +8,8 @@ from accelerator import probing
 from accelerator.domain import TestState
 from accelerator.probing import ReferenceProbe
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 async def proxy_fixture(probe_tls, monkeypatch):

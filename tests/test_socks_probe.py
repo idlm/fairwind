@@ -12,6 +12,8 @@ from accelerator import probing, socks
 from accelerator.domain import TestState
 from accelerator.probing import ReferenceProbe
 
+pytestmark = pytest.mark.integration
+
 SOCKS_VERSION = 5
 NO_AUTH = 0
 USERNAME_PASSWORD = 2

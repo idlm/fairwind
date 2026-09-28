@@ -19,6 +19,7 @@ from accelerator.routing import (
 )
 
 REGISTRY = Path(__file__).resolve().parents[1] / "profiles" / "games" / "game_profiles.json"
+pytestmark = pytest.mark.unit
 ALL_CAPABILITIES = Capabilities(
     protocols=frozenset({"socks"}), tun=True, udp=True, ipv6=True, process_rules=True
 )

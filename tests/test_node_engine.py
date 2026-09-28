@@ -10,6 +10,8 @@ from accelerator.scoring import SmartSelector, score_history
 from accelerator.subscription import SubscriptionEngine
 from conftest import MASTER
 
+pytestmark = pytest.mark.unit
+
 
 def histories(latencies, loss=None, now=1000, state="AVAILABLE", verified=True):
     return [

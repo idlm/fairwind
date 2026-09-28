@@ -13,6 +13,8 @@ from accelerator.storage import Database, operation_lock
 from accelerator.subscription import SubscriptionEngine
 from conftest import FIXTURES, MASTER
 
+pytestmark = pytest.mark.security
+
 
 @pytest.mark.parametrize(
     "url",

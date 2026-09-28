@@ -8,6 +8,8 @@ from accelerator.errors import SafeError
 from accelerator.parser import MAX_SUBSCRIPTION_BYTES, safe_json, safe_yaml
 from conftest import FIXTURES
 
+pytestmark = pytest.mark.unit
+
 UUID = "11111111-1111-4111-8111-111111111111"
 
 

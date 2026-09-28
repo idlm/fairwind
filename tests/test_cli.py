@@ -11,6 +11,8 @@ from accelerator.probing import UDP_TARGET_DEFAULT
 from accelerator.subscription import SubscriptionEngine
 from conftest import MASTER
 
+pytestmark = pytest.mark.e2e
+
 
 @pytest.mark.parametrize("command", [["status"], ["nodes", "list"], ["nodes", "best"]])
 def test_cli_read_commands_without_key(tmp_path, command):

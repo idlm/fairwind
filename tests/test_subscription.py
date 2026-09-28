@@ -8,6 +8,8 @@ from accelerator.storage import Database
 from accelerator.subscription import SubscriptionEngine, load_master
 from conftest import FIXTURES, MASTER, SOURCE_A, SOURCE_B, FakeFetcher
 
+pytestmark = pytest.mark.integration
+
 
 def engine(database, vault, fetcher, **kwargs):
     return SubscriptionEngine(database, vault, fetcher, jitter=lambda: 0, **kwargs)

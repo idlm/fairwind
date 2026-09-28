@@ -21,6 +21,13 @@ packages = ["core/accelerator"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+addopts = "--strict-markers"
+markers = [
+    "unit: 纯逻辑与持久化单元测试",
+    "integration: 需要本地 socket/TLS 或跨模块协作的集成测试",
+    "security: 安全边界、限额与攻击面测试",
+    "e2e: CLI 端到端测试",
+]
 
 [tool.ruff]
 line-length = 100
