@@ -50,6 +50,27 @@ PRAGMA user_version=1;
 
 
 SCHEMA_VERSION = 1
+REFERENCE_COLUMN_QUERIES = (
+    "SELECT secret_ref FROM subscriptions",
+    "SELECT etag_ref FROM subscriptions WHERE etag_ref IS NOT NULL",
+    "SELECT last_modified_ref FROM subscriptions WHERE last_modified_ref IS NOT NULL",
+    "SELECT secret_ref FROM nodes",
+)
+
+
+def required_references(connection: sqlite3.Connection) -> set[str]:
+    """列出数据库真实引用的密文，用于备份/恢复一致性校验。
+
+    与 `Database.referenced_secrets` 的差别：settings 中排除 `key_check` 之类不是引用的值，
+    因此可以对结果断言"每个引用都必须有对应密文文件"。
+    """
+    references: set[str] = set()
+    for query in REFERENCE_COLUMN_QUERIES:
+        references.update(row[0] for row in connection.execute(query) if row[0])
+    for row in connection.execute("SELECT value FROM settings WHERE key <> 'key_check'"):
+        if row[0] and REFERENCE_PATTERN.fullmatch(row[0]):
+            references.add(row[0])
+    return references
 
 
 def file_digest(path: Path) -> str:
@@ -107,6 +128,8 @@ def restore_database(root: Path, source: Path, vault: SecretVault | None = None)
     """在持 operation_lock 的前提下用备份替换数据库，旧库改名为 *.previous 以便回滚。
 
     先校验备份是受支持的 schema、通过 integrity_check，并且（提供了密钥时）key_check 匹配。
+    还会检查备份引用的密文是否都在本地存在——否则恢复会产出一个所有节点都无法解密的数据库
+    （`SECRET_SNAPSHOT_INCOMPLETE`）；请连同 `secrets/` 快照一起恢复。
     """
     private_directory(root)
     target = root / "accelerator.sqlite3"
@@ -123,6 +146,8 @@ def restore_database(root: Path, source: Path, vault: SecretVault | None = None)
             row = probe.execute("SELECT value FROM settings WHERE key='key_check'").fetchone()
             if row and row[0] != vault.digest(b"database-key-check-v1"):
                 raise SafeError("SECRET_KEY_MISMATCH")
+            if vault.missing(required_references(probe)):
+                raise SafeError("SECRET_SNAPSHOT_INCOMPLETE")
     except sqlite3.DatabaseError:
         raise SafeError("BACKUP_INVALID") from None
     finally:
@@ -237,23 +262,21 @@ class Database:
         ]
 
     def referenced_secrets(self) -> set[str]:
-        """收集数据库中的全部密文引用，供 SecretVault.collect 使用。
+        """收集全部密文引用（含 settings 中的任何哈希值），供 SecretVault.collect 使用。
 
-        覆盖 subscriptions 的 secret_ref/etag_ref/last_modified_ref、nodes.secret_ref，
-        以及 settings 中的引用（Master 快照与验证器）。要求集合完整，宁可多保留。
+        要求集合完整、宁可多保留；因此这里对 settings 采取宽松口径。
         """
         references: set[str] = set()
-        for query in (
-            "SELECT secret_ref FROM subscriptions",
-            "SELECT etag_ref FROM subscriptions WHERE etag_ref IS NOT NULL",
-            "SELECT last_modified_ref FROM subscriptions WHERE last_modified_ref IS NOT NULL",
-            "SELECT secret_ref FROM nodes",
-        ):
+        for query in REFERENCE_COLUMN_QUERIES:
             references.update(row[0] for row in self.connection.execute(query) if row[0])
         for row in self.connection.execute("SELECT value FROM settings"):
             if row[0] and REFERENCE_PATTERN.fullmatch(row[0]):
                 references.add(row[0])
         return references
+
+    def required_secrets(self) -> set[str]:
+        """返回真实被引用的密文，用于备份/恢复一致性校验（排除非引用的 settings 值）。"""
+        return required_references(self.connection)
 
     def replace_routing_rules(self, rules: list[RouteRule]) -> None:
         """事务性替换路由规则表；空列表等价于清空（尚无可用游戏规则）。"""

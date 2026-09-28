@@ -31,6 +31,8 @@ jobs:
         run: uv run pytest --junitxml=test-results.xml
       - name: Build reference CLI
         run: uv build
+      - name: Artifact hygiene
+        run: uv run python scripts/check_artifacts.py
       - uses: actions/upload-artifact@v4
         with:
           name: reference-core-${{ matrix.os }}-${{ matrix.python }}

@@ -1,7 +1,9 @@
 """数据库迁移版本、一致性备份与恢复的离线测试。"""
 
+import hashlib
 import os
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -103,3 +105,91 @@ def test_database_rejects_unsupported_schema(tmp_path):
     connection.close()
     with pytest.raises(SafeError, match="SCHEMA_UNSUPPORTED"):
         Database(root)
+
+
+async def test_required_secrets_is_precise_while_referenced_is_wide(database, vault, fetcher):
+    await SubscriptionEngine(database, vault, fetcher).update(MASTER)
+    required = database.required_secrets()
+    assert required and required <= database.referenced_secrets()
+    key_check = database.get_setting("key_check")
+    assert key_check and key_check not in required
+    assert vault.missing(required) == ()
+
+
+async def test_snapshot_copies_only_referenced_ciphertext(database, vault, fetcher, tmp_path):
+    await SubscriptionEngine(database, vault, fetcher).update(MASTER)
+    orphan = vault.put({"url": "https://orphan.example/sub?token=synthetic"})
+    destination = tmp_path / "snapshot" / "secrets"
+    report = vault.snapshot(destination, database.required_secrets())
+    assert report["count"] == len(database.required_secrets())
+    names = {path.name for path in destination.glob("*.secret")}
+    assert names == {f"{ref}.secret" for ref in database.required_secrets()}
+    assert orphan not in names
+    for entry in report["files"]:
+        copied = destination / f"{entry['reference']}.secret"
+        assert entry["sha256"] == hashlib.sha256(copied.read_bytes()).hexdigest()
+    again = vault.snapshot(destination, database.required_secrets())
+    assert again["count"] == report["count"]
+
+
+async def test_snapshot_refuses_incomplete_vault(database, vault, fetcher, tmp_path):
+    await SubscriptionEngine(database, vault, fetcher).update(MASTER)
+    required = database.required_secrets()
+    removed = sorted(required)[0]
+    (vault.root / f"{removed}.secret").unlink()
+    assert vault.missing(required) == (removed,)
+    with pytest.raises(SafeError, match="SECRET_SNAPSHOT_INCOMPLETE"):
+        vault.snapshot(tmp_path / "snapshot", required)
+
+
+async def test_restore_rejects_backup_without_ciphertext(database, vault, fetcher, tmp_path):
+    await SubscriptionEngine(database, vault, fetcher).update(MASTER)
+    destination = tmp_path / "backup" / "snapshot.sqlite3"
+    database.backup(destination)
+    expected = sorted(row["id"] for row in database.nodes())
+    for path in vault.root.glob("*.secret"):
+        path.unlink()
+    database.close()
+    with pytest.raises(SafeError, match="SECRET_SNAPSHOT_INCOMPLETE"):
+        restore_database(tmp_path, destination, vault)
+    reopened = Database(tmp_path, vault)
+    try:
+        assert sorted(row["id"] for row in reopened.nodes()) == expected
+    finally:
+        reopened.close()
+
+
+async def test_full_backup_and_restore_cycle_keeps_nodes_decryptable(
+    database, vault, fetcher, tmp_path
+):
+    await SubscriptionEngine(database, vault, fetcher).update(MASTER)
+    destination = tmp_path / "backup" / "snapshot.sqlite3"
+    database.backup(destination)
+    snapshot = vault.snapshot(Path(str(destination) + ".secrets"), database.required_secrets())
+    expected = sorted(row["id"] for row in database.nodes())
+    for path in vault.root.glob("*.secret"):
+        path.unlink()
+    database.close()
+    assert snapshot["count"] == 7
+    assert vault.restore_snapshot(Path(str(destination) + ".secrets"))["added"] == snapshot["count"]
+    assert vault.restore_snapshot(Path(str(destination) + ".secrets"))["added"] == 0
+    restore_database(tmp_path, destination, vault)
+    reopened = Database(tmp_path, vault)
+    try:
+        rows = reopened.nodes()
+        assert sorted(row["id"] for row in rows) == expected
+        for row in rows:
+            assert reopened.load_node(row).secret.server
+    finally:
+        reopened.close()
+
+
+def test_restore_snapshot_rejects_foreign_ciphertext(vault, tmp_path):
+    source = tmp_path / "foreign"
+    source.mkdir()
+    (source / (("b" * 64) + ".secret")).write_bytes(b"\x00" * 40)
+    with pytest.raises(SafeError, match="SECRET_CORRUPT"):
+        vault.restore_snapshot(source)
+    assert not (vault.root / ("b" * 64 + ".secret")).exists()
+    with pytest.raises(SafeError, match="BACKUP_INVALID"):
+        vault.restore_snapshot(tmp_path / "missing")

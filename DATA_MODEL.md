@@ -18,7 +18,7 @@ SQLite 使用外键、WAL、显式事务与 `user_version` 迁移版本。
 
 HTTP ETag、Last-Modified 也可能包含远端敏感数据，作为加密引用保存。SecretVault 与 SQLite 分离，数据库中不会存储可恢复凭据的明文。
 
-迁移与备份：`migrate()` 只接受已知 schema 版本，未知版本直接拒绝；`Database.backup()` 用 SQLite 在线备份 API 生成 WAL 安全的一致性副本（0600，返回页数/字节数/SHA-256）；`restore_database()` 先校验版本、`integrity_check` 与 `key_check`，再替换数据库并把旧库保留为 `accelerator.sqlite3.previous`。备份只含普通 SQLite，`secrets/` 密文目录必须一起备份（内容寻址、不可变，可在 `operation_lock` 内整体复制）。维护入口：`scripts/backup.py`。
+迁移与备份：`migrate()` 只接受已知 schema 版本，未知版本直接拒绝；`Database.backup()` 用 SQLite 在线备份 API 生成 WAL 安全的一致性副本（0600，返回页数/字节数/SHA-256）；`restore_database()` 先校验版本、`integrity_check`、`key_check` 与"备份引用的密文是否齐全"，再替换数据库并把旧库保留为 `accelerator.sqlite3.previous`。备份只含普通 SQLite，密文需一并快照：`Database.required_secrets()` 给出真实引用（排除 `key_check` 之类非引用值），`SecretVault.snapshot(dest, refs)` 复制这些密文并输出清单，`SecretVault.restore_snapshot(src)` 只补缺失文件。维护入口：`scripts/backup.py`（`--with-secrets` / `--secrets-from`）。
 
 缓存目录：`cache/` 下预建 `master/`、`subscriptions/`、`nodes/`、`geo/` 四个 0700 子目录，目前**只保留结构、不含数据**——验证器与 Master 快照保存在加密 SecretVault，平台侧 geo/规则缓存尚未实现。任何后续实现都不得把明文订阅正文写入这些目录，且必须设置容量上限。
 

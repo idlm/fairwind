@@ -22,11 +22,11 @@ Done:
 - Master 一层加载、多源有界抓取、条件请求、jitter 和有限退避。
 - URI/Base64/Clash/Mihomo/sing-box 解析、清洗、fingerprint、多来源关系与国家分类。
 - AES-GCM SecretVault、普通 SQLite 脱敏、事务替换、LKG、重启恢复和跨进程写锁，以及引用感知 GC（维护入口 `scripts/vault_gc.py`）。
-- schema 版本门禁与一致性备份/恢复（`scripts/backup.py`，恢复保留 `.previous`）。
+- schema 版本门禁与一致性备份/恢复（`scripts/backup.py`，恢复保留 `.previous`；备份含密文快照与完整性校验，缺密文即拒绝恢复）。
 - 五个 CLI 命令与 Linux/Windows CI 配置、wheel/sdist 构建。
 
 Tests:
-- 257 passed；包含 600 节点夹具、601 节点探测队列、故障注入和五命令端到端测试。
+- 263 passed；包含 600 节点夹具、601 节点探测队列、故障注入和五命令端到端测试。
 - ruff lint 通过；wheel/sdist 构建通过，产物卫生检查见 `scripts/check_artifacts.py`。
 - `scripts/verify.sh` 已固化 lint/格式/离线测试/构建/产物检查，可一键复现上述门禁。
 
@@ -47,7 +47,7 @@ Done:
 - Retry/backoff/circuit breaker/failover 控制器与取消清理通过可控 adapter 测试。
 
 Tests:
-- 已纳入上述 257 项；没有使用伪造在线节点结果。
+- 已纳入上述 263 项；没有使用伪造在线节点结果。
 
 Remaining:
 - 获审核心的 VLESS/VMess/Trojan/SS 真实代理握手和端到端测试。

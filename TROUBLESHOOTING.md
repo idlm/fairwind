@@ -19,6 +19,7 @@
 - `SCHEMA_UNSUPPORTED`：游戏配置或数据库 schema 版本不受支持；不要就地改写版本号，按升级流程处理。
 - `BACKUP_TARGET_EXISTS` / `BACKUP_INVALID`：备份目标已存在，或备份文件不可用（非 SQLite、完整性检查失败）；不要覆盖现有备份，改用新路径或重新生成。
 - `RESTORE_NOT_CONFIRMED`：恢复必须显式加 `--yes`；恢复后旧库会保留为 `accelerator.sqlite3.previous` 以便回滚。
+- `SECRET_SNAPSHOT_INCOMPLETE`：备份引用的密文快照不完整（只备份了 SQLite，或密文已被 GC/删除）。不要强行恢复——这会让所有节点永久无法解密；请先用 `--secrets-from` 补回密文快照再恢复，或重新生成完整备份。
 - `CORE_UNSUPPORTED`：没有核心能力满足该节点（协议 / UDP / IPv6 / 平台）；不要静默丢弃节点或改写配置，应换用具备能力的核心或从候选中排除该节点。
 - `PROFILE_PUBKEY_REQUIRED`：未注入 `ACCELERATOR_PROFILE_PUBKEY`（或公钥非法）；这是设计上的拒绝，不要为了“跑通”而绕过，也不要向仓库提交密钥。
 - `PROFILE_SIGNATURE_INVALID`：信封签名不匹配或文档被改动；更新会被拒绝且现有注册表保持不变。

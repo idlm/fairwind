@@ -10,5 +10,5 @@
 - 使用 apply_patch 修改文件。保持模块单一职责，禁止单文件应用。
 - 订阅更新必须事务化；失败/空结果保留最后有效数据，单源失败不能中断其他源。
 - 不伪造平台验证或测速；未知指标为 null，不以 TCP 成功代替代理可用。
-- 验证命令：`uv run ruff check .`、`uv run pytest`、`uv build`。
+- 验证命令：`scripts/verify.sh`（= `uv run ruff check .`、`uv run ruff format --check .`、`uv run pytest`、`uv build`、`uv run python scripts/check_artifacts.py`）。
 - 未满足真机、签名或 entitlement 条件时，标记 `BLOCKED_EXTERNAL_REQUIREMENT`。

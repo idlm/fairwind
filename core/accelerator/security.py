@@ -14,6 +14,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from accelerator.errors import SafeError
 
 REFERENCE_PATTERN = re.compile(r"[a-f0-9]{64}")
+MAX_CIPHERTEXT_BYTES = 12 * 1024 * 1024
 
 
 def canonical_json(value: object) -> bytes:
@@ -151,6 +152,107 @@ class SecretVault:
             temporary.unlink(missing_ok=True)
         return reference
 
+    def missing(self, referenced: set[str]) -> tuple[str, ...]:
+        """返回被引用但密文文件缺失的引用（备份/恢复一致性校验用）。"""
+        return tuple(
+            sorted(
+                reference
+                for reference in referenced
+                if REFERENCE_PATTERN.fullmatch(reference)
+                and not (self.root / (reference + ".secret")).is_file()
+            )
+        )
+
+    def snapshot(self, destination: Path, referenced: set[str]) -> dict:
+        """把被引用的密文复制到目标目录（内容寻址、不可变，复制即一致性快照）。
+
+        未被引用的密文不复制；任一引用缺少密文时拒绝生成快照，避免产出无法恢复的备份。
+        """
+        missing = self.missing(referenced)
+        if missing:
+            raise SafeError("SECRET_SNAPSHOT_INCOMPLETE")
+        private_directory(destination)
+        files = []
+        total = 0
+        for reference in sorted(referenced):
+            if not REFERENCE_PATTERN.fullmatch(reference):
+                continue
+            data = self._ciphertext(reference)
+            target = destination / (reference + ".secret")
+            if target.is_symlink():
+                raise SafeError("UNSAFE_STORAGE_PATH")
+            if not target.exists():
+                self._write_file(target, data)
+            files.append(
+                {
+                    "reference": reference,
+                    "bytes": len(data),
+                    "sha256": hashlib.sha256(data).hexdigest(),
+                }
+            )
+            total += len(data)
+        return {"files": files, "count": len(files), "bytes": total}
+
+    def restore_snapshot(self, source: Path) -> dict:
+        """把快照中的密文补回本地：只新增缺失文件，绝不覆盖或删除现有密文。
+
+        写入前用当前密钥试解一次（AAD 为引用名），因此错误密钥或损坏文件的快照会被拒绝。
+        """
+        if source.is_symlink() or not source.is_dir():
+            raise SafeError("BACKUP_INVALID")
+        added = 0
+        skipped = 0
+        for path in sorted(source.glob("*.secret")):
+            if path.is_symlink():
+                raise SafeError("UNSAFE_STORAGE_PATH")
+            reference = path.name[: -len(".secret")]
+            if not REFERENCE_PATTERN.fullmatch(reference):
+                continue
+            target = self.root / path.name
+            if target.is_symlink():
+                raise SafeError("UNSAFE_STORAGE_PATH")
+            if target.exists():
+                skipped += 1
+                continue
+            data = path.read_bytes()
+            if len(data) > MAX_CIPHERTEXT_BYTES:
+                raise SafeError("SECRET_CORRUPT")
+            try:
+                self.cipher.decrypt(data[:12], data[12:], reference.encode())
+            except Exception:
+                raise SafeError("SECRET_CORRUPT") from None
+            self._write_file(target, data)
+            added += 1
+        return {"added": added, "skipped": skipped}
+
+    def _ciphertext(self, reference: str) -> bytes:
+        if not REFERENCE_PATTERN.fullmatch(reference):
+            raise SafeError("SECRET_CORRUPT")
+        path = self.root / (reference + ".secret")
+        if path.is_symlink() or not path.is_file():
+            raise SafeError("SECRET_CORRUPT")
+        if path.stat().st_size > MAX_CIPHERTEXT_BYTES:
+            raise SafeError("SECRET_CORRUPT")
+        return path.read_bytes()
+
+    def _write_file(self, target: Path, data: bytes) -> None:
+        temporary = target.parent / ("." + secrets.token_hex(16))
+        try:
+            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write(data)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, target)
+            if os.name != "nt":
+                directory_fd = os.open(target.parent, os.O_RDONLY | os.O_DIRECTORY)
+                try:
+                    os.fsync(directory_fd)
+                finally:
+                    os.close(directory_fd)
+        finally:
+            temporary.unlink(missing_ok=True)
+
     def collect(self, referenced: set[str]) -> int:
         """删除不再被引用的密文，返回删除的文件数。
 
@@ -171,13 +273,8 @@ class SecretVault:
         return removed
 
     def get(self, reference: str) -> object:
-        if not REFERENCE_PATTERN.fullmatch(reference):
-            raise SafeError("SECRET_CORRUPT")
         try:
-            path = self.root / (reference + ".secret")
-            if path.is_symlink() or path.stat().st_size > 12 * 1024 * 1024:
-                raise ValueError
-            data = path.read_bytes()
+            data = self._ciphertext(reference)
             plain = self.cipher.decrypt(data[:12], data[12:], reference.encode())
             return json.loads(plain)
         except Exception:

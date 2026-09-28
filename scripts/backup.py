@@ -2,8 +2,11 @@
 
 用法:
   uv run python scripts/backup.py --status
-  uv run python scripts/backup.py --destination FILE
-  uv run python scripts/backup.py --restore-from FILE --yes
+  uv run python scripts/backup.py --destination FILE [--with-secrets]
+  uv run python scripts/backup.py --restore-from FILE --yes [--secrets-from DIR]
+
+只备份 SQLite 会得到一个"恢复后所有节点都无法解密"的数据库；因此生产备份必须同时包含
+`secrets/` 密文目录（`--with-secrets`），恢复时先用 `--secrets-from` 把密文补回。
 """
 
 import argparse
@@ -30,7 +33,9 @@ def main() -> int:
     parser.add_argument("--data-dir", type=Path, default=default_data_dir())
     parser.add_argument("--status", action="store_true")
     parser.add_argument("--destination", type=Path, default=None)
+    parser.add_argument("--with-secrets", action="store_true")
     parser.add_argument("--restore-from", type=Path, default=None)
+    parser.add_argument("--secrets-from", type=Path, default=None)
     parser.add_argument("--yes", action="store_true")
     args = parser.parse_args()
     try:
@@ -39,12 +44,18 @@ def main() -> int:
             if args.restore_from is not None:
                 if not args.yes:
                     raise SafeError("RESTORE_NOT_CONFIRMED")
+                secrets_report = None
+                if args.secrets_from is not None:
+                    if vault is None:
+                        raise SafeError("SECRET_KEY_REQUIRED")
+                    secrets_report = vault.restore_snapshot(args.secrets_from)
                 previous = restore_database(args.data_dir, args.restore_from, vault)
                 database = Database(args.data_dir, vault)
                 try:
                     report = {
                         "restored": True,
                         "previous": previous.name,
+                        "secrets": secrets_report,
                         "nodes": len(database.nodes()),
                         "subscriptions": len(database.subscriptions()),
                     }
@@ -56,7 +67,20 @@ def main() -> int:
                     if args.destination is not None:
                         report = {"backup": args.destination.name}
                         report.update(database.backup(args.destination))
+                        if args.with_secrets:
+                            if vault is None:
+                                raise SafeError("SECRET_KEY_REQUIRED")
+                            snapshot = vault.snapshot(
+                                Path(str(args.destination) + ".secrets"),
+                                database.required_secrets(),
+                            )
+                            report["secrets"] = {
+                                "path": str(args.destination) + ".secrets",
+                                "count": snapshot["count"],
+                                "bytes": snapshot["bytes"],
+                            }
                     else:
+                        required = database.required_secrets()
                         report = {
                             "schema_version": database.connection.execute(
                                 "PRAGMA user_version"
@@ -68,6 +92,8 @@ def main() -> int:
                             "subscriptions": len(database.subscriptions()),
                             "routing_rules": len(database.routing_rules()),
                             "key_bound": bool(vault),
+                            "required_secrets": len(required),
+                            "missing_secrets": len(vault.missing(required)) if vault else None,
                         }
                 finally:
                     database.close()

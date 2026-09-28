@@ -42,9 +42,11 @@ uv build
 
 ```bash
 scripts/verify.sh                                           # 一键门禁
-uv run python scripts/backup.py --status                    # schema 版本、完整性、节点/订阅/规则计数
-uv run python scripts/backup.py --destination FILE          # 一致性备份（WAL 安全、0600、返回 SHA-256）
-uv run python scripts/backup.py --restore-from FILE --yes   # 受验证恢复（旧库保留为 accelerator.sqlite3.previous）
+uv run python scripts/backup.py --status                    # schema 版本、完整性、节点/订阅/规则计数、密文缺失数
+uv run python scripts/backup.py --destination FILE --with-secrets
+                                                        # 一致性备份：SQLite + 密文快照（缺一不可）
+uv run python scripts/backup.py --restore-from FILE --yes --secrets-from FILE.secrets
+                                                        # 受验证恢复（旧库保留为 accelerator.sqlite3.previous）
 uv run python scripts/vault_gc.py                           # 引用感知密文 GC，只删除已无引用的密文
 uv run python scripts/game_profiles.py REGISTRY --write     # Game Profile 校验与路由规则生成
 uv run python scripts/profile_update.py --file ENVELOPE.json --tun --process-rules
@@ -55,6 +57,6 @@ uv run python scripts/check_core_licenses.py                # 按固定 commit �
 
 宿主契约与平台落地要求见 `docs/HOST_CONTRACT.md`；候选核心审查门禁见 `docs/CORE_REVIEW_CHECKLIST.md`，接入模型见 `docs/CORE_INTEGRATION_ADR.md`（提议待批准）。
 
-备份只包含普通 SQLite；`secrets/` 密文目录必须一起备份（内容寻址、不可变）。恢复需要显式 `--yes`，并在替换前校验 schema 版本、`integrity_check` 与 `key_check`。归档、恢复与 GC 都必须持 `operation_lock`，不做自动清理。Master 主机名不写入版本库，由调用方按需传入。
+备份只包含普通 SQLite；**必须**同时保留 `--with-secrets` 生成的密文快照（`FILE.secrets/`），否则恢复会被拒绝（`SECRET_SNAPSHOT_INCOMPLETE`）——这是刻意的：缺密文的库恢复后所有节点都无法解密。恢复需要显式 `--yes`，并在替换前校验 schema 版本、`integrity_check`、`key_check` 与密文完整性。归档、恢复与 GC 都必须持 `operation_lock`，不做自动清理。Master 主机名不写入版本库，由调用方按需传入。
 
 所有输出默认采用匿名订阅编号、节点短 ID 与固定错误码，不输出原始订阅地址、节点名称或凭据。测试夹具中的地址使用保留域名，认证字段均为合成值。

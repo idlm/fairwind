@@ -11,7 +11,7 @@
 | 密文容量与引用感知 GC | PASS；写入记账上限、只删无引用密文、保留 master/验证器/节点、幂等可重跑 |
 | Game Profile 校验与规则生成（M7 骨架） | PASS；严格 schema、能力门禁 fail-closed、优先级 3000/2000/1000、routing_rules 事务写入 |
 | DNS 策略（IPv6 不泄漏 / Fake-IP 门禁 / 失败不回退） | PASS；决策矩阵 20 项测试；尚未接入真实隧道 |
-| 迁移版本门禁与备份恢复 | PASS；未知版本拒绝、备份 WAL 一致（0600 + SHA-256）、恢复校验 integrity/key_check 并保留 `.previous` |
+| 迁移版本门禁与备份恢复 | PASS；未知版本拒绝、备份 WAL 一致（0600 + SHA-256）、密文快照与完整性校验、缺密文恢复被拒绝、恢复校验 integrity/key_check 并保留 `.previous` |
 | 核心能力路由与连接历史 | PASS；协议/UDP/IPv6 缺口判定、平台过滤、无匹配 `CORE_UNSUPPORTED`、状态历史往返 |
 | Game Profile 远程更新（M7） | PASS；ed25519 签名、防回滚、1 MiB 限额、能力校验先行、原子替换 + LKG 互换；无公钥即拒绝 |
 | 宿主契约与参考服务层 | PASS；12 个操作、能力声明如实、连接操作明确拒绝、按操作持锁、输出脱敏 |
