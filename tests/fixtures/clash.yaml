@@ -1,0 +1,13 @@
+proxies:
+  - name: JP Tokyo
+    type: vless
+    server: jp.example
+    port: 443
+    uuid: 11111111-1111-4111-8111-111111111111
+    tls: true
+    servername: jp.example
+  - name: HK
+    type: trojan
+    server: hk.example
+    port: 443
+    password: synthetic-password

@@ -1,0 +1,41 @@
+# Smart Accelerator
+
+先实现可审计、可离线测试的「Master → Subscription → Node → SQLite → CLI」核心，再接入原生 VPN 和 UI。本仓库是 V1 的分阶段实现，不是已经可连接的全平台客户端。
+
+## 当前范围
+
+Python 3.11+ CLI 是现代平台的业务参考实现与测试工具，不作为 Win7 的运行时承诺。原生客户端通过版本化服务/FFI 契约复用业务语义，不直接依赖 UI 或特定代理核心。平台状态见 `PROGRESS.md` 和 `TECH_SPIKE_REPORT.md`。
+
+## 开发与运行
+
+安装 [uv](https://docs.astral.sh/uv/)，然后：
+
+```bash
+uv sync --locked --extra dev
+uv run accelerator --help
+uv run accelerator status
+```
+
+敏感内容单独使用 AES-256-GCM 加密。CLI 参考实现要求设置 `ACCELERATOR_SECRET_KEY`（32 字节随机值的 URL-safe Base64 编码），不生成或保存明文密钥。可用 `uv run python -c "import secrets; print(secrets.token_urlsafe(32))"` 在本机生成，保存到密码管理器并通过安全环境注入。不要提交密钥或终端输出；丢失密钥将无法解密本地数据。生产客户端必须接入 DPAPI / Android Keystore / iOS Keychain。
+
+```bash
+uv run accelerator subscriptions update --master-url 'https://your-master.example/master.txt'
+uv run accelerator nodes list
+uv run accelerator nodes test
+uv run accelerator nodes best
+uv run accelerator status
+```
+
+真实 Master 入口不提交到 Git。配置时优先通过 `ACCELERATOR_MASTER_URL` 环境变量传入，避免 shell history。上面 URL 仅是占位示例。默认数据目录为平台用户数据目录；可用 `--data-dir` 覆盖。离线 CI 不访问任何真实订阅。
+
+`nodes test` 区分 TCP 可达与代理出口验证。当前 HTTP CONNECT 探测可验证 HTTPS 出口，其他协议等待获审核心的 `CoreAdapter.test_node`；TCP 可达本身不会使节点进入推荐。CLI 不改变系统代理、DNS、路由或启动 VPN。
+
+```bash
+uv run ruff check .
+uv run pytest
+uv build
+```
+
+以上门禁已固化为 `scripts/verify.sh`（额外校验 wheel/sdist 不含 `.secret`/`.sqlite3` 等敏感文件）。Master 解析归因证据可用 `scripts/dns_evidence.sh <master-host>` 只读复现，主机名不写入版本库。
+
+所有输出默认采用匿名订阅编号、节点短 ID 与固定错误码，不输出原始订阅地址、节点名称或凭据。测试夹具中的地址使用保留域名，认证字段均为合成值。

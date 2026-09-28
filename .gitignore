@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+.env
+.env.*
+*.sqlite*
+*.db*
+*.secret
+.accelerator/
+cache/
+secrets/

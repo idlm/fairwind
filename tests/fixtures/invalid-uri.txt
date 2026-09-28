@@ -1,0 +1,3 @@
+file:///etc/passwd
+vless://not-a-uuid@invalid.example:443
+ss://broken

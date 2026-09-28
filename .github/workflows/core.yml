@@ -1,0 +1,40 @@
+name: Reference core
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+      - run: uv sync --locked --extra dev
+      - name: Lint and format
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Offline unit, parser, database and security tests
+        run: uv run pytest --junitxml=test-results.xml
+      - name: Build reference CLI
+        run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reference-core-${{ matrix.os }}-${{ matrix.python }}
+          path: |
+            dist/
+            test-results.xml
+

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "smart-accelerator"
+version = "0.1.0"
+description = "Privacy-first subscription and node engine reference CLI"
+requires-python = ">=3.11"
+dependencies = ["aiohttp>=3.12.15,<4", "PyYAML>=6.0.2,<7", "cryptography>=45.0.6,<47"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1"]
+
+[project.scripts]
+accelerator = "accelerator.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["core/accelerator"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["accelerator", "conftest"]
