@@ -47,6 +47,8 @@ uv build
 
 **订阅管理原则**：源的身份是 URL 摘要的 12 位句柄（不可逆），完整 URL 只以密文保存且任何输出都不回显；用户在本机添加的源不会被 Master 漂移禁用；暂停只停止刷新（保留 LKG，样本按既有 6h 窗口自然退出候选）；移除是本地操作，仍在 Master 列表里的源会回来——输出用 `present_in_master` 如实标注。
 
+**排障入口**：`accelerator diagnose`（或面板「设置 → 诊断」，或 `GET /api/host/diagnostic`）做 15 项离线自检，每项给出 `PASS` / `WARN` / `FAIL` / `SKIP` 与固定错误码；不联网、不修改状态、不含凭据，缺密钥的检查标 `SKIP` 而不是"通过"。
+
 **尚未实现（不依赖它们做任何宣称）**：真实代理隧道连接、Windows TUN 与系统代理、Android VpnService、iOS NetworkExtension、任何代理核心的运行时接入、代码签名、Apple entitlement、真机验证。核心接入模型仍是 `docs/CORE_INTEGRATION_ADR.md` 的**提议**（候选仅 Xray-core，待批准），因此 `connect` 类操作固定返回 `CORE_NOT_INTEGRATED`。
 
 能力边界与版本历史见 `CHANGELOG.md`；验证证据见 `docs/VALIDATION_REPORT.md`（人读）与对应 Release 的机器证据资产。

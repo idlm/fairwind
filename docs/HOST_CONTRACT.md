@@ -17,6 +17,7 @@
 | `add_subscription(url)` | 同步 | 手动加入订阅源；URL 加密落库且永不回显；需要密钥 |
 | `set_subscription_state(handle, paused)` | 同步 | 暂停 / 恢复刷新；不需要密钥；恢复会清空退避 |
 | `remove_subscription(handle)` | 同步 | 本地移除订阅源与其独占节点；仍在 Master 列表里的源会回来（输出如实标注） |
+| `diagnostic()` | 同步 | 离线自检：只读本机状态，不联网、不修改任何东西；输出固定错误码与 `OK/DEGRADED/FAILED` |
 | `list_nodes(country)` | 同步 | 匿名短 ID + 地区/协议/标签/状态/解释性评分 |
 | `test_nodes(samples, concurrency, target, udp_target)` | 异步 | 有界队列（上限 8）；返回状态计数与 `packet_loss` 说明 |
 | `best_nodes(country)` | 同步 | Smart Select 结果；无合格节点时 `status=NO_ELIGIBLE_NODE` |
@@ -35,14 +36,15 @@
 
 - **认证**：除静态面板外所有请求都必须带 `Authorization: Bearer <token>`；token 由 `load_or_create_token()` 生成并写入 `<data-dir>/control.token`（0600），缺失或不匹配返回 401 `CONTROL_UNAUTHORIZED`。
 - **Clash 兼容子集**：`GET /version`、`/configs`、`/proxies`、`/connections`、`/traffic`。未接入核心时如实返回 `core: NOT_INTEGRATED`、端口 0、空连接与 0 流量，**不虚构** `DIRECT`/`REJECT` 等内置代理。
-- **本仓库操作**：`GET /api/host/status|capabilities|nodes|nodes/best|nodes/{id}|nodes/summary|subscriptions|dns|profiles|routing|route|history`、
+- **本仓库操作**：`GET /api/host/status|capabilities|nodes|nodes/best|nodes/{id}|nodes/summary|subscriptions|dns|profiles|routing|route|history|diagnostic`、
   `POST /api/host/subscriptions/update|subscriptions|subscriptions/{handle}|nodes/test|profiles|connect`。其中 `POST /api/host/connect` 固定返回 400 `CORE_NOT_INTEGRATED`——控制面不允许让 UI 声称已连接。
   解释类只读端点：`GET /api/host/nodes/{id}`（节点详情 + 分数/资格解释；非法前缀 400 `NODE_ID_INVALID`、不存在 400 `NODE_NOT_FOUND`）、
   `GET /api/host/route?host=&port=&protocol=&process=`（路由解释；缺 host 或非法 port/protocol 一律 400 `ARGUMENT_INVALID`）。所有 `SafeError` 在控制面统一映射为 400 + 固定错误码，因此"未找到"也是 400 而不是 404。
   订阅管理端点：`POST /api/host/subscriptions`（body `{"url": …}`，加密保存且不回显）、`POST /api/host/subscriptions/{handle}`（body `{"action": "pause"|"resume"|"remove"}`）。句柄是 URL 摘要前缀，不是 URL。
+  诊断端点：`GET /api/host/diagnostic`（离线自检；不联网、不修改状态、不含凭据；`FAIL` 项给出固定错误码）。
 - **面板**：`GET /ui/` 返回单文件、零构建、零外部资源的静态面板（`ui/index.html`），结构对应规格 §22 的五页信息架构：
   主页（智能加速 / 当前模式 / 推荐线路 / 实时指标）、节点（分类筛选 + 表格 + 测速 + 解释节点）、订阅（列表 + 手动刷新 + 强制刷新 + 管理订阅源）、
-  游戏（注册表版本 / LKG / 路由规则 / 应用签名信封 / 路由解释）、设置（能力声明 / DNS 策略 / 连接历史 / 会话令牌）。
+  游戏（注册表版本 / LKG / 路由规则 / 应用签名信封 / 路由解释）、设置（能力声明 / DNS 策略 / 连接历史 / 诊断 / 会话令牌）。
   不用静态目录处理器（既避免目录穿越，也避免目录列表），`/ui` 与 `/ui/index.html` 都能打开面板。
 - **加固**：请求体上限 64 KiB；未知字段与非法 JSON 一律 400 `ARGUMENT_INVALID`；响应带 `Cache-Control: no-store`；面板响应带 `X-Frame-Options: DENY`、`Content-Security-Policy: default-src 'self'`；**不使用 `*` CORS**。
 - **令牌传递**：可用 URL **片段**（`http://127.0.0.1:PORT/ui/#token=…`）交给浏览器——片段不会发送给服务器、也不进服务端日志；面板读取后立即用 `history.replaceState` 抹掉地址栏。也可在面板里手动粘贴 `control.token` 内容。

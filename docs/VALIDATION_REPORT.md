@@ -4,7 +4,7 @@
 
 ## 已运行
 
-- `uv run pytest -q`：327 passed（unit 171 / integration 91 / security 53 / e2e 12）。全套测试无需互联网；四种 marker 子集之和与全量一致。
+- `uv run pytest -q`：337 passed（unit 171 / integration 99 / security 53 / e2e 14）。全套测试无需互联网；四种 marker 子集之和与全量一致。
 - `uv run ruff check .`：通过。
 - `uv run ruff format --check .`：通过。
 - `uv build`：生成 smart_accelerator-0.2.0-py3-none-any.whl 和对应 sdist。
@@ -42,6 +42,8 @@ Game Profile 更新覆盖：ed25519 验签（篡改文档、换密钥、非法 B
 解释层覆盖（B 周期）：分数解释的分项实际值与 `score_history.components` 逐项相等、总分等于分项之和（证明没有隐藏负分项）、分项字段集合固定（无 `penalty`）、未测量输入如实列出并按保守基准计分、质量档位理由与档位阶梯来自同一函数；资格解释逐条对应 Smart Selector 的真实阈值（窗口 21600s / 最少 3 样本 / 可用率 0.8 / 最新状态），四种排除原因各自可复现，并验证"最新状态成功但样本全未 verified"由崩溃（`None < 0.8`）改为判不合格；选择解释与 `SmartSelector.select` 的选中集合、排序（含 `rank = score + 国家偏好 2` 与并列按 id）完全一致。节点详情覆盖前缀唯一命中/歧义/不存在/非法、来源订阅显示名（不含订阅标识）、最近 10 条历史字段集合，并对两个合成节点（含 trojan 密码与 UUID 型 URI）断言响应里不含密码、UUID、私钥、订阅 URL、服务器名或 `secret_ref`。路由解释覆盖首个命中与优先级顺序、用户规则压过游戏规则、进程 basename、端口/协议、CIDR 需 IP 字面量、域名精确匹配且不做通配符（`sub.game.example.com` 不命中 `game.example.com`）、缺失维度不猜、空规则表与未知 selector 均返回 `DEFAULT`。
 
 订阅管理覆盖（C1）：手动添加走与 Master 相同的指纹（`HMAC(install_key, "url:" + URL)`）与行形状，重复添加被拒；URL 只以密文落库，直接读取 SQLite 字节也搜不到主机名与 token；句柄前缀的 4–64 位十六进制校验、唯一命中、歧义与不存在分别拒绝，且大小写不敏感；用户意图记录的形状被逐项校验（非 JSON、数组、非字符串项、未知键一律 `SUBSCRIPTION_STATE_INVALID`），正常记录里不含 URL。刷新语义：源集合 = Master ∪ 手动源（按摘要去重），Master 改列后非手动源被置 `enabled=0`、手动源保持启用并继续按密文刷新；暂停不改变 `last_checked_at/last_success_at`、不删节点、只刷新 Master 与未暂停源（`UpdateSummary.paused` 计数与 `skipped`/`RETRY_PAUSED` 不混淆），暂停源的陈旧样本按既有 6h 窗口退出候选；恢复把 `failure_count`/`next_check_at` 清 0，验证下一轮**无需** `--force` 即完成刷新；移除删除该源与 `node_sources`、清理仅由它引用的节点而保留共享节点，并如实返回 `present_in_master`（仍在 Master → 标注下次刷新会回来；无 Master 快照 → `REMOVED_LOCALLY_ONLY`；无密钥 → `null` + `MASTER_STATE_UNKNOWN_WITHOUT_KEY`）。控制面与 CLI 覆盖同一批操作：`POST /api/host/subscriptions`、`POST /api/host/subscriptions/{handle}`（非法 action / 未知句柄 / 非法句柄分别 400 固定错误码，`/subscriptions/update` 未被 `{handle}` 吞掉）、`subscriptions list` 无需密钥、所有输出都不含合成 URL 与密码。
+
+诊断覆盖（C2）：全新数据目录（无密钥、密文目录尚未创建）→ `status=OK`（`PASS` 6 / `SKIP` 9），说明"按需生成的文件"不会被当成故障；干净数据目录无 `FAIL`、检查项顺序与名称固定为 15 项；无密钥时 `secret_key`/`key_check`/`secret_coverage`/`master` 均为 `SKIP` 且不产生 `FAIL`（不把"未判断"当"通过"）；`PRAGMA user_version=99` → `FAIL` + `SCHEMA_UNSUPPORTED`；删除被引用密文 → `FAIL` + `SECRET_SNAPSHOT_INCOMPLETE`（并在输出里搜不到该密文对应的 URL token）；换密钥时 `Database` 打开即拒绝（`SECRET_KEY_MISMATCH`），而打开后篡改 `key_check` 时诊断自身也报同一错误码；类 Unix 下把库文件放宽到 `0644` → `FAIL` + `UNSAFE_STORAGE_PATH`，且详情只报固定名称不回显数据目录名；订阅退避上限 + 用户暂停 → `subscriptions` 为 `WARN` + `RETRY_PAUSED`、整体 `DEGRADED`；探测后的真实状态进入 `nodes`（可见节点数、合格候选数、状态分布）与 `master`（来源数、失败计数）详情；CLI 端到端验证 `diagnose` 无密钥可用、schema 不受支持时以 `{"error": "SCHEMA_UNSUPPORTED"}` 退出 2。
 
 控制面覆盖：令牌文件 0600 与复用、符号链接拒绝、未授权一律 401、Clash 兼容子集如实返回（端口 0 / 空连接 / 0 流量且标注"未测量"）、`connect` 明确拒绝、未知字段与非法 JSON 400、超限 413、参数越界 400（history limit）、扩展端点形状（summary/subscriptions/dns/profiles/history）、面板不可逃逸 `/ui` 根、**仅绑定 127.0.0.1（真实 socket 断言）**、面板无外部资源引用、**面板结构对应规格 §22 五页且禁用项标注原因**。
 

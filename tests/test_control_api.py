@@ -201,6 +201,15 @@ async def test_extended_host_endpoints(control):
         "/api/host/dns": ("ipv6", "fake_ip", "sample", "core"),
         "/api/host/profiles": ("version", "profiles", "previous_version", "rules"),
         "/api/host/history": ("history", "count", "note"),
+        "/api/host/diagnostic": (
+            "version",
+            "status",
+            "counts",
+            "checks",
+            "core",
+            "note",
+            "network",
+        ),
     }
     for path, keys in expected.items():
         response = await client.get(path, headers=headers)
@@ -208,6 +217,17 @@ async def test_extended_host_endpoints(control):
         payload = await response.json()
         for key in keys:
             assert key in payload, (path, key)
+    diagnostic = await (await client.get("/api/host/diagnostic", headers=headers)).json()
+    assert diagnostic["note"] == "NO_CREDENTIALS_OR_URLS_INCLUDED"
+    assert diagnostic["network"] == "NOT_CONTACTED"
+    assert diagnostic["status"] in {"OK", "DEGRADED"}
+    assert diagnostic["counts"]["FAIL"] == 0
+    assert [entry["name"] for entry in diagnostic["checks"]][:4] == [
+        "data_directory",
+        "database_file",
+        "secrets_directory",
+        "control_token",
+    ]
     summary = await (await client.get("/api/host/summary", headers=headers)).json()
     assert summary["total"] == 0 and summary["countries"] == []
     dns = await (await client.get("/api/host/dns", headers=headers)).json()

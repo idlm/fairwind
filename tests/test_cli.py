@@ -12,6 +12,7 @@ from accelerator.cli import execute, make_parser, optional_vault, udp_target
 from accelerator.errors import SafeError
 from accelerator.network import FetchResult
 from accelerator.probing import UDP_TARGET_DEFAULT
+from accelerator.storage import Database
 from accelerator.subscription import SubscriptionEngine
 from conftest import MASTER
 
@@ -26,7 +27,13 @@ SUBSCRIPTION_SECRETS = (
 
 @pytest.mark.parametrize(
     "command",
-    [["status"], ["nodes", "list"], ["nodes", "best"], ["route", "explain", "example.com"]],
+    [
+        ["status"],
+        ["nodes", "list"],
+        ["nodes", "best"],
+        ["route", "explain", "example.com"],
+        ["diagnose"],
+    ],
 )
 def test_cli_read_commands_without_key(tmp_path, command):
     environment = {
@@ -93,6 +100,25 @@ def test_optional_vault_keeps_serve_startable(tmp_path, monkeypatch):
     assert optional_vault(tmp_path) is None
     monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
     assert isinstance(optional_vault(tmp_path), SecretVault)
+
+
+def test_cli_diagnose_on_unsupported_schema(tmp_path, vault):
+    database = Database(tmp_path, vault)
+    with database.connection:
+        database.connection.execute("PRAGMA user_version=99")
+    database.close()
+    environment = {
+        key: value for key, value in os.environ.items() if key != "ACCELERATOR_SECRET_KEY"
+    }
+    result = subprocess.run(
+        [sys.executable, "-m", "accelerator.cli", "--data-dir", str(tmp_path), "diagnose"],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert json.loads(result.stdout) == {"error": "SCHEMA_UNSUPPORTED"}
 
 
 def test_invalid_cli_argument_not_echoed(tmp_path):

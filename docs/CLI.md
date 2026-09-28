@@ -15,6 +15,7 @@
 | accelerator nodes best [--country JP] | 至少 3 个最近有效测试样本、成功率 ≥80%、当前可用；地理偏好仅轻量加权 |
 | accelerator nodes explain NODE_ID | 节点详情 + 分数解释 + 资格解释；NODE_ID 为列表中的 12 位前缀（4–64 位十六进制均可，唯一命中）。**不含**凭据/订阅 URL |
 | accelerator status | 持久化节点、订阅与固定 DISCONNECTED；不会声称存在后台隧道 |
+| accelerator diagnose | 离线自检：schema/完整性/权限/密钥匹配/密文覆盖/Master/订阅与调度/节点/Profile 信任根/核心状态；不联网、不需要密钥（缺密钥的检查标 SKIP）；`FAILED` 退出 2 |
 | accelerator route explain HOST [--port P] [--protocol tcp\|udp] [--process NAME] | 按已落库规则给出生效动作（PROXY / DIRECT / DEFAULT）与命中的规则；未命中即 `DEFAULT`，不会声称已连接 |
 | accelerator serve [--port 8765] | 在 127.0.0.1 启动控制面与静态面板；token 写入 `<data-dir>/control.token`（0600），面板地址用 URL 片段携带 token |
 
@@ -41,6 +42,15 @@ UDP 丢包只在 SOCKS5 且出口已验证可用时测量：通过 UDP ASSOCIATE
 - 用户手动添加的源不会被 Master 漂移禁用；Master 列表里消失、且不是手动源的条目才会被置 `enabled=0`。
 
 固定错误码：`SUBSCRIPTION_ID_INVALID`（句柄不是 4–64 位十六进制）、`SUBSCRIPTION_NOT_FOUND`、`SUBSCRIPTION_ID_AMBIGUOUS`、`SUBSCRIPTION_DUPLICATE`、`SUBSCRIPTION_LIMIT`（超过 128 源）、`SUBSCRIPTION_STATE_INVALID`（本机状态记录损坏）。
+
+## 诊断（Diagnose）
+
+`accelerator diagnose` / `GET /api/host/diagnostic` / 面板「设置 → 诊断」输出同一份报告：
+
+- `status`：`OK` / `DEGRADED`（有 `WARN`）/ `FAILED`（有 `FAIL`，CLI 退出 2）；
+- `counts`：四种状态的计数；`checks[]`：每项含 `name` / `status` / `detail` / `error_code`（固定错误码，可直接对照 `TROUBLESHOOTING.md`）；
+- 检查项固定 15 项：数据目录/数据库/密文目录/控制面令牌权限、schema `user_version`、`integrity_check`、密钥是否加载、`key_check` 是否匹配、被引用密文是否齐全、Master 快照与失败计数、订阅（数量/手动/暂停/达到失败上限）、可见节点与合格候选数、路由规则数、Profile 注册表与信任根、核心接入状态。
+- 语义边界：**不联网**（`network: NOT_CONTACTED`）、**不修改任何状态**、**不含凭据或订阅 URL**（`note: NO_CREDENTIALS_OR_URLS_INCLUDED`）；权限项只报固定名称，不回显数据目录名。没有密钥时密文相关项标 `SKIP` 而不是"通过"。
 
 ## 解释命令（Explain Mode）
 

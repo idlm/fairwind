@@ -67,6 +67,7 @@ def make_parser() -> argparse.ArgumentParser:
     route_explain.add_argument("--port", type=int)
     route_explain.add_argument("--protocol", choices=("tcp", "udp"))
     route_explain.add_argument("--process")
+    commands.add_parser("diagnose")
     commands.add_parser("status")
     serving = commands.add_parser("serve")
     serving.add_argument("--port", type=int, default=8765)
@@ -154,6 +155,10 @@ async def execute(args: argparse.Namespace) -> int:
         summary = await service.update_subscriptions(args.master_url, args.force, args.interval)
         emit(summary)
         return 2 if summary["partial_failure"] else 0
+    if args.command == "diagnose":
+        report = service.diagnostic()
+        emit(report)
+        return 2 if report["status"] == "FAILED" else 0
     if args.command == "status":
         emit(service.status())
         return 0

@@ -11,6 +11,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from accelerator import __version__
+from accelerator.diagnostics import diagnose
 from accelerator.dns import DnsPolicy, DnsPolicyEngine
 from accelerator.domain import Capabilities, ConnectionState
 from accelerator.errors import SafeError
@@ -68,6 +69,7 @@ OPERATIONS = (
     "profiles.restore",
     "routing.rules",
     "routing.explain",
+    "diagnostic",
     "backup",
     "storage.gc",
 )
@@ -370,6 +372,11 @@ class HostService:
                 [(row, database.history(row["id"])) for row in database.nodes()], country
             )
         return {"best": ranked, "status": "OK" if ranked else "NO_ELIGIBLE_NODE"}
+
+    def diagnostic(self) -> dict:
+        """离线自检：只读本机状态，不联网、不修改任何东西；输出含固定错误码但不含凭据。"""
+        with self._database() as database:
+            return diagnose(self.data_dir, database, self.vault)
 
     def routing_rules(self) -> dict:
         with self._database() as database:

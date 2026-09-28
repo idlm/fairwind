@@ -201,6 +201,11 @@
       <p class="muted">由平台客户端写入；参考宿主不伪造连接事件。</p>
     </div>
     <div class="card">
+      <h2>诊断</h2>
+      <div class="row"><button id="diagnose">运行离线自检</button></div>
+      <pre id="diagnostic">只读本机状态：schema/完整性/权限/密文覆盖/订阅与调度/Profile 信任根。不联网、不含凭据与订阅 URL。</pre>
+    </div>
+    <div class="card">
       <h2>会话令牌</h2>
       <div class="row"><button id="forget-token">清除本标签页令牌</button></div>
       <p class="muted">令牌来自服务端 control.token（0600）；本面板只放在 sessionStorage，关闭标签页即失效。</p>
@@ -415,6 +420,15 @@ document.getElementById("token-save").addEventListener("click", () => {
   state.token = document.getElementById("token-input").value.trim();
   sessionStorage.setItem("accelerator.token", state.token);
   loadStatus();
+});
+document.getElementById("diagnose").addEventListener("click", async () => {
+  try {
+    const report = await call("/api/host/diagnostic");
+    const header = report.status + "（PASS " + report.counts.PASS + " / WARN " + report.counts.WARN
+      + " / FAIL " + report.counts.FAIL + " / SKIP " + report.counts.SKIP + "）";
+    text("diagnostic", header + "\n" + report.checks
+      .map((check) => check.status + " " + check.name + " — " + check.detail).join("\n"));
+  } catch (error) { fail("diagnostic", error); }
 });
 document.getElementById("subscription-add").addEventListener("click", async () => {
   const url = document.getElementById("subscription-url").value.trim();

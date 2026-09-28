@@ -241,6 +241,11 @@ async def handle_host_history(request: web.Request) -> web.Response:
     return _json(_service(request).connection_history(int(limit)))
 
 
+async def handle_host_diagnostic(request: web.Request) -> web.Response:
+    """离线自检：只读本机状态，不联网、不修改任何东西。"""
+    return _json(_service(request).diagnostic())
+
+
 async def handle_subscriptions_update(request: web.Request) -> web.Response:
     payload = await _body(request, ("master_url", "force", "interval"))
     service = _service(request)
@@ -341,6 +346,7 @@ def build_app(service: HostService, token: str) -> web.Application:
     app.router.add_get(f"{HOST_PREFIX}/dns", handle_host_dns)
     app.router.add_get(f"{HOST_PREFIX}/profiles", handle_host_profiles)
     app.router.add_get(f"{HOST_PREFIX}/history", handle_host_history)
+    app.router.add_get(f"{HOST_PREFIX}/diagnostic", handle_host_diagnostic)
     app.router.add_post(f"{HOST_PREFIX}/subscriptions/update", handle_subscriptions_update)
     app.router.add_post(f"{HOST_PREFIX}/subscriptions", handle_subscriptions_add)
     app.router.add_post(f"{HOST_PREFIX}/subscriptions/{{handle}}", handle_subscription_action)

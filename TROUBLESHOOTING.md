@@ -1,5 +1,7 @@
 # 排障
 
+先跑 `accelerator diagnose`（或面板「设置 → 诊断」，或 `GET /api/host/diagnostic`）：它只读本机状态、不联网、不含凭据，会用下面的固定错误码指出问题所在。`FAIL` 需要处理，`WARN` 表示可用但退化，`SKIP` 表示当前无法判断（例如没有密钥），**不会伪装成通过**。
+
 - `SECRET_KEY_REQUIRED`：通过安全环境注入 ACCELERATOR_SECRET_KEY，必须是 32 字节 Base64；不要把密钥加入 issue。
 - `SECRET_KEY_MISMATCH` / `SECRET_CORRUPT`：恢复原有密钥或备份；不要删除数据库来掩盖问题。
 - `URL_REJECTED` / `NETWORK_FAILED`：确认是公网 HTTP(S)、证书有效、未重定向到私网；默认不允许本地或 LAN 源。
@@ -32,5 +34,6 @@
 - `ROLLBACK_REJECTED`：远端 `version` 未严格大于本地版本；按发布流程重新签名递增版本，不要就地改版本号。
 - `NO_PREVIOUS_REGISTRY`：尚无 LKG 可回退（首次更新前或首次更新失败时属于正常状态）。
 - `STORAGE_FULL`：密文存储达到容量上限；保留数据和密钥，按备份流程处理，禁止自动清空 LKG。
+- `STORAGE_INTEGRITY_FAILED`：SQLite `integrity_check` 未返回 ok，数据库已损坏；不要继续写入，先用最近一次一致性备份恢复（见 `scripts/backup.py`）。
 
 提交问题时仅提供版本、平台、固定错误码与合成测试输入。不附带 URL、token、UUID、密码、DNS/浏览记录。
