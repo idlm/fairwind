@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import socket
 import struct
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -290,3 +291,31 @@ async def test_socks5_udp_option_false_skips_measurement(parser, socks5_fixture)
     result = await udp_probe(socks5_fixture, samples=1).test_node(node)
     assert result.state == TestState.AVAILABLE and result.packet_loss is None
     assert socks5_fixture.state["udp_associates"] == 0
+
+
+def descriptor_count() -> int:
+    return len(list(Path("/proc/self/fd").iterdir()))
+
+
+@pytest.mark.skipif(not Path("/proc/self/fd").is_dir(), reason="统计文件描述符需要 /proc")
+async def test_udp_loss_releases_socket_when_connection_fails(parser, monkeypatch):
+    """失败路径离开调用时必须释放 UDP 套接字（不变量守卫，不是缺陷回归）。
+
+    实测说明：CPython 的引用计数在栈帧销毁时就会关闭该套接字，因此本用例在"先建套接字、
+    后连代理"的旧写法下同样通过——它守的是"socket 不逃逸到长生命周期对象、失败路径不累积
+    fd"这一不变量；一旦有人把 socket 存到 self，或用 `except ... as error` 保留 traceback，
+    用例会立即失败。
+    """
+    monkeypatch.setattr(probing, "public_ip", lambda address: address == "127.0.0.1")
+
+    async def failing_connect(*args, **kwargs):
+        raise OSError("synthetic connection failure")
+
+    monkeypatch.setattr(probing.asyncio, "open_connection", failing_connect)
+    backend = ReferenceProbe("https://probe.example/generate_204", udp_target=("127.0.0.1", 53))
+    node = socks_node(parser, 1080, with_credentials=False)
+    before = descriptor_count()
+    for _ in range(30):
+        with pytest.raises(OSError):
+            await backend._udp_loss(node)
+    assert descriptor_count() <= before + 2

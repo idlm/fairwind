@@ -191,39 +191,44 @@ class ReferenceProbe:
         proxy = addresses[0][4][0]
         family = socket.AF_INET6 if ":" in proxy else socket.AF_INET
         wildcard = "::" if family == socket.AF_INET6 else "0.0.0.0"
-        sock = socket.socket(family, socket.SOCK_DGRAM)
-        reader, writer = await asyncio.open_connection(proxy, node.secret.port)
-        try:
-            sock.setblocking(False)
-            sock.bind((wildcard, 0))
-            await handshake(reader, writer, node)
-            relay_host, relay_port = await command(
-                reader, writer, UDP_ASSOCIATE, wildcard, sock.getsockname()[1], "PROXY_UDP_FAILED"
-            )
-            if relay_host in {"", "0.0.0.0", "::"}:
-                relay_host = proxy
-            if not is_ip_literal(relay_host) or not public_ip(relay_host):
-                raise SafeError("URL_REJECTED")
-            payload = wrap_datagram(target_host, target_port, dns_probe_query())
-            received = 0
-            for _ in range(self.udp_samples):
-                await loop.sock_sendto(sock, payload, (relay_host, relay_port))
-                try:
-                    async with asyncio.timeout(UDP_SAMPLE_TIMEOUT):
-                        while True:
-                            data, _ = await loop.sock_recvfrom(sock, MAX_DATAGRAM)
-                            parsed = parse_datagram(data)
-                            if parsed and is_dns_probe_response(parsed[2]):
-                                received += 1
-                                break
-                except TimeoutError:
-                    continue
-            return round(UDP_FULL_LOSS - received / self.udp_samples, 3)
-        finally:
-            sock.close()
-            writer.close()
-            with contextlib.suppress(Exception):
-                await writer.wait_closed()
+        with contextlib.closing(socket.socket(family, socket.SOCK_DGRAM)) as sock:
+            # 显式生命周期：不依赖 CPython 引用计数/析构时机（PyPy 等实现下析构并不即时）。
+            reader, writer = await asyncio.open_connection(proxy, node.secret.port)
+            try:
+                sock.setblocking(False)
+                sock.bind((wildcard, 0))
+                await handshake(reader, writer, node)
+                relay_host, relay_port = await command(
+                    reader,
+                    writer,
+                    UDP_ASSOCIATE,
+                    wildcard,
+                    sock.getsockname()[1],
+                    "PROXY_UDP_FAILED",
+                )
+                if relay_host in {"", "0.0.0.0", "::"}:
+                    relay_host = proxy
+                if not is_ip_literal(relay_host) or not public_ip(relay_host):
+                    raise SafeError("URL_REJECTED")
+                payload = wrap_datagram(target_host, target_port, dns_probe_query())
+                received = 0
+                for _ in range(self.udp_samples):
+                    await loop.sock_sendto(sock, payload, (relay_host, relay_port))
+                    try:
+                        async with asyncio.timeout(UDP_SAMPLE_TIMEOUT):
+                            while True:
+                                data, _ = await loop.sock_recvfrom(sock, MAX_DATAGRAM)
+                                parsed = parse_datagram(data)
+                                if parsed and is_dns_probe_response(parsed[2]):
+                                    received += 1
+                                    break
+                    except TimeoutError:
+                        continue
+                return round(UDP_FULL_LOSS - received / self.udp_samples, 3)
+            finally:
+                writer.close()
+                with contextlib.suppress(Exception):
+                    await writer.wait_closed()
 
     async def _verify_exit(
         self,
