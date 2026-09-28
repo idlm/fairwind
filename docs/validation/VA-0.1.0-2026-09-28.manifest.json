@@ -1,0 +1,66 @@
+{
+  "validation_id": "VA-0.1.0-2026-09-28",
+  "version": "0.1.0",
+  "tag": "v0.1.0-reference",
+  "tagged_commit": "cf4835473fa7a2c46fa55ab5babb2d92f938a3e3",
+  "branch": "main",
+  "repository": "https://github.com/idlm/smart-accelerator",
+  "release_url": "https://github.com/idlm/smart-accelerator/releases/tag/v0.1.0-reference",
+  "released_at": "2026-09-28T18:53:50Z",
+  "evidence_generated_at": "2026-09-28T18:52:59.643723+00:00",
+  "gate": {
+    "lint": 0,
+    "format": 0,
+    "tests": 0,
+    "build": 0,
+    "artifact_hygiene": 0,
+    "secret_gate": 0
+  },
+  "markers": {
+    "unit": 0,
+    "integration": 0,
+    "security": 0,
+    "e2e": 0
+  },
+  "tests_passed": 281,
+  "failed_gates": [],
+  "artifacts": [
+    {
+      "name": "smart_accelerator-0.1.0-py3-none-any.whl",
+      "bytes": 56426,
+      "sha256": "686215fd5e35fcbed7087e1f936bcf6238ead05c2e4e752c8a288399508d4b3c"
+    },
+    {
+      "name": "smart_accelerator-0.1.0.tar.gz",
+      "bytes": 215071,
+      "sha256": "518faf858e96e515e970589bf1a756f9c99c5731f9b63eb1cf255fa4b3e1fa70"
+    }
+  ],
+  "evidence_files": [
+    {
+      "name": "TEST_REPORT.md",
+      "sha256": "4d975b09f25e42b0680196acb9345e081df2a866ced1f30655f086ebffb390dd"
+    },
+    {
+      "name": "SBOM.json",
+      "sha256": "9e753649273c8168ef557622feb5cb9d24fdd069199f828741de35017af3a49d"
+    },
+    {
+      "name": "smart_accelerator-0.1.0-py3-none-any.whl",
+      "sha256": "686215fd5e35fcbed7087e1f936bcf6238ead05c2e4e752c8a288399508d4b3c"
+    },
+    {
+      "name": "smart_accelerator-0.1.0.tar.gz",
+      "sha256": "518faf858e96e515e970589bf1a756f9c99c5731f9b63eb1cf255fa4b3e1fa70"
+    }
+  ],
+  "evidence_bundle": {
+    "name": "VA-0.1.0-2026-09-28.zip",
+    "bytes": 2800,
+    "sha256": "2c5d2ba40b5f67d413f8ff99f457d6bad25b6792cdbc75d1828c720b812d7d9a"
+  },
+  "sbom_components": 22,
+  "human_readable_evidence": "docs/VALIDATION_REPORT.md",
+  "capability_boundary": "CHANGELOG.md",
+  "notes": "完整证据包（原始输出/gate 日志/机器可读证据）仅作为 Release 资产，已在 .gitignore 忽略；仓库只保留本清单与人读摘要。本清单记录不可变 tag 的内容，因此落在 tag 之后的独立 docs commit。"
+}
