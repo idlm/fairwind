@@ -201,6 +201,11 @@
       <p class="muted">由平台客户端写入；参考宿主不伪造连接事件。</p>
     </div>
     <div class="card">
+      <h2>进程内指标</h2>
+      <div class="row"><button id="metrics">刷新指标</button></div>
+      <pre id="metrics-output">只统计本进程真实发生的请求；控制面重启即清零。流量未测量，不做任何推算。</pre>
+    </div>
+    <div class="card">
       <h2>诊断</h2>
       <div class="row"><button id="diagnose">运行离线自检</button></div>
       <pre id="diagnostic">只读本机状态：schema/完整性/权限/密文覆盖/订阅与调度/Profile 信任根。不联网、不含凭据与订阅 URL。</pre>
@@ -420,6 +425,18 @@ document.getElementById("token-save").addEventListener("click", () => {
   state.token = document.getElementById("token-input").value.trim();
   sessionStorage.setItem("accelerator.token", state.token);
   loadStatus();
+});
+document.getElementById("metrics").addEventListener("click", async () => {
+  try {
+    const snapshot = await call("/api/host/metrics");
+    text("metrics-output", "请求 " + snapshot.request_count + " · 运行 " + snapshot.uptime_seconds
+      + "s · 最慢 " + snapshot.slowest_request_ms + "ms\n" + JSON.stringify({
+        requests: snapshot.requests,
+        status_classes: snapshot.status_classes,
+        error_codes: snapshot.error_codes,
+        traffic: snapshot.traffic,
+      }, null, 2));
+  } catch (error) { fail("metrics-output", error); }
 });
 document.getElementById("diagnose").addEventListener("click", async () => {
   try {

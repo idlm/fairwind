@@ -52,6 +52,16 @@ UDP 丢包只在 SOCKS5 且出口已验证可用时测量：通过 UDP ASSOCIATE
 - 检查项固定 15 项：数据目录/数据库/密文目录/控制面令牌权限、schema `user_version`、`integrity_check`、密钥是否加载、`key_check` 是否匹配、被引用密文是否齐全、Master 快照与失败计数、订阅（数量/手动/暂停/达到失败上限）、可见节点与合格候选数、路由规则数、Profile 注册表与信任根、核心接入状态。
 - 语义边界：**不联网**（`network: NOT_CONTACTED`）、**不修改任何状态**、**不含凭据或订阅 URL**（`note: NO_CREDENTIALS_OR_URLS_INCLUDED`）；权限项只报固定名称，不回显数据目录名。没有密钥时密文相关项标 `SKIP` 而不是"通过"。
 
+## 指标（Metrics）
+
+`GET /api/host/metrics` / 面板「设置 → 进程内指标」按**路由模板**（如 `/api/host/nodes/{id}`）统计本进程真实发生的请求数、状态码分类与固定错误码，并给出运行时长与最慢请求耗时。
+
+- 只统计**已经结束**的请求：查看指标这一次请求本身要等响应返回后才计入。
+- 字段 `note: PROCESS_LOCAL_RESETS_ON_RESTART`：控制面每次启动都是新进程，指标从零开始；本周期不做持久化。
+- 字段 `traffic: {measured: false, ...}`：未接入核心前不给出任何上下行数字，**不用 0 冒充测量值**。
+- 不提供一次性 CLI 命令（如 `accelerator metrics`）——单次进程没有可观测的累计状态，返回空表只会误导。
+- 隐私：指标只存在于控制面进程内存中，不落盘、不外发；路径中的用户输入（节点前缀、句柄等）不进入指标。
+
 ## 解释命令（Explain Mode）
 
 `nodes explain` 与 `route explain` 是**只读解释器**：它们不新增评分、权重或路由理由，只把既有 Domain Logic 的实际计算过程与判定条件原样输出。

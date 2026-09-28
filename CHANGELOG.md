@@ -18,6 +18,7 @@
 - **路由解释**：`routing.match_route()` / `routing.explain_route()` / `accelerator route explain HOST` / `GET /api/host/route?host=` — 按 `ROUTING_SPEC` 优先级做首个命中匹配，返回动作、命中规则（id/selector/value/priority/source）与判定理由；未命中为 `DEFAULT`
 - **订阅管理（本地）**：`subscriptions list|add|pause|resume|remove` + `POST /api/host/subscriptions[/{handle}]` + 面板「管理订阅源」——句柄是 URL 摘要的 12 位前缀（不可逆），URL 只以密文保存且任何输出都不回显；手动源不会被 Master 漂移禁用；暂停只停止刷新（保留 LKG，样本随时间退出 6h 候选窗口）；恢复清空退避、下一轮即刷新；移除是本地操作且如实标注 Master 是否会让它回来
 - **离线自检诊断**：`accelerator diagnose` + `GET /api/host/diagnostic` + 面板「设置 → 诊断」——15 项检查（权限/schema/完整性/密钥匹配/密文覆盖/Master/订阅调度/节点与候选/路由规则/Profile 信任根/核心状态），每项给出 `PASS` / `WARN` / `FAIL` / `SKIP` 与固定错误码；不联网（`network: NOT_CONTACTED`）、不修改状态、不含凭据或 URL，缺密钥的检查标 `SKIP` 而非"通过"；有 `FAIL` 时 CLI 退出 2
+- **进程内可观测性**：`GET /api/host/metrics` + 面板「设置 → 进程内指标」——按**路由模板**统计请求数、状态码分类与固定错误码，附运行时长与最慢请求耗时；明确 `PROCESS_LOCAL_RESETS_ON_RESTART`（重启即清零，不做持久化）与 `traffic.measured=false`（未接入核心前不给出任何流量数字）。不提供一次性 CLI 命令：单次进程没有可观测的累计状态。
 - 面板新增「解释节点」与「路由解释」两处只读入口（调用与 CLI 相同的两个 API，不绕过 Domain Layer）
 - 修复潜在崩溃：最新探测状态为成功但样本全部未 `verified` 时，Smart Selector 曾因 `None < 0.8` 抛 `TypeError`；现按"可用率 0"判为不合格并给出原因
 - 修复订阅显示名撞号：新增来源的 `Subscription #NN` 改为取"最小可用编号"，不再按行数位置编号
@@ -25,7 +26,7 @@
 ### Not Yet Implemented
 
 - 与 0.1.0 相同：真实代理隧道、核心运行时接入、TUN/系统代理、原生 UI、代码签名与真机验证
-- 可观测性（指标/日志/流量统计）不在本周期范围
+- 日志导出与流量统计仍未交付（流量在接入核心前不可测量，因此控制面只如实标注 `traffic.measured=false`）；持久化/跨进程指标也不在本周期范围
 
 ### Notes
 

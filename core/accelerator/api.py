@@ -13,6 +13,7 @@ import hmac
 import json
 import os
 import secrets
+import time
 from pathlib import Path
 
 from aiohttp import web
@@ -20,6 +21,7 @@ from aiohttp import web
 from accelerator import __version__
 from accelerator.errors import SafeError
 from accelerator.host import SUBSCRIPTION_ACTIONS, HostService
+from accelerator.metrics import UNMATCHED_ROUTE, Metrics
 from accelerator.security import private_directory
 
 TOKEN_NAME = "control.token"
@@ -29,6 +31,7 @@ CORE_NOT_INTEGRATED = "NOT_INTEGRATED"
 HOST_PREFIX = "/api/host"
 PUBLIC_PREFIXES = ("/ui",)
 SERVICE_KEY: web.AppKey[HostService] = web.AppKey("service", HostService)
+METRICS_KEY: web.AppKey[Metrics] = web.AppKey("metrics", Metrics)
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -67,25 +70,54 @@ def _error(code: str, status: int) -> web.Response:
     return response
 
 
+def _route_template(request: web.Request) -> str:
+    """只记录路由模板（如 `/api/host/nodes/{id}`），绝不记录其中的用户输入。"""
+    try:
+        return request.match_info.route.resource.canonical
+    except (AttributeError, RuntimeError):
+        return UNMATCHED_ROUTE
+
+
+def _record(
+    request: web.Request, status: int, started: float, error_code: str | None = None
+) -> None:
+    metrics = request.app.get(METRICS_KEY)
+    if metrics is None:
+        return
+    metrics.record(
+        _route_template(request), status, (time.perf_counter() - started) * 1000, error_code
+    )
+
+
 def _auth_middleware(token: str):
     @web.middleware
     async def middleware(request: web.Request, handler):
+        started = time.perf_counter()
         if request.path.startswith(PUBLIC_PREFIXES):
             response = await handler(request)
             response.headers.update(SECURITY_HEADERS)
+            _record(request, response.status, started)
             return response
         if not hmac.compare_digest(request.headers.get("Authorization", ""), f"Bearer {token}"):
-            return _error("CONTROL_UNAUTHORIZED", 401)
+            response = _error("CONTROL_UNAUTHORIZED", 401)
+            _record(request, response.status, started, "CONTROL_UNAUTHORIZED")
+            return response
         try:
             response = await handler(request)
         except SafeError as error:
-            return _error(error.code, 400)
-        except web.HTTPException:
+            response = _error(error.code, 400)
+            _record(request, response.status, started, error.code)
+            return response
+        except web.HTTPException as error:
+            _record(request, error.status, started)
             raise
         except Exception:
-            return _error("INTERNAL_ERROR", 500)
+            response = _error("INTERNAL_ERROR", 500)
+            _record(request, response.status, started, "INTERNAL_ERROR")
+            return response
         response.headers["Cache-Control"] = "no-store"
         response.headers.update(SECURITY_HEADERS)
+        _record(request, response.status, started)
         return response
 
     return middleware
@@ -246,6 +278,13 @@ async def handle_host_diagnostic(request: web.Request) -> web.Response:
     return _json(_service(request).diagnostic())
 
 
+async def handle_host_metrics(request: web.Request) -> web.Response:
+    """进程内指标：只统计本进程真实发生过的请求；流量未测量，不做任何推算。"""
+    metrics = request.app.get(METRICS_KEY)
+    payload = metrics.snapshot() if metrics is not None else {}
+    return _json({**payload, "core": CORE_NOT_INTEGRATED})
+
+
 async def handle_subscriptions_update(request: web.Request) -> web.Response:
     payload = await _body(request, ("master_url", "force", "interval"))
     service = _service(request)
@@ -323,12 +362,13 @@ async def handle_panel(request: web.Request) -> web.Response:
     return response
 
 
-def build_app(service: HostService, token: str) -> web.Application:
+def build_app(service: HostService, token: str, metrics: Metrics | None = None) -> web.Application:
     app = web.Application(
         middlewares=[_auth_middleware(token)],
         client_max_size=MAX_BODY_BYTES,
     )
     app[SERVICE_KEY] = service
+    app[METRICS_KEY] = metrics or Metrics()
     app.router.add_get("/version", handle_version)
     app.router.add_get("/configs", handle_configs)
     app.router.add_get("/proxies", handle_proxies)
@@ -347,6 +387,7 @@ def build_app(service: HostService, token: str) -> web.Application:
     app.router.add_get(f"{HOST_PREFIX}/profiles", handle_host_profiles)
     app.router.add_get(f"{HOST_PREFIX}/history", handle_host_history)
     app.router.add_get(f"{HOST_PREFIX}/diagnostic", handle_host_diagnostic)
+    app.router.add_get(f"{HOST_PREFIX}/metrics", handle_host_metrics)
     app.router.add_post(f"{HOST_PREFIX}/subscriptions/update", handle_subscriptions_update)
     app.router.add_post(f"{HOST_PREFIX}/subscriptions", handle_subscriptions_add)
     app.router.add_post(f"{HOST_PREFIX}/subscriptions/{{handle}}", handle_subscription_action)

@@ -37,3 +37,5 @@
 - `STORAGE_INTEGRITY_FAILED`：SQLite `integrity_check` 未返回 ok，数据库已损坏；不要继续写入，先用最近一次一致性备份恢复（见 `scripts/backup.py`）。
 
 提交问题时仅提供版本、平台、固定错误码与合成测试输入。不附带 URL、token、UUID、密码、DNS/浏览记录。
+
+控制面的进程内指标（`GET /api/host/metrics`）只存在于该进程内存中：不落盘、不外发、重启即清零；其中只有路由模板与固定错误码，不含节点前缀、订阅句柄等用户输入。

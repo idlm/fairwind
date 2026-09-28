@@ -15,8 +15,8 @@ HTTP 测试使用本地服务和显式测试 transport；生产默认不允许�
 | marker | 覆盖范围 | 当前用例数 |
 |---|---|---|
 | unit | 解析、评分与解释层（分数/资格/选择）、连接控制器、游戏配置与规则生成与匹配语义、DNS 策略、核心能力路由与连接历史 | 171 |
-| integration | 订阅更新与事务、本地订阅管理（添加/暂停/恢复/移除与用户意图持久化）、离线自检诊断、节点详情与路由解释、HTTP CONNECT/SOCKS5 真实 socket+TLS 探测、备份/密文快照与恢复、宿主服务层、本机控制面 | 99 |
+| integration | 订阅更新与事务、本地订阅管理（添加/暂停/恢复/移除与用户意图持久化）、离线自检诊断、进程内指标、节点详情与路由解释、HTTP CONNECT/SOCKS5 真实 socket+TLS 探测、备份/密文快照与恢复、宿主服务层、本机控制面 | 103 |
 | security | SSRF/限额/篡改/权限/写锁/引用感知 GC/签名与防回滚 | 53 |
 | e2e | 参考 CLI 命令（订阅更新/列出/添加/暂停/恢复/移除、节点列表/测速/推荐/解释、路由解释、诊断、状态）与输出脱敏 | 14 |
 
-子集运行：`uv run pytest -m unit`、`-m integration`、`-m security`、`-m e2e`；全量 337 项，四种 marker 之和与全量一致。
+子集运行：`uv run pytest -m unit`、`-m integration`、`-m security`、`-m e2e`；全量 341 项，四种 marker 之和与全量一致。

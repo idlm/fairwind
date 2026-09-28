@@ -58,6 +58,8 @@ async def test_api_requires_bearer_token(control):
         "/connections",
         "/traffic",
         "/api/host/status",
+        "/api/host/metrics",
+        "/api/host/diagnostic",
     ):
         response = await client.get(path)
         assert response.status == 401

@@ -49,6 +49,8 @@ uv build
 
 **排障入口**：`accelerator diagnose`（或面板「设置 → 诊断」，或 `GET /api/host/diagnostic`）做 15 项离线自检，每项给出 `PASS` / `WARN` / `FAIL` / `SKIP` 与固定错误码；不联网、不修改状态、不含凭据，缺密钥的检查标 `SKIP` 而不是"通过"。
 
+**可观测性**：`GET /api/host/metrics`（面板「设置 → 进程内指标」）按路由模板统计本进程真实发生的请求、状态码分类与固定错误码。它明确标注"重启即清零、不做持久化"，且 `traffic.measured=false`——未接入核心前不给任何流量数字。
+
 **尚未实现（不依赖它们做任何宣称）**：真实代理隧道连接、Windows TUN 与系统代理、Android VpnService、iOS NetworkExtension、任何代理核心的运行时接入、代码签名、Apple entitlement、真机验证。核心接入模型仍是 `docs/CORE_INTEGRATION_ADR.md` 的**提议**（候选仅 Xray-core，待批准），因此 `connect` 类操作固定返回 `CORE_NOT_INTEGRATED`。
 
 能力边界与版本历史见 `CHANGELOG.md`；验证证据见 `docs/VALIDATION_REPORT.md`（人读）与对应 Release 的机器证据资产。

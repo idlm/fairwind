@@ -42,6 +42,7 @@
   `GET /api/host/route?host=&port=&protocol=&process=`（路由解释；缺 host 或非法 port/protocol 一律 400 `ARGUMENT_INVALID`）。所有 `SafeError` 在控制面统一映射为 400 + 固定错误码，因此"未找到"也是 400 而不是 404。
   订阅管理端点：`POST /api/host/subscriptions`（body `{"url": …}`，加密保存且不回显）、`POST /api/host/subscriptions/{handle}`（body `{"action": "pause"|"resume"|"remove"}`）。句柄是 URL 摘要前缀，不是 URL。
   诊断端点：`GET /api/host/diagnostic`（离线自检；不联网、不修改状态、不含凭据；`FAIL` 项给出固定错误码）。
+  指标端点：`GET /api/host/metrics`（按**路由模板**统计本进程真实请求、状态码分类与固定错误码；`PROCESS_LOCAL_RESETS_ON_RESTART`；`traffic.measured=false`）。指标属于控制面进程状态，因此**不设** `HostService` 操作、也不提供一次性 CLI 命令。
 - **面板**：`GET /ui/` 返回单文件、零构建、零外部资源的静态面板（`ui/index.html`），结构对应规格 §22 的五页信息架构：
   主页（智能加速 / 当前模式 / 推荐线路 / 实时指标）、节点（分类筛选 + 表格 + 测速 + 解释节点）、订阅（列表 + 手动刷新 + 强制刷新 + 管理订阅源）、
   游戏（注册表版本 / LKG / 路由规则 / 应用签名信封 / 路由解释）、设置（能力声明 / DNS 策略 / 连接历史 / 诊断 / 会话令牌）。
