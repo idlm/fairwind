@@ -19,6 +19,7 @@
 | 分数与资格解释（B2） | PASS；分项实际值/上限（25/25/30/15/5）与公式取自 `score_history` 同一实现、无 penalty 字段、未测量输入如实列出；资格判定与 Smart Selector 共用同一函数 |
 | 路由解释（B3） | PASS；首个命中、优先级降序、缺失维度不猜、域名精确匹配（不发明通配符）、CIDR 需 IP 字面量、未命中 `DEFAULT` |
 | 解释入口（B4） | PASS；CLI `nodes explain` / `route explain` + API `GET /api/host/nodes/{id}` / `GET /api/host/route` + 面板两处只读入口（均走 Domain Layer） |
+| 本地订阅管理（C1） | PASS；`add/list/pause/resume/remove`（CLI + API + 面板同源）：指纹去重与 128 上限、句柄前缀唯一/歧义/非法、URL 只以密文保存且任何输出不回显、手动源不被 Master 漂移禁用、暂停不删节点且不混入 `RETRY_PAUSED`、恢复无需 `--force`、移除清理独占节点并如实标注 Master 是否会让它回来 |
 | 本机控制面与静态面板 | PASS；仅 127.0.0.1（真实 socket 断言）、Bearer 令牌 401 拒绝、无 `*` CORS、面板不可逃逸 /ui 根、面板资源随 wheel 分发、connect 明确拒绝、**五页信息架构对齐规格 §22 且禁用项标注原因**、新增解释端点为只读且 400 固定错误码 |
 | 门禁可复现（规格 §28） | PASS；scripts/verify.sh 覆盖 lint/格式/离线测试/构建/产物检查 |
 | HTTP CONNECT / SOCKS5 真实出口探测 | LOCAL_INTEGRATION_PASS；本地代理 + TLS + 认证 + 204/500/407/协商拒绝 |

@@ -41,9 +41,11 @@ uv build
 
 ## 当前状态（`v0.1.0-reference` 已发布；工作区为 `0.2.0` 开发线）
 
-**已实现（离线可验证）**：Master 一层加载与多源并发（单源失败隔离）、URI / Base64 / Clash·Mihomo YAML / sing-box JSON 严格解析、规范化与语义去重、地区分类、受限探测（HTTP CONNECT、SOCKS5、UDP 丢包实测）、滚动历史与可解释评分、Smart Select、节点详情与三层解释（分数分项/资格/选择）、路由匹配与解释（优先级首个命中，未命中即 `DEFAULT`）、Game Profile 校验与路由规则生成、签名远程更新与 LKG、AES-GCM 密文存储与引用感知 GC、SQLite 迁移/备份/恢复、DNS 策略引擎、本机控制面（Clash 兼容子集）与五页静态面板、七个 CLI 命令（含 `nodes explain` / `route explain`）。
+**已实现（离线可验证）**：Master 一层加载与多源并发（单源失败隔离）、URI / Base64 / Clash·Mihomo YAML / sing-box JSON 严格解析、规范化与语义去重、地区分类、受限探测（HTTP CONNECT、SOCKS5、UDP 丢包实测）、滚动历史与可解释评分、Smart Select、节点详情与三层解释（分数分项/资格/选择）、路由匹配与解释（优先级首个命中，未命中即 `DEFAULT`）、本地订阅管理（列出/添加/暂停/恢复/移除，句柄为不可逆摘要前缀）、Game Profile 校验与路由规则生成、签名远程更新与 LKG、AES-GCM 密文存储与引用感知 GC、SQLite 迁移/备份/恢复、DNS 策略引擎、本机控制面（Clash 兼容子集）与五页静态面板、参考 CLI（订阅更新/列出/添加/暂停/恢复/移除、节点列表/测速/推荐/解释、路由解释、状态、控制面）。
 
 **解释层原则**：`nodes explain`、`route explain` 与两个控制面端点只暴露既有 Domain Logic 的实际计算过程与判定条件——不新增评分、权重或路由理由，也不发明数据模型里没有的语义（例如域名通配符）。算法没有独立负分项，因此输出中没有 `penalty` 之类的字段。
+
+**订阅管理原则**：源的身份是 URL 摘要的 12 位句柄（不可逆），完整 URL 只以密文保存且任何输出都不回显；用户在本机添加的源不会被 Master 漂移禁用；暂停只停止刷新（保留 LKG，样本按既有 6h 窗口自然退出候选）；移除是本地操作，仍在 Master 列表里的源会回来——输出用 `present_in_master` 如实标注。
 
 **尚未实现（不依赖它们做任何宣称）**：真实代理隧道连接、Windows TUN 与系统代理、Android VpnService、iOS NetworkExtension、任何代理核心的运行时接入、代码签名、Apple entitlement、真机验证。核心接入模型仍是 `docs/CORE_INTEGRATION_ADR.md` 的**提议**（候选仅 Xray-core，待批准），因此 `connect` 类操作固定返回 `CORE_NOT_INTEGRATED`。
 

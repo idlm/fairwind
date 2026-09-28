@@ -125,14 +125,28 @@
       <label class="muted"><input type="checkbox" id="force" style="width:auto"> 强制（忽略调度与暂停）</label>
     </div>
     <table>
-      <thead><tr><th>显示名</th><th>节点数</th><th>最近检查</th><th>最近成功</th><th>状态</th><th>失败次数</th></tr></thead>
-      <tbody id="subscriptions"><tr><td colspan="6" class="muted">尚未加载</td></tr></tbody>
+      <thead><tr><th>显示名</th><th>句柄</th><th>来源</th><th>用户状态</th><th>节点数</th><th>最近检查</th><th>最近成功</th><th>状态</th></tr></thead>
+      <tbody id="subscriptions"><tr><td colspan="8" class="muted">尚未加载</td></tr></tbody>
     </table>
-    <p class="muted">只显示匿名编号；原始订阅地址与 query 永不进入面板。单源失败不影响其他源（LKG 保留）。</p>
+    <p class="muted">只显示匿名编号与摘要句柄；原始订阅地址与 query 永不进入面板。单源失败不影响其他源（LKG 保留）。</p>
   </div>
   <div class="card" style="margin-top:16px">
     <h2>最近一次更新结果</h2>
     <pre id="update-result">尚未执行</pre>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>管理订阅源</h2>
+    <div class="row">
+      <input id="subscription-url" type="url" placeholder="订阅地址（只以密文保存，永不回显）" autocomplete="off">
+      <button id="subscription-add">添加</button>
+    </div>
+    <div class="row">
+      <input id="subscription-handle" placeholder="句柄（12 位摘要前缀）" autocomplete="off" style="width:200px">
+      <button id="subscription-pause">暂停刷新</button>
+      <button id="subscription-resume">恢复刷新</button>
+      <button id="subscription-remove">移除</button>
+    </div>
+    <pre id="subscription-result">暂停只停止刷新、不删除节点：样本超过 6 小时窗口后自然退出候选。移除对 Master 列表里仍存在的源不持久，下次刷新会回来。</pre>
   </div>
 </section>
 
@@ -312,9 +326,10 @@ async function loadSubscriptions() {
   try {
     const view = await call("/api/host/subscriptions");
     fillTable("subscriptions", view.subscriptions, (row) => [
-      row.display_name, row.node_count, formatTime(row.last_checked_at),
-      formatTime(row.last_success_at), row.status, row.failure_count,
-    ], "尚无订阅：填入 Master 地址后点击「手动刷新」");
+      row.display_name, row.handle, row.origin, row.user_state, row.node_count,
+      formatTime(row.last_checked_at), formatTime(row.last_success_at),
+      row.status + "（失败 " + row.failure_count + "）",
+    ], "尚无订阅：填入 Master 地址后点击「手动刷新」，或用下方「管理订阅源」手动添加");
   } catch (error) {
     text("update-result", "错误：" + error.message);
   }
@@ -401,6 +416,30 @@ document.getElementById("token-save").addEventListener("click", () => {
   sessionStorage.setItem("accelerator.token", state.token);
   loadStatus();
 });
+document.getElementById("subscription-add").addEventListener("click", async () => {
+  const url = document.getElementById("subscription-url").value.trim();
+  if (!url) { text("subscription-result", "缺少订阅地址"); return; }
+  try {
+    text("subscription-result", JSON.stringify(await call("/api/host/subscriptions", {
+      method: "POST", body: JSON.stringify({ url: url }),
+    }), null, 2));
+    document.getElementById("subscription-url").value = "";
+    await loadSubscriptions();
+  } catch (error) { fail("subscription-result", error); }
+});
+for (const action of ["pause", "resume", "remove"]) {
+  document.getElementById("subscription-" + action).addEventListener("click", async () => {
+    const handle = document.getElementById("subscription-handle").value.trim();
+    if (!handle) { text("subscription-result", "缺少句柄"); return; }
+    try {
+      text("subscription-result", JSON.stringify(await call(
+        "/api/host/subscriptions/" + encodeURIComponent(handle),
+        { method: "POST", body: JSON.stringify({ action: action }) },
+      ), null, 2));
+      await loadSubscriptions();
+    } catch (error) { fail("subscription-result", error); }
+  });
+}
 document.getElementById("explain-node").addEventListener("click", async () => {
   const id = document.getElementById("explain-node-id").value.trim();
   if (!id) { text("explain-node-note", "缺少节点 ID"); return; }

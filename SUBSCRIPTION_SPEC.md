@@ -15,3 +15,15 @@ URL query 允许用于认证但永远加密；HTTP TLS 验证启用，禁止重�
 刷新周期 6h ±15min；失败退避 1m/5m/15m/1h/6h。达到第 5 次失败进入暂停，显式 `--force` 或用户操作恢复。每次 CLI 作业每源最多请求一次（重定向除外），无后台循环。支持 ETag 和 Last-Modified；304 只在已有成功快照时接受。
 
 Master 自身也使用条件请求；304 不重解析 Master，但仍检查到期订阅。更新后新增节点可用性保持 UNTESTED。
+
+## 用户意图（本地订阅管理）
+
+用户可以**在本机**添加、暂停、恢复和移除订阅源；这些意图必须能扛住 Master 漂移，因此单独持久化（`settings.subscription_state`，只存不可逆 URL 摘要，见 `DATA_MODEL.md`）：
+
+- **句柄**：源的身份是 `HMAC(install_key, "url:" + URL)` 的十六进制摘要；对外只暴露 12 位前缀（`handle`），与节点匿名 ID 同一策略。CLI / API / 面板都不接受、也不回显完整 URL。
+- **添加（add）**：URL 立即过 `validate_url`（仅公网 HTTP(S)、无 userinfo/fragment、拒绝本地/LAN/私网、单条 ≤8192 字节），以密文写入 `secret_ref`。指纹与 Master 路径完全一致，因此重复添加得到 `SUBSCRIPTION_DUPLICATE`，Master 之后列出的同一 URL 也不会变成两行。源总数沿用 128 上限（`SUBSCRIPTION_LIMIT`）。
+- **手动源与 Master 的关系**：刷新时的源集合 = Master 当前列表 ∪ 手动源（按摘要去重，Master 顺序优先）。**只有 Master 列出、但本轮没有来源的行才会被置 `enabled=0`**；用户显式添加的源不会被 Master 漂移悄悄禁用，即使它已从 Master 列表消失也会继续按保存的密文刷新。这是"用户显式规则优先"在订阅层的体现。
+- **暂停（pause）**：只停止刷新——不动 `enabled`、不删节点、不改调度字段，`last_checked_at/last_success_at` 保持不动。已落库的节点继续作为 last-known-good 存在，但其探测样本会随时间超出 6h 候选窗口而自然退出推荐（见 `scoring.explain_eligibility`），不需要额外的扣分或删除。暂停计入 `UpdateSummary.paused`，不混入退避暂停（`RETRY_PAUSED`）。
+- **恢复（resume）**：把 `failure_count` 清 0、`next_check_at` 清 0，因此**下一轮无需 `--force`** 就会刷新；这是第 5 次失败进入暂停后的"用户操作恢复"入口。
+- **移除（remove）**：删除该来源行与 `node_sources` 关系，并清理不再被任何订阅引用的节点（密文不在此处删除，留给引用感知 GC）。若该 URL 仍在 Master 列表里，下一次刷新会把它重新加回（句柄不变）——输出里用 `present_in_master` + `note` 如实标注，绝不假装"永久排除"；没有 Master 快照或没有密钥时返回 `null` 与 `MASTER_STATE_UNKNOWN_WITHOUT_KEY`，不猜。
+- 读取列表、暂停 / 恢复 / 移除都**不需要密钥**（只读写摘要与调度字段）；只有 add 需要密钥（要加密 URL）。

@@ -12,7 +12,11 @@
 |---|---|---|
 | `capabilities()` | 同步 | 宿主真实能力声明；未接入核心时 `core=NOT_INTEGRATED`、能力位全 `false`、`connections=CORE_NOT_INTEGRATED` |
 | `status()` | 同步 | 版本、固定 `DISCONNECTED`、核心状态、节点数、规则数、订阅摘要（仅 7 个非敏感字段） |
-| `update_subscriptions(master_url, force, interval)` | 异步 | Master 一层加载 → 多源并发 → 事务提交；返回含 `partial_failure` |
+| `update_subscriptions(master_url, force, interval)` | 异步 | Master 一层加载 → 多源并发 → 事务提交；返回含 `partial_failure` 与 `paused` |
+| `subscriptions()` | 同步 | 订阅视图：匿名显示名、12 位摘要句柄、来源、用户状态、节点数与调度状态；不含 URL |
+| `add_subscription(url)` | 同步 | 手动加入订阅源；URL 加密落库且永不回显；需要密钥 |
+| `set_subscription_state(handle, paused)` | 同步 | 暂停 / 恢复刷新；不需要密钥；恢复会清空退避 |
+| `remove_subscription(handle)` | 同步 | 本地移除订阅源与其独占节点；仍在 Master 列表里的源会回来（输出如实标注） |
 | `list_nodes(country)` | 同步 | 匿名短 ID + 地区/协议/标签/状态/解释性评分 |
 | `test_nodes(samples, concurrency, target, udp_target)` | 异步 | 有界队列（上限 8）；返回状态计数与 `packet_loss` 说明 |
 | `best_nodes(country)` | 同步 | Smart Select 结果；无合格节点时 `status=NO_ELIGIBLE_NODE` |
@@ -32,11 +36,12 @@
 - **认证**：除静态面板外所有请求都必须带 `Authorization: Bearer <token>`；token 由 `load_or_create_token()` 生成并写入 `<data-dir>/control.token`（0600），缺失或不匹配返回 401 `CONTROL_UNAUTHORIZED`。
 - **Clash 兼容子集**：`GET /version`、`/configs`、`/proxies`、`/connections`、`/traffic`。未接入核心时如实返回 `core: NOT_INTEGRATED`、端口 0、空连接与 0 流量，**不虚构** `DIRECT`/`REJECT` 等内置代理。
 - **本仓库操作**：`GET /api/host/status|capabilities|nodes|nodes/best|nodes/{id}|nodes/summary|subscriptions|dns|profiles|routing|route|history`、
-  `POST /api/host/subscriptions/update|nodes/test|profiles|connect`。其中 `POST /api/host/connect` 固定返回 400 `CORE_NOT_INTEGRATED`——控制面不允许让 UI 声称已连接。
+  `POST /api/host/subscriptions/update|subscriptions|subscriptions/{handle}|nodes/test|profiles|connect`。其中 `POST /api/host/connect` 固定返回 400 `CORE_NOT_INTEGRATED`——控制面不允许让 UI 声称已连接。
   解释类只读端点：`GET /api/host/nodes/{id}`（节点详情 + 分数/资格解释；非法前缀 400 `NODE_ID_INVALID`、不存在 400 `NODE_NOT_FOUND`）、
   `GET /api/host/route?host=&port=&protocol=&process=`（路由解释；缺 host 或非法 port/protocol 一律 400 `ARGUMENT_INVALID`）。所有 `SafeError` 在控制面统一映射为 400 + 固定错误码，因此"未找到"也是 400 而不是 404。
+  订阅管理端点：`POST /api/host/subscriptions`（body `{"url": …}`，加密保存且不回显）、`POST /api/host/subscriptions/{handle}`（body `{"action": "pause"|"resume"|"remove"}`）。句柄是 URL 摘要前缀，不是 URL。
 - **面板**：`GET /ui/` 返回单文件、零构建、零外部资源的静态面板（`ui/index.html`），结构对应规格 §22 的五页信息架构：
-  主页（智能加速 / 当前模式 / 推荐线路 / 实时指标）、节点（分类筛选 + 表格 + 测速 + 解释节点）、订阅（列表 + 手动刷新 + 强制刷新）、
+  主页（智能加速 / 当前模式 / 推荐线路 / 实时指标）、节点（分类筛选 + 表格 + 测速 + 解释节点）、订阅（列表 + 手动刷新 + 强制刷新 + 管理订阅源）、
   游戏（注册表版本 / LKG / 路由规则 / 应用签名信封 / 路由解释）、设置（能力声明 / DNS 策略 / 连接历史 / 会话令牌）。
   不用静态目录处理器（既避免目录穿越，也避免目录列表），`/ui` 与 `/ui/index.html` 都能打开面板。
 - **加固**：请求体上限 64 KiB；未知字段与非法 JSON 一律 400 `ARGUMENT_INVALID`；响应带 `Cache-Control: no-store`；面板响应带 `X-Frame-Options: DENY`、`Content-Security-Policy: default-src 'self'`；**不使用 `*` CORS**。

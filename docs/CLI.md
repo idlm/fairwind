@@ -6,6 +6,10 @@
 |---|---|
 | accelerator subscriptions update | 读取加密配置或 ACCELERATOR_MASTER_URL；只刷新到期源 |
 | accelerator subscriptions update --force | 显式忽略调度与暂停状态，仍使用条件 HTTP 请求 |
+| accelerator subscriptions list | 本机订阅视图：匿名显示名、12 位摘要句柄、来源（MASTER/MANUAL）、用户状态（ACTIVE/PAUSED）、节点数与调度状态；不需要密钥 |
+| accelerator subscriptions add URL | 手动加入订阅源：URL 立即校验并以密文保存，输出**永不回显** URL；重复添加返回 `SUBSCRIPTION_DUPLICATE` |
+| accelerator subscriptions pause HANDLE / resume HANDLE | 暂停 / 恢复刷新（句柄见 `subscriptions list`）；暂停不删节点，恢复后下一轮即刷新（无需 `--force`） |
+| accelerator subscriptions remove HANDLE | 移除该来源与其独占节点；仍在 Master 列表里的源会在下次刷新时回来（输出用 `present_in_master` / `note` 标注） |
 | accelerator nodes list [--country JP] | 本机节点、分类、状态与解释性分项；不输出名称/服务器/凭据 |
 | accelerator nodes test [--samples 3] [--concurrency 8] [--udp-target HOST:PORT] [--no-udp] | 有限工作队列；历史最多 10 条；SOCKS5 经 UDP ASSOCIATE 实测丢包，其余保持 null |
 | accelerator nodes best [--country JP] | 至少 3 个最近有效测试样本、成功率 ≥80%、当前可用；地理偏好仅轻量加权 |
@@ -25,6 +29,18 @@ UDP 丢包只在 SOCKS5 且出口已验证可用时测量：通过 UDP ASSOCIATE
 实测得到的 `packet_loss` 会进入评分（未测量仍按保守中值计分），因此可测量 UDP 的节点在丢包分项上可能高于不可测量节点。
 
 固定错误码：`PROXY_CONNECT_FAILED`（CONNECT/SOCKS5 协商被拒）、`PROXY_AUTH_FAILED`（代理认证失败）、`PROXY_HTTP_FAILED`（出口返回非 204）、`PROBE_TLS_FAILED`（目标证书校验失败）、`PROBE_UNSUPPORTED`（无可用验证后端）、`PROBE_TIMEOUT`、`PROBE_FAILED`、`URL_REJECTED`；`PROXY_UDP_FAILED` 仅用于 UDP 丢包测量，不会改变节点状态。
+
+## 订阅管理（本地）
+
+`subscriptions add|list|pause|resume|remove` 与 `GET/POST /api/host/subscriptions*` 都走同一 Domain Layer，语义见 `SUBSCRIPTION_SPEC.md`：
+
+- 只有 `add` 需要密钥（要加密 URL）；`list` / `pause` / `resume` / `remove` 只读写不可逆摘要与调度字段，不需要密钥。
+- 源的身份是对外暴露的 **12 位摘要前缀**（`handle`）：CLI/API/面板都只接受句柄，不接受 URL。
+- 暂停只停止刷新（保留 last-known-good，样本随时间退出 6h 候选窗口）；恢复会清空退避，使下一轮立即刷新。
+- 移除是本地操作：仍在 Master 列表里的源会在下一次刷新时回来，输出用 `present_in_master` 与 `note` 如实标注（`MASTER_LISTED_SOURCE_REAPPEARS_ON_NEXT_UPDATE` / `REMOVED_LOCALLY_ONLY` / `MASTER_STATE_UNKNOWN_WITHOUT_KEY`）。
+- 用户手动添加的源不会被 Master 漂移禁用；Master 列表里消失、且不是手动源的条目才会被置 `enabled=0`。
+
+固定错误码：`SUBSCRIPTION_ID_INVALID`（句柄不是 4–64 位十六进制）、`SUBSCRIPTION_NOT_FOUND`、`SUBSCRIPTION_ID_AMBIGUOUS`、`SUBSCRIPTION_DUPLICATE`、`SUBSCRIPTION_LIMIT`（超过 128 源）、`SUBSCRIPTION_STATE_INVALID`（本机状态记录损坏）。
 
 ## 解释命令（Explain Mode）
 

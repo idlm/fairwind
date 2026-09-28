@@ -19,7 +19,7 @@ from aiohttp import web
 
 from accelerator import __version__
 from accelerator.errors import SafeError
-from accelerator.host import HostService
+from accelerator.host import SUBSCRIPTION_ACTIONS, HostService
 from accelerator.security import private_directory
 
 TOKEN_NAME = "control.token"
@@ -252,6 +252,28 @@ async def handle_subscriptions_update(request: web.Request) -> web.Response:
     return _json(summary)
 
 
+async def handle_subscriptions_add(request: web.Request) -> web.Response:
+    """手动加入订阅源：URL 加密落库，响应里不回显。"""
+    payload = await _body(request, ("url",))
+    url = payload.get("url")
+    if not isinstance(url, str) or not url:
+        raise SafeError("ARGUMENT_INVALID")
+    return _json(_service(request).add_subscription(url))
+
+
+async def handle_subscription_action(request: web.Request) -> web.Response:
+    """暂停 / 恢复 / 移除单个订阅源；句柄是 URL 摘要前缀，不是 URL 本身。"""
+    payload = await _body(request, ("action",))
+    action = payload.get("action")
+    if action not in SUBSCRIPTION_ACTIONS:
+        raise SafeError("ARGUMENT_INVALID")
+    service = _service(request)
+    handle = request.match_info["handle"]
+    if action == "remove":
+        return _json(service.remove_subscription(handle))
+    return _json(service.set_subscription_state(handle, action == "pause"))
+
+
 async def handle_nodes_test(request: web.Request) -> web.Response:
     payload = await _body(request, ("samples", "concurrency"))
     service = _service(request)
@@ -320,6 +342,8 @@ def build_app(service: HostService, token: str) -> web.Application:
     app.router.add_get(f"{HOST_PREFIX}/profiles", handle_host_profiles)
     app.router.add_get(f"{HOST_PREFIX}/history", handle_host_history)
     app.router.add_post(f"{HOST_PREFIX}/subscriptions/update", handle_subscriptions_update)
+    app.router.add_post(f"{HOST_PREFIX}/subscriptions", handle_subscriptions_add)
+    app.router.add_post(f"{HOST_PREFIX}/subscriptions/{{handle}}", handle_subscription_action)
     app.router.add_post(f"{HOST_PREFIX}/nodes/test", handle_nodes_test)
     app.router.add_post(f"{HOST_PREFIX}/profiles", handle_profiles_apply)
     app.router.add_post(f"{HOST_PREFIX}/connect", handle_connect)

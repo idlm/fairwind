@@ -42,6 +42,12 @@ def make_parser() -> argparse.ArgumentParser:
     update.add_argument("--master-url", default=os.environ.get("ACCELERATOR_MASTER_URL"))
     update.add_argument("--force", action="store_true")
     update.add_argument("--interval", type=int, default=21600)
+    subscriptions.add_parser("list")
+    adding = subscriptions.add_parser("add")
+    adding.add_argument("url")
+    for subscription_action in ("pause", "resume", "remove"):
+        managing = subscriptions.add_parser(subscription_action)
+        managing.add_argument("handle")
     nodes = commands.add_parser("nodes").add_subparsers(dest="action", required=True)
     listing = nodes.add_parser("list")
     listing.add_argument("--country")
@@ -92,11 +98,29 @@ def emit(value: object) -> None:
     print(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False))
 
 
+def optional_vault(data_dir: Path) -> SecretVault | None:
+    """控制面用：环境提供了密钥就加载（订阅添加等敏感操作需要），缺失时不让 serve 启动失败。
+
+    只吞掉"未提供密钥"；密钥格式损坏之类的错误照常抛出——不要用静默降级掩盖配置问题。
+    """
+    try:
+        return SecretVault.from_environment(data_dir / "secrets")
+    except SafeError as error:
+        if error.code != "SECRET_KEY_REQUIRED":
+            raise
+        return None
+
+
 async def execute(args: argparse.Namespace) -> int:
-    sensitive = args.command == "subscriptions" or (
+    sensitive = (args.command == "subscriptions" and args.action in {"update", "add"}) or (
         args.command == "nodes" and args.action == "test"
     )
-    vault = SecretVault.from_environment(args.data_dir / "secrets") if sensitive else None
+    if sensitive:
+        vault = SecretVault.from_environment(args.data_dir / "secrets")
+    elif args.command == "serve":
+        vault = optional_vault(args.data_dir)
+    else:
+        vault = None
     service = HostService(args.data_dir, vault)
     if args.command == "serve":
         token = load_or_create_token(args.data_dir)
@@ -115,6 +139,18 @@ async def execute(args: argparse.Namespace) -> int:
         await serve(service, token, args.port, on_start)
         return 0
     if args.command == "subscriptions":
+        if args.action == "list":
+            emit(service.subscriptions())
+            return 0
+        if args.action == "add":
+            emit(service.add_subscription(args.url))
+            return 0
+        if args.action == "remove":
+            emit(service.remove_subscription(args.handle))
+            return 0
+        if args.action in {"pause", "resume"}:
+            emit(service.set_subscription_state(args.handle, args.action == "pause"))
+            return 0
         summary = await service.update_subscriptions(args.master_url, args.force, args.interval)
         emit(summary)
         return 2 if summary["partial_failure"] else 0

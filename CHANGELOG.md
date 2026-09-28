@@ -16,13 +16,15 @@
 - **资格解释**：`scoring.explain_eligibility()` 与 Smart Selector 共享同一判定函数，逐条列出窗口 / 最新状态 / 样本数 / 可用率阈值与实测值，并明确"资格排除不是扣分"
 - **选择解释**：`scoring.explain_selection()` 输出真实 `rank = score + 国家偏好 2 分`、并列按 id 升序，以及被排除节点及其失败项
 - **路由解释**：`routing.match_route()` / `routing.explain_route()` / `accelerator route explain HOST` / `GET /api/host/route?host=` — 按 `ROUTING_SPEC` 优先级做首个命中匹配，返回动作、命中规则（id/selector/value/priority/source）与判定理由；未命中为 `DEFAULT`
+- **订阅管理（本地）**：`subscriptions list|add|pause|resume|remove` + `POST /api/host/subscriptions[/{handle}]` + 面板「管理订阅源」——句柄是 URL 摘要的 12 位前缀（不可逆），URL 只以密文保存且任何输出都不回显；手动源不会被 Master 漂移禁用；暂停只停止刷新（保留 LKG，样本随时间退出 6h 候选窗口）；恢复清空退避、下一轮即刷新；移除是本地操作且如实标注 Master 是否会让它回来
 - 面板新增「解释节点」与「路由解释」两处只读入口（调用与 CLI 相同的两个 API，不绕过 Domain Layer）
 - 修复潜在崩溃：最新探测状态为成功但样本全部未 `verified` 时，Smart Selector 曾因 `None < 0.8` 抛 `TypeError`；现按"可用率 0"判为不合格并给出原因
+- 修复订阅显示名撞号：新增来源的 `Subscription #NN` 改为取"最小可用编号"，不再按行数位置编号
 
 ### Not Yet Implemented
 
 - 与 0.1.0 相同：真实代理隧道、核心运行时接入、TUN/系统代理、原生 UI、代码签名与真机验证
-- 订阅管理 UI、可观测性（指标/日志/流量统计）不在本周期范围
+- 可观测性（指标/日志/流量统计）不在本周期范围
 
 ### Notes
 

@@ -1,3 +1,6 @@
+"""CLI 端到端测试：命令形态、退出码与输出脱敏。"""
+
+import base64
 import json
 import os
 import subprocess
@@ -5,13 +8,20 @@ import sys
 
 import pytest
 
-from accelerator.cli import execute, make_parser, udp_target
+from accelerator.cli import execute, make_parser, optional_vault, udp_target
 from accelerator.errors import SafeError
+from accelerator.network import FetchResult
 from accelerator.probing import UDP_TARGET_DEFAULT
 from accelerator.subscription import SubscriptionEngine
 from conftest import MASTER
 
 pytestmark = pytest.mark.e2e
+
+SUBSCRIPTION_SECRETS = (
+    "synthetic-managed-token",
+    "synthetic-managed-password",
+    "managed.example",
+)
 
 
 @pytest.mark.parametrize(
@@ -76,6 +86,15 @@ def test_udp_target_parsing():
             udp_target(invalid)
 
 
+def test_optional_vault_keeps_serve_startable(tmp_path, monkeypatch):
+    from accelerator.security import SecretVault
+
+    monkeypatch.delenv("ACCELERATOR_SECRET_KEY", raising=False)
+    assert optional_vault(tmp_path) is None
+    monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
+    assert isinstance(optional_vault(tmp_path), SecretVault)
+
+
 def test_invalid_cli_argument_not_echoed(tmp_path):
     result = subprocess.run(
         [
@@ -117,8 +136,6 @@ async def test_cli_output_redaction(database, vault, fetcher, tmp_path, capsys):
 
 
 async def test_all_five_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
-    import base64
-
     from test_node_engine import FakeProbe
 
     from accelerator import host
@@ -153,8 +170,6 @@ async def test_all_five_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
 
 
 async def test_explain_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
-    import base64
-
     from test_node_engine import FakeProbe
 
     from accelerator import host
@@ -212,3 +227,63 @@ async def test_explain_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
     invalid = make_parser().parse_args(["--data-dir", str(tmp_path), "nodes", "explain", "zz"])
     with pytest.raises(SafeError, match="NODE_ID_INVALID"):
         await execute(invalid)
+
+
+async def test_subscription_management_cli(tmp_path, monkeypatch, fetcher, capsys):
+    from accelerator import host
+
+    class OfflineFetcher:
+        async def __aenter__(self):
+            return fetcher
+
+        async def __aexit__(self, *args):
+            return None
+
+    monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
+    monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
+    manual = "https://source-c.example/sub?token=synthetic-managed-token"
+    fetcher.responses[manual] = FetchResult(
+        200, b"trojan://synthetic-managed-password@managed.example:443#M"
+    )
+
+    args = make_parser().parse_args(["--data-dir", str(tmp_path), "subscriptions", "list"])
+    assert await execute(args) == 0
+    listing = json.loads(capsys.readouterr().out)
+    assert (
+        listing["count"] == 0 and listing["note"] == "HANDLE_IS_PREFIX_OF_IRREVERSIBLE_URL_DIGEST"
+    )
+
+    args = make_parser().parse_args(["--data-dir", str(tmp_path), "subscriptions", "add", manual])
+    assert await execute(args) == 0
+    captured = capsys.readouterr()
+    added = json.loads(captured.out)
+    handle = added["subscription"]["handle"]
+    assert len(handle) == 12 and added["subscription"]["origin"] == "MANUAL"
+    assert added["note"] == "URL_ENCRYPTED_AND_NOT_ECHOED"
+    for forbidden in SUBSCRIPTION_SECRETS:
+        assert forbidden not in captured.out + captured.err
+
+    args = make_parser().parse_args(["--data-dir", str(tmp_path), "subscriptions", "pause", handle])
+    assert await execute(args) == 0
+    paused = json.loads(capsys.readouterr().out)
+    assert paused["subscription"]["user_state"] == "PAUSED"
+    args = make_parser().parse_args(
+        ["--data-dir", str(tmp_path), "subscriptions", "resume", handle]
+    )
+    assert await execute(args) == 0
+    assert json.loads(capsys.readouterr().out)["subscription"]["user_state"] == "ACTIVE"
+
+    args = make_parser().parse_args(
+        ["--data-dir", str(tmp_path), "subscriptions", "remove", handle]
+    )
+    assert await execute(args) == 0
+    removed = json.loads(capsys.readouterr().out)
+    assert removed["handle"] == handle and removed["removed_nodes"] == 0
+    # 本测试从未跑过 Master 更新，因此"是否仍在 Master 列表"无从判断——如实回答未知
+    assert removed["present_in_master"] is None
+    assert removed["note"] == "MASTER_STATE_UNKNOWN_WITHOUT_KEY"
+    assert all(value not in json.dumps(removed) for value in SUBSCRIPTION_SECRETS)
+
+    bad = make_parser().parse_args(["--data-dir", str(tmp_path), "subscriptions", "pause", "zz"])
+    with pytest.raises(SafeError, match="SUBSCRIPTION_ID_INVALID"):
+        await execute(bad)

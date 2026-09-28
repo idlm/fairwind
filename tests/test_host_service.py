@@ -18,6 +18,9 @@ EXPECTED_SUBSCRIPTION_FIELDS = (
     "enabled",
     "failure_count",
     "status",
+    "handle",
+    "origin",
+    "user_state",
 )
 
 
@@ -168,6 +171,10 @@ async def test_subscriptions_view_excludes_identifiers(tmp_path, vault, fetcher,
     view = service.subscriptions()
     assert view["count"] == 2
     assert all(set(row) == set(EXPECTED_SUBSCRIPTION_FIELDS) for row in view["subscriptions"])
+    assert all(len(row["handle"]) == 12 for row in view["subscriptions"])
+    assert all(row["origin"] == "MASTER" for row in view["subscriptions"])
+    assert all(row["user_state"] == "ACTIVE" for row in view["subscriptions"])
+    assert view["note"] == "HANDLE_IS_PREFIX_OF_IRREVERSIBLE_URL_DIGEST"
     assert all(row["display_name"].startswith("Subscription #") for row in view["subscriptions"])
     assert sum(row["node_count"] for row in view["subscriptions"]) == 3
 

@@ -12,7 +12,13 @@ from pathlib import Path
 from accelerator.domain import NodeSecret, ProbeResult, ProxyNode
 from accelerator.errors import SafeError
 from accelerator.routing import RouteRule, rule_payload
-from accelerator.security import REFERENCE_PATTERN, SecretVault, canonical_json, private_directory
+from accelerator.security import (
+    REFERENCE_PATTERN,
+    SecretVault,
+    canonical_json,
+    private_directory,
+    validate_url,
+)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS subscriptions (
@@ -53,6 +59,12 @@ PRAGMA user_version=1;
 SCHEMA_VERSION = 1
 # 节点 id 是十六进制摘要；前缀查询因此不会引入 LIKE 通配符。
 NODE_ID_PATTERN = re.compile(r"[0-9a-f]{4,64}")
+# 订阅 id 同样是安装级 HMAC 摘要（不可逆），因此可以按前缀作为句柄暴露。
+SUBSCRIPTION_ID_PATTERN = re.compile(r"[0-9a-f]{4,64}")
+# 订阅源上限只在 storage 定义一次，引擎的 Master 列表与手动添加共用同一常量。
+MAX_SUBSCRIPTIONS = 128
+# 用户意图（手动源 / 已暂停源）只保存不可逆摘要，因此用普通 settings 行即可（无需密钥）。
+SUBSCRIPTION_STATE_KEY = "subscription_state"
 REFERENCE_COLUMN_QUERIES = (
     "SELECT secret_ref FROM subscriptions",
     "SELECT etag_ref FROM subscriptions WHERE etag_ref IS NOT NULL",
@@ -263,6 +275,149 @@ class Database:
                 "SELECT * FROM subscriptions ORDER BY created_at, display_name"
             )
         ]
+
+    def subscription_state(self) -> dict:
+        """读取用户意图：`manual`（手动添加的源）与 `paused`（用户暂停刷新的源）。
+
+        只保存不可逆摘要，与库里已有的 `id`/`url_hash` 同敏感级，因此不写密文、不需要密钥。
+        任何形状异常一律拒绝，避免"半个状态"被当成正常数据继续用。
+        """
+        state: dict[str, list[str]] = {"manual": [], "paused": []}
+        raw = self.get_setting(SUBSCRIPTION_STATE_KEY)
+        if not raw:
+            return state
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            raise SafeError("SUBSCRIPTION_STATE_INVALID") from None
+        if not isinstance(payload, dict) or set(payload) - set(state):
+            raise SafeError("SUBSCRIPTION_STATE_INVALID")
+        for key in state:
+            values = payload.get(key, [])
+            if not isinstance(values, list) or any(not isinstance(item, str) for item in values):
+                raise SafeError("SUBSCRIPTION_STATE_INVALID")
+            state[key] = [
+                item for item in dict.fromkeys(values) if SUBSCRIPTION_ID_PATTERN.fullmatch(item)
+            ]
+        return state
+
+    def set_subscription_state(self, state: dict) -> None:
+        payload = {
+            "manual": sorted(set(state.get("manual", []))),
+            "paused": sorted(set(state.get("paused", []))),
+        }
+        self.set_setting(SUBSCRIPTION_STATE_KEY, canonical_json(payload).decode())
+
+    def find_subscription(self, prefix: str) -> dict:
+        """按 id 前缀查找**唯一**订阅；前缀受字符集校验，因此不会注入 LIKE 通配符。"""
+        candidate = (prefix or "").strip().lower()
+        if not SUBSCRIPTION_ID_PATTERN.fullmatch(candidate):
+            raise SafeError("SUBSCRIPTION_ID_INVALID")
+        rows = [
+            dict(row)
+            for row in self.connection.execute(
+                "SELECT * FROM subscriptions WHERE id LIKE ? || '%' ORDER BY id LIMIT 2",
+                (candidate,),
+            )
+        ]
+        if not rows:
+            raise SafeError("SUBSCRIPTION_NOT_FOUND")
+        if len(rows) > 1:
+            raise SafeError("SUBSCRIPTION_ID_AMBIGUOUS")
+        return rows[0]
+
+    def next_display_number(self) -> int:
+        """下一个可用的 `Subscription #NN` 编号；不覆盖已有显示名。"""
+        used = set()
+        for row in self.connection.execute("SELECT display_name FROM subscriptions"):
+            name = row[0] or ""
+            suffix = name.removeprefix("Subscription #")
+            if suffix != name and suffix.isdigit():
+                used.add(int(suffix))
+        number = 1
+        while number in used:
+            number += 1
+        return number
+
+    def add_subscription(self, url: str, now: float | None = None) -> dict:
+        """手动加入订阅源：URL 加密保存，返回该行（**不含** URL）。
+
+        与引擎的 Master 路径共用同一行形状与同一指纹（`vault.digest(b"url:" + url)`），
+        因此重复添加会被识别，Master 之后也列出的同一个源不会变成两行。
+        """
+        if not self.vault:
+            raise SafeError("SECRET_KEY_REQUIRED")
+        validated = validate_url(url)
+        source_id = self.vault.digest(b"url:" + validated.encode())
+        with self.connection:
+            if self.connection.execute(
+                "SELECT 1 FROM subscriptions WHERE id=?", (source_id,)
+            ).fetchone():
+                raise SafeError("SUBSCRIPTION_DUPLICATE")
+            count = self.connection.execute("SELECT COUNT(*) FROM subscriptions").fetchone()[0]
+            if count >= MAX_SUBSCRIPTIONS:
+                raise SafeError("SUBSCRIPTION_LIMIT")
+            self.connection.execute(
+                "INSERT INTO subscriptions (id,url_hash,display_name,created_at,secret_ref,"
+                "enabled,failure_count,status,next_check_at,node_count) "
+                "VALUES (?,?,?,?,?,1,0,'NEW',0,0)",
+                (
+                    source_id,
+                    source_id,
+                    f"Subscription #{self.next_display_number():02d}",
+                    time.time() if now is None else now,
+                    self.vault.put({"url": validated}),
+                ),
+            )
+            state = self.subscription_state()
+            state["manual"] = [*state["manual"], source_id]
+            self.set_subscription_state(state)
+        return self.find_subscription(source_id)
+
+    def set_subscription_paused(self, prefix: str, paused: bool) -> dict:
+        """暂停 / 恢复刷新：暂停只影响"是否刷新"，不动 `enabled`、不删任何节点。
+
+        恢复时清空 `failure_count` 与 `next_check_at`，因此下一轮**无需** `--force` 就会刷新。
+        """
+        row = self.find_subscription(prefix)
+        with self.connection:
+            state = self.subscription_state()
+            paused_ids = set(state["paused"])
+            if paused:
+                paused_ids.add(row["id"])
+            else:
+                paused_ids.discard(row["id"])
+                self.connection.execute(
+                    "UPDATE subscriptions SET failure_count=0, next_check_at=0 WHERE id=?",
+                    (row["id"],),
+                )
+            state["paused"] = sorted(paused_ids)
+            self.set_subscription_state(state)
+        return self.find_subscription(row["id"])
+
+    def remove_subscription(self, prefix: str) -> dict:
+        """移除订阅：删除来源行与 node_sources（级联），并清掉不再有来源的节点。
+
+        在 Master 列表里仍然存在的源会在下一次刷新时重新加入——调用方必须如实说明这一点，
+        因此这里返回来源摘要供上层判断，而**不返回** URL 本身。
+        """
+        row = self.find_subscription(prefix)
+        with self.connection:
+            self.connection.execute("DELETE FROM node_sources WHERE source_id=?", (row["id"],))
+            self.connection.execute("DELETE FROM subscriptions WHERE id=?", (row["id"],))
+            removed_nodes = self.connection.execute(
+                "DELETE FROM nodes WHERE NOT EXISTS "
+                "(SELECT 1 FROM node_sources WHERE node_id=nodes.id)"
+            ).rowcount
+            state = self.subscription_state()
+            state["manual"] = [item for item in state["manual"] if item != row["id"]]
+            state["paused"] = [item for item in state["paused"] if item != row["id"]]
+            self.set_subscription_state(state)
+        return {
+            "source_id": row["id"],
+            "display_name": row["display_name"],
+            "removed_nodes": max(removed_nodes, 0),
+        }
 
     def referenced_secrets(self) -> set[str]:
         """收集全部密文引用（含 settings 中的任何哈希值），供 SecretVault.collect 使用。

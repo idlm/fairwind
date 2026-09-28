@@ -46,10 +46,19 @@ SUBSCRIPTION_FIELDS = (
     "failure_count",
     "status",
 )
+SUBSCRIPTION_HANDLE_LENGTH = 12
+ORIGIN_MASTER, ORIGIN_MANUAL = ("MASTER", "MANUAL")
+USER_ACTIVE, USER_PAUSED = ("ACTIVE", "PAUSED")
+SUBSCRIPTION_ACTIONS = ("pause", "resume", "remove")
 OPERATIONS = (
     "capabilities",
     "status",
     "subscriptions.update",
+    "subscriptions.list",
+    "subscriptions.add",
+    "subscriptions.pause",
+    "subscriptions.resume",
+    "subscriptions.remove",
     "nodes.list",
     "nodes.test",
     "nodes.best",
@@ -119,10 +128,7 @@ class HostService:
                 "core": "NOT_INTEGRATED",
                 "nodes": len(database.nodes()),
                 "routing_rules": len(database.routing_rules()),
-                "subscriptions": [
-                    {key: row[key] for key in SUBSCRIPTION_FIELDS}
-                    for row in database.subscriptions()
-                ],
+                "subscriptions": self._subscription_views(database),
             }
 
     async def update_subscriptions(
@@ -202,12 +208,74 @@ class HostService:
         }
 
     def subscriptions(self) -> dict:
-        """订阅列表：只有匿名显示名与计数，**不含** url_hash/id。"""
+        """订阅列表：匿名显示名、12 位句柄、来源与用户状态；**不含** URL、url_hash 或完整 id。"""
         with self._database() as database:
-            rows = database.subscriptions()
+            views = self._subscription_views(database)
         return {
-            "subscriptions": [{key: row[key] for key in SUBSCRIPTION_FIELDS} for row in rows],
-            "count": len(rows),
+            "subscriptions": views,
+            "count": len(views),
+            "note": "HANDLE_IS_PREFIX_OF_IRREVERSIBLE_URL_DIGEST",
+        }
+
+    def _subscription_view(self, row: dict, state: dict) -> dict:
+        return {
+            **{key: row[key] for key in SUBSCRIPTION_FIELDS},
+            "handle": row["id"][:SUBSCRIPTION_HANDLE_LENGTH],
+            "origin": ORIGIN_MANUAL if row["id"] in state["manual"] else ORIGIN_MASTER,
+            "user_state": USER_PAUSED if row["id"] in state["paused"] else USER_ACTIVE,
+        }
+
+    def _subscription_views(self, database: Database) -> list[dict]:
+        state = database.subscription_state()
+        return [self._subscription_view(row, state) for row in database.subscriptions()]
+
+    def add_subscription(self, url: str) -> dict:
+        """手动加入订阅源：URL 只以密文落库，返回值里**永不**回显。"""
+        if self.vault is None:
+            raise SafeError("SECRET_KEY_REQUIRED")
+        with self._database() as database:
+            row = database.add_subscription(url)
+            view = self._subscription_view(row, database.subscription_state())
+        return {"subscription": view, "note": "URL_ENCRYPTED_AND_NOT_ECHOED"}
+
+    def set_subscription_state(self, handle: str, paused: bool) -> dict:
+        """暂停 / 恢复刷新；只改本机状态与调度字段，因此不需要密钥。"""
+        with self._database() as database:
+            row = database.set_subscription_paused(handle, paused)
+            view = self._subscription_view(row, database.subscription_state())
+        return {
+            "subscription": view,
+            "note": "PAUSED_KEEPS_LAST_KNOWN_GOOD_UNTIL_SAMPLES_AGE_OUT"
+            if paused
+            else "RESUMED_AND_WILL_REFRESH_WITHOUT_FORCE",
+        }
+
+    def remove_subscription(self, handle: str) -> dict:
+        """移除订阅源；若它仍在 Master 列表里，下次刷新会重新加入——如实标注，不假装永久排除。"""
+        with self._database() as database:
+            report = database.remove_subscription(handle)
+            present_in_master: bool | None = None
+            if self.vault is not None:
+                reference = database.get_setting("master")
+                payload = self.vault.get(reference) if reference else {}
+                urls = payload.get("urls", []) if isinstance(payload, dict) else []
+                present_in_master = any(
+                    isinstance(url, str)
+                    and self.vault.digest(b"url:" + url.encode()) == report["source_id"]
+                    for url in urls
+                )
+        return {
+            "removed": report["display_name"],
+            "handle": report["source_id"][:SUBSCRIPTION_HANDLE_LENGTH],
+            "removed_nodes": report["removed_nodes"],
+            "present_in_master": present_in_master,
+            "note": "MASTER_LISTED_SOURCE_REAPPEARS_ON_NEXT_UPDATE"
+            if present_in_master
+            else (
+                "REMOVED_LOCALLY_ONLY"
+                if present_in_master is False
+                else "MASTER_STATE_UNKNOWN_WITHOUT_KEY"
+            ),
         }
 
     def node_summary(self) -> dict:

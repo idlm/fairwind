@@ -23,10 +23,11 @@ Done:
 - URI/Base64/Clash/Mihomo/sing-box 解析、清洗、fingerprint、多来源关系与国家分类。
 - AES-GCM SecretVault、普通 SQLite 脱敏、事务替换、LKG、重启恢复和跨进程写锁，以及引用感知 GC（维护入口 `scripts/vault_gc.py`）。
 - schema 版本门禁与一致性备份/恢复（`scripts/backup.py`，恢复保留 `.previous`；备份含密文快照与完整性校验，缺密文即拒绝恢复）。
-- 参考 CLI 与 Linux/Windows CI 配置、wheel/sdist 构建（后续周期已扩展到七个命令）。
+- 本地订阅管理：`subscriptions list/add/pause/resume/remove`（面板与控制面同源）。句柄是 URL 摘要的 12 位前缀；URL 立即校验并以密文保存，任何输出都不回显；用户添加的手动源不会被 Master 漂移禁用；暂停只停止刷新（保留 LKG，样本按既有 6h 窗口自然退出候选，并计入 `UpdateSummary.paused` 而不混入 `RETRY_PAUSED`）；恢复清空退避，下一轮无需 `--force` 即刷新；移除清理该源与其独占节点，并如实标注 Master 是否会让它回来。
+- 参考 CLI 与 Linux/Windows CI 配置、wheel/sdist 构建（后续周期已扩展到解释与订阅管理命令）。
 
 Tests:
-- 313 passed（unit 171 / integration 79 / security 53 / e2e 10）；包含 600 节点夹具、601 节点探测队列、故障注入和七命令端到端测试。
+- 326 passed（unit 171 / integration 91 / security 53 / e2e 11）；包含 600 节点夹具、601 节点探测队列、故障注入和 CLI 端到端测试。
 - GitHub Actions（ubuntu/windows × Python 3.11/3.12）四 job 全绿：run `36439441221`，含产物卫生与密钥门禁。
 - ruff lint 通过；wheel/sdist 构建通过，产物卫生检查见 `scripts/check_artifacts.py`。
 - `scripts/verify.sh` 已固化 lint/格式/离线测试/构建/产物检查，可一键复现上述门禁。
@@ -51,7 +52,7 @@ Done:
 - 修复潜在崩溃：最新探测状态成功但样本全部未 verified 时，Smart Selector 曾因 `None < 0.8` 抛 `TypeError`；现按"可用率 0"判为不合格并给出原因。
 
 Tests:
-- 已纳入上述 313 项；没有使用伪造在线节点结果。`tests/test_scoring_explanation.py` 与 `tests/test_node_details.py` 覆盖解释层与脱敏。
+- 已纳入上述 326 项；没有使用伪造在线节点结果。`tests/test_scoring_explanation.py` 与 `tests/test_node_details.py` 覆盖解释层与脱敏。
 
 Remaining:
 - 获审核心的 VLESS/VMess/Trojan/SS 真实代理握手和端到端测试。

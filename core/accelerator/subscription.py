@@ -9,10 +9,11 @@ from accelerator.errors import SafeError
 from accelerator.network import FetchResult
 from accelerator.parser import MAX_SUBSCRIPTION_BYTES, SubscriptionParser
 from accelerator.security import SecretVault, validate_url
-from accelerator.storage import Database
+from accelerator.storage import MAX_SUBSCRIPTIONS, Database
 
 MAX_MASTER_BYTES = 1024 * 1024
-MAX_SOURCES = 128
+# 上限只定义一次（storage.MAX_SUBSCRIPTIONS），Master 列表与手动添加共用。
+MAX_SOURCES = MAX_SUBSCRIPTIONS
 MAX_UPDATE_BYTES = 50 * 1024 * 1024
 MAX_UPDATE_NODES = 50_000
 BACKOFF = (60, 300, 900, 3600, 21600)
@@ -31,6 +32,7 @@ class UpdateSummary:
     unchanged: int = 0
     failed: int = 0
     skipped: int = 0
+    paused: int = 0
     rejected_urls: int = 0
     rejected_nodes: int = 0
     nodes: int = 0
@@ -49,6 +51,7 @@ class SourceUpdate:
     response: FetchResult | None = None
     error_code: str | None = None
     skipped: bool = False
+    paused: bool = False
 
 
 def load_master(body: bytes) -> tuple[list[str], int]:
@@ -111,11 +114,11 @@ class SubscriptionEngine:
         return validators
 
     async def fetch_source(
-        self, url: str, existing: dict | None, force: bool, now: float
+        self, url: str, existing: dict | None, force: bool, now: float, paused: bool = False
     ) -> SourceUpdate:
         source_id = self.vault.digest(b"url:" + url.encode())
-        update = SourceUpdate(source_id, url, existing)
-        if (
+        update = SourceUpdate(source_id, url, existing, paused=paused)
+        if paused or (
             existing
             and not force
             and (existing["next_check_at"] > now or existing["failure_count"] >= len(BACKOFF))
@@ -208,24 +211,43 @@ class SubscriptionEngine:
                 }
         if master.get("failure_count", 0) >= len(BACKOFF):
             summary.error("RETRY_PAUSED")
+        state = self.database.subscription_state()
+        manual_ids = set(state["manual"])
+        paused_ids = set(state["paused"])
         existing = {row["id"]: row for row in self.database.subscriptions()}
+        ordered: dict[str, str] = {}
+        for url in master["urls"]:
+            ordered.setdefault(self.vault.digest(b"url:" + url.encode()), url)
+        # 手动源即使不在 Master 列表里也必须刷新：URL 从密文读回，并校验它与行 id 一致。
+        for source_id in sorted(manual_ids):
+            row = existing.get(source_id)
+            if row is None:
+                continue
+            stored = self.vault.get(row["secret_ref"])
+            url = stored.get("url") if isinstance(stored, dict) else None
+            if not isinstance(url, str) or self.vault.digest(b"url:" + url.encode()) != source_id:
+                raise SafeError("SUBSCRIPTION_STATE_INVALID")
+            ordered.setdefault(source_id, url)
+        if len(ordered) > MAX_SOURCES:
+            raise SafeError("SOURCE_LIMIT")
         updates = await asyncio.gather(
             *(
                 self.fetch_source(
-                    url, existing.get(self.vault.digest(b"url:" + url.encode())), force, now
+                    url, existing.get(source_id), force, now, paused=source_id in paused_ids
                 )
-                for url in master["urls"]
+                for source_id, url in ordered.items()
             )
         )
         summary.sources = len(updates)
         connection = self.database.connection
         with connection:
             self.database.set_setting("master", self.vault.put(master))
-            connection.execute("UPDATE subscriptions SET enabled=0")
-            number = len(existing)
+            # 只禁用"本轮没有来源"的行：手动源不因为 Master 没列出而消失。
+            for row in connection.execute("SELECT id FROM subscriptions").fetchall():
+                if row[0] not in manual_ids:
+                    connection.execute("UPDATE subscriptions SET enabled=0 WHERE id=?", (row[0],))
             for update in updates:
                 if update.existing is None:
-                    number += 1
                     connection.execute(
                         "INSERT INTO subscriptions "
                         "(id,url_hash,display_name,created_at,secret_ref) "
@@ -233,7 +255,7 @@ class SubscriptionEngine:
                         (
                             update.source_id,
                             update.source_id,
-                            f"Subscription #{number:02d}",
+                            f"Subscription #{self.database.next_display_number():02d}",
                             now,
                             self.vault.put({"url": update.url}),
                         ),
@@ -242,9 +264,12 @@ class SubscriptionEngine:
                     "UPDATE subscriptions SET enabled=1 WHERE id=?", (update.source_id,)
                 )
                 if update.skipped:
-                    summary.skipped += 1
-                    if update.existing["failure_count"] >= len(BACKOFF):
-                        summary.error("RETRY_PAUSED")
+                    if update.paused:
+                        summary.paused += 1
+                    else:
+                        summary.skipped += 1
+                        if update.existing["failure_count"] >= len(BACKOFF):
+                            summary.error("RETRY_PAUSED")
                     continue
                 if update.error_code:
                     count = (update.existing or {}).get("failure_count", 0) + 1

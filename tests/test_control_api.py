@@ -1,6 +1,7 @@
 """本机控制面（Clash 兼容子集 + 静态面板）的离线测试。"""
 
 import asyncio
+import json
 import os
 from pathlib import Path
 
@@ -281,6 +282,92 @@ async def test_route_endpoint_returns_real_reasoning(control):
     assert payload["query"] == {"host": "steam.example", "port": 443, "protocol": "tcp"}
     assert "未接入核心" in payload["note"]
     assert set(payload["semantics"]) == {"priority", "domains", "cidrs", "missing_dimension"}
+
+
+async def test_subscription_management_endpoints_validate_input(control):
+    client, token, _ = control
+    headers = authorization(token)
+    listing = await (await client.get("/api/host/subscriptions", headers=headers)).json()
+    assert (
+        listing["count"] == 0 and listing["note"] == "HANDLE_IS_PREFIX_OF_IRREVERSIBLE_URL_DIGEST"
+    )
+    for payload in ({}, {"url": 5}, {"url": ""}, {"url": "http://127.0.0.1/x"}, {"boom": 1}):
+        response = await client.post("/api/host/subscriptions", json=payload, headers=headers)
+        assert response.status == 400, payload
+    for payload in ({}, {"action": "delete"}, {"action": 5}):
+        response = await client.post(
+            "/api/host/subscriptions/deadbeef", json=payload, headers=headers
+        )
+        assert response.status == 400, payload
+    unknown = await client.post(
+        "/api/host/subscriptions/deadbeef", json={"action": "pause"}, headers=headers
+    )
+    assert await unknown.json() == {"error": "SUBSCRIPTION_NOT_FOUND"}
+    invalid = await client.post(
+        "/api/host/subscriptions/zz", json={"action": "pause"}, headers=headers
+    )
+    assert await invalid.json() == {"error": "SUBSCRIPTION_ID_INVALID"}
+    # POST /subscriptions/update 没有被 /subscriptions/{handle} 路由吞掉
+    update = await client.post("/api/host/subscriptions/update", json={}, headers=headers)
+    assert update.status == 400
+    assert await update.json() == {"error": "MASTER_URL_REQUIRED"}
+
+
+async def test_subscription_management_round_trip_never_echoes_url(
+    tmp_path, vault, fetcher, monkeypatch
+):
+    from accelerator import host
+
+    class OfflineFetcher:
+        async def __aenter__(self):
+            return fetcher
+
+        async def __aexit__(self, *args):
+            return None
+
+    monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
+    token = load_or_create_token(tmp_path)
+    client = TestClient(TestServer(build_app(HostService(tmp_path, vault), token)))
+    await client.start_server()
+    try:
+        headers = authorization(token)
+        added = await client.post(
+            "/api/host/subscriptions",
+            json={"url": "https://source-c.example/sub?token=synthetic-managed-token"},
+            headers=headers,
+        )
+        body = await added.text()
+        payload = json.loads(body)
+        handle = payload["subscription"]["handle"]
+        assert added.status == 200 and len(handle) == 12
+        assert payload["subscription"]["origin"] == "MANUAL"
+        assert "synthetic-managed-token" not in body
+        for action in ("pause", "resume"):
+            response = await client.post(
+                f"/api/host/subscriptions/{handle}", json={"action": action}, headers=headers
+            )
+            assert response.status == 200
+            assert "synthetic-managed-token" not in await response.text()
+        paused = await client.post(
+            f"/api/host/subscriptions/{handle}", json={"action": "pause"}, headers=headers
+        )
+        assert (await paused.json())["subscription"]["user_state"] == "PAUSED"
+        listing = await (await client.get("/api/host/subscriptions", headers=headers)).json()
+        assert listing["count"] == 1 and listing["subscriptions"][0]["user_state"] == "PAUSED"
+        removed = await client.post(
+            f"/api/host/subscriptions/{handle}", json={"action": "remove"}, headers=headers
+        )
+        assert removed.status == 200
+        removed_payload = await removed.json()
+        # 有密钥但从未记录过 Master 列表：没有可"回来"的 Master 来源，因此如实给 False
+        assert removed_payload["present_in_master"] is False
+        assert removed_payload["note"] == "REMOVED_LOCALLY_ONLY"
+        assert "synthetic-managed-token" not in await removed.text()
+        assert (await (await client.get("/api/host/subscriptions", headers=headers)).json())[
+            "count"
+        ] == 0
+    finally:
+        await client.close()
 
 
 async def test_node_detail_endpoint_is_sanitized(tmp_path, vault, fetcher, monkeypatch):
