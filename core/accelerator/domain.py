@@ -74,3 +74,4 @@ class Capabilities:
     udp: bool = False
     ipv6: bool = False
     process_rules: bool = False
+    platform: str = ""

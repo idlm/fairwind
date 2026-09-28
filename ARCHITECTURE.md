@@ -6,7 +6,7 @@
 
 `Application Services → CoreAdapter → Xray / sing-box / Mihomo`。UI 和业务对象不包含核心私有配置。平台网络生命周期由各自的 VPN Controller 管理。
 
-Python 包位于 `core/accelerator`；目录名使用 Python 模块语法，逻辑对应 V1 中 domain、subscription、parser、classifier、node-score、routing、dns、security、storage。原生端目录保留集成契约，不以空壳 UI 冒充实现。
+Python 包位于 `core/accelerator`；目录名使用 Python 模块语法，逻辑对应 V1 中 domain、subscription、parser、classifier、node-score、routing、dns、security、storage（routing 与 dns 的离线策略层已实现并测试，等待隧道接入）。原生端目录保留集成契约，不以空壳 UI 冒充实现。
 
 ## 数据流
 

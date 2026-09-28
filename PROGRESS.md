@@ -22,10 +22,11 @@ Done:
 - Master 一层加载、多源有界抓取、条件请求、jitter 和有限退避。
 - URI/Base64/Clash/Mihomo/sing-box 解析、清洗、fingerprint、多来源关系与国家分类。
 - AES-GCM SecretVault、普通 SQLite 脱敏、事务替换、LKG、重启恢复和跨进程写锁，以及引用感知 GC（维护入口 `scripts/vault_gc.py`）。
+- schema 版本门禁与一致性备份/恢复（`scripts/backup.py`，恢复保留 `.previous`）。
 - 五个 CLI 命令与 Linux/Windows CI 配置、wheel/sdist 构建。
 
 Tests:
-- 163 passed；包含 600 节点夹具、601 节点探测队列、故障注入和五命令端到端测试。
+- 243 passed；包含 600 节点夹具、601 节点探测队列、故障注入和五命令端到端测试。
 - ruff lint 通过；wheel/sdist 构建通过，产物卫生检查见 `scripts/check_artifacts.py`。
 - `scripts/verify.sh` 已固化 lint/格式/离线测试/构建/产物检查，可一键复现上述门禁。
 
@@ -41,10 +42,12 @@ Done:
 - 本地真实 HTTP CONNECT 与 SOCKS5（含用户名/密码认证）探测，验证认证错误、协商拒绝与出口错误的拒绝。
 - 延迟拆分为 tcp_ms / handshake_ms / http_ms 三段独立测量。
 - SOCKS5 经 UDP ASSOCIATE 实测 UDP 丢包（默认内置公共 DNS 目标，`--udp-target` / `--no-udp` 可调）；中继不支持时保持 null。
+- DNS 策略引擎（解析路径决策、IPv6 阻断或经代理、Fake-IP 门禁、代理 DNS 失败不回退、内存缓存 TTL/容量上限），等待隧道接入。
+- 核心能力路由（协议/UDP/IPv6/平台缺口判定，无匹配时 `CORE_UNSUPPORTED`）与连接历史记录接口。
 - Retry/backoff/circuit breaker/failover 控制器与取消清理通过可控 adapter 测试。
 
 Tests:
-- 已纳入上述 169 项；没有使用伪造在线节点结果。
+- 已纳入上述 243 项；没有使用伪造在线节点结果。
 
 Remaining:
 - 获审核心的 VLESS/VMess/Trojan/SS 真实代理握手和端到端测试。

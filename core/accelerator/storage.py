@@ -1,5 +1,7 @@
+import hashlib
 import json
 import os
+import shutil
 import sqlite3
 import time
 from contextlib import contextmanager
@@ -47,6 +49,25 @@ PRAGMA user_version=1;
 """
 
 
+SCHEMA_VERSION = 1
+
+
+def file_digest(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def migrate(connection: sqlite3.Connection) -> None:
+    """校验 schema 版本并应用基线；将来版本升级在此分支，未知版本直接拒绝。"""
+    version = connection.execute("PRAGMA user_version").fetchone()[0]
+    if version not in {0, SCHEMA_VERSION}:
+        raise SafeError("SCHEMA_UNSUPPORTED")
+    connection.executescript("BEGIN IMMEDIATE;\n" + SCHEMA + "\nCOMMIT;")
+
+
 @contextmanager
 def operation_lock(root: Path):
     private_directory(root)
@@ -82,6 +103,42 @@ def operation_lock(root: Path):
         os.close(descriptor)
 
 
+def restore_database(root: Path, source: Path, vault: SecretVault | None = None) -> Path:
+    """在持 operation_lock 的前提下用备份替换数据库，旧库改名为 *.previous 以便回滚。
+
+    先校验备份是受支持的 schema、通过 integrity_check，并且（提供了密钥时）key_check 匹配。
+    """
+    private_directory(root)
+    target = root / "accelerator.sqlite3"
+    if source.is_symlink() or not source.is_file():
+        raise SafeError("BACKUP_INVALID")
+    probe = sqlite3.connect(f"file:{source}?mode=ro", uri=True)
+    try:
+        version = probe.execute("PRAGMA user_version").fetchone()[0]
+        if version != SCHEMA_VERSION:
+            raise SafeError("SCHEMA_UNSUPPORTED")
+        if probe.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+            raise SafeError("BACKUP_INVALID")
+        if vault:
+            row = probe.execute("SELECT value FROM settings WHERE key='key_check'").fetchone()
+            if row and row[0] != vault.digest(b"database-key-check-v1"):
+                raise SafeError("SECRET_KEY_MISMATCH")
+    except sqlite3.DatabaseError:
+        raise SafeError("BACKUP_INVALID") from None
+    finally:
+        probe.close()
+    for suffix in ("-wal", "-shm"):
+        Path(str(target) + suffix).unlink(missing_ok=True)
+    previous = root / "accelerator.sqlite3.previous"
+    if target.exists():
+        previous.unlink(missing_ok=True)
+        os.replace(target, previous)
+    shutil.copyfile(source, target)
+    if os.name != "nt":
+        target.chmod(0o600)
+    return previous
+
+
 class Database:
     def __init__(self, root: Path, vault: SecretVault | None = None):
         private_directory(root)
@@ -97,12 +154,9 @@ class Database:
         self.connection.row_factory = sqlite3.Row
         try:
             self.connection.execute("PRAGMA foreign_keys=ON")
-            version = self.connection.execute("PRAGMA user_version").fetchone()[0]
-            if version not in {0, 1}:
-                raise SafeError("SCHEMA_UNSUPPORTED")
             self.connection.execute("PRAGMA journal_mode=WAL")
             self.connection.execute("PRAGMA synchronous=FULL")
-            self.connection.executescript("BEGIN IMMEDIATE;\n" + SCHEMA + "\nCOMMIT;")
+            migrate(self.connection)
             if vault:
                 identifier = vault.digest(b"database-key-check-v1")
                 existing = self.get_setting("key_check")
@@ -114,8 +168,54 @@ class Database:
             self.connection.close()
             raise
 
+    def record_connection(
+        self, state: str, error_code: str | None = None, now: float | None = None
+    ) -> None:
+        """记录连接状态迁移（固定状态 + 固定错误码，不含凭据）。"""
+        with self.connection:
+            self.connection.execute(
+                "INSERT INTO connection_history (created_at, state, error_code) VALUES (?,?,?)",
+                (now if now is not None else time.time(), str(state), error_code),
+            )
+
+    def connection_history(self, limit: int = 10) -> list[dict]:
+        if not 1 <= limit <= 100:
+            raise SafeError("CONFIG_REJECTED")
+        return [
+            dict(row)
+            for row in self.connection.execute(
+                "SELECT * FROM connection_history ORDER BY id DESC LIMIT ?", (limit,)
+            )
+        ]
+
     def close(self) -> None:
         self.connection.close()
+
+    def backup(self, destination: Path) -> dict:
+        """用 SQLite 在线备份 API 生成一致性副本（WAL 安全）。
+
+        只包含普通 SQLite；密文目录需另行整体复制（内容寻址、不可变）。
+        """
+        if destination.is_symlink():
+            raise SafeError("UNSAFE_STORAGE_PATH")
+        if destination.exists():
+            raise SafeError("BACKUP_TARGET_EXISTS")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        target = sqlite3.connect(destination)
+        try:
+            self.connection.backup(target)
+            target.execute("PRAGMA journal_mode=DELETE")
+            target.commit()
+            pages = target.execute("PRAGMA page_count").fetchone()[0]
+        finally:
+            target.close()
+        if os.name != "nt":
+            destination.chmod(0o600)
+        return {
+            "pages": pages,
+            "bytes": destination.stat().st_size,
+            "digest": file_digest(destination),
+        }
 
     def get_setting(self, key: str) -> str | None:
         row = self.connection.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()

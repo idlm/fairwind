@@ -36,6 +36,20 @@ uv run pytest
 uv build
 ```
 
-以上门禁已固化为 `scripts/verify.sh`（额外校验 wheel/sdist 不含 `.secret`/`.sqlite3` 等敏感文件）。Master 解析归因证据可用 `scripts/dns_evidence.sh <master-host>` 只读复现，主机名不写入版本库。
+门禁已固化为 `scripts/verify.sh`（lint、格式、离线测试、构建与产物卫生检查：wheel/sdist 不得包含 `.secret`、`.sqlite3` 等敏感文件）。
+
+## 维护与诊断
+
+```bash
+scripts/verify.sh                                           # 一键门禁
+uv run python scripts/backup.py --status                    # schema 版本、完整性、节点/订阅/规则计数
+uv run python scripts/backup.py --destination FILE          # 一致性备份（WAL 安全、0600、返回 SHA-256）
+uv run python scripts/backup.py --restore-from FILE --yes   # 受验证恢复（旧库保留为 accelerator.sqlite3.previous）
+uv run python scripts/vault_gc.py                           # 引用感知密文 GC，只删除已无引用的密文
+uv run python scripts/game_profiles.py REGISTRY --write     # Game Profile 校验与路由规则生成
+scripts/dns_evidence.sh <master-host>                       # 只读复现 Master 解析归因证据
+```
+
+备份只包含普通 SQLite；`secrets/` 密文目录必须一起备份（内容寻址、不可变）。恢复需要显式 `--yes`，并在替换前校验 schema 版本、`integrity_check` 与 `key_check`。归档、恢复与 GC 都必须持 `operation_lock`，不做自动清理。Master 主机名不写入版本库，由调用方按需传入。
 
 所有输出默认采用匿名订阅编号、节点短 ID 与固定错误码，不输出原始订阅地址、节点名称或凭据。测试夹具中的地址使用保留域名，认证字段均为合成值。

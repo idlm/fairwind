@@ -10,6 +10,9 @@
 | 日志与 SQLite 不含凭据 | PASS；敏感标记扫描、匿名 CLI 输出、参数错误不回显 |
 | 密文容量与引用感知 GC | PASS；写入记账上限、只删无引用密文、保留 master/验证器/节点、幂等可重跑 |
 | Game Profile 校验与规则生成（M7 骨架） | PASS；严格 schema、能力门禁 fail-closed、优先级 3000/2000/1000、routing_rules 事务写入 |
+| DNS 策略（IPv6 不泄漏 / Fake-IP 门禁 / 失败不回退） | PASS；决策矩阵 20 项测试；尚未接入真实隧道 |
+| 迁移版本门禁与备份恢复 | PASS；未知版本拒绝、备份 WAL 一致（0600 + SHA-256）、恢复校验 integrity/key_check 并保留 `.previous` |
+| 核心能力路由与连接历史 | PASS；协议/UDP/IPv6 缺口判定、平台过滤、无匹配 `CORE_UNSUPPORTED`、状态历史往返 |
 | 门禁可复现（规格 §28） | PASS；scripts/verify.sh 覆盖 lint/格式/离线测试/构建/产物检查 |
 | HTTP CONNECT / SOCKS5 真实出口探测 | LOCAL_INTEGRATION_PASS；本地代理 + TLS + 认证 + 204/500/407/协商拒绝 |
 | 测速限并发 / 滚动历史 / 评分 / Smart Select | PASS；601 节点最多 8 路、最近 10 次、低丢包优先 |

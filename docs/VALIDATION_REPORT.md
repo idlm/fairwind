@@ -4,12 +4,16 @@
 
 ## 已运行
 
-- `uv run pytest -q`：212 passed。全套测试无需互联网；marker 分层子集 unit 125 / integration 33 / security 46 / e2e 8，四者之和与全量一致。
+- `uv run pytest -q`：243 passed。全套测试无需互联网；marker 分层子集 unit 150 / integration 39 / security 46 / e2e 8，四者之和与全量一致。
 - `uv run ruff check .`：通过。
 - `uv run ruff format --check .`：通过。
 - `uv build`：生成 smart_accelerator-0.1.0-py3-none-any.whl 和对应 sdist。
 - `scripts/verify.sh`：把上述 lint、格式、离线测试、构建与产物卫生检查固化为一条命令。
-- wheel 内容检查：14 个业务模块，console_scripts 正确；wheel/sdist 均无 .secret / .sqlite3 / 环境缓存数据。
+- wheel 内容检查：18 个业务模块，console_scripts 正确；wheel/sdist 均无 .secret / .sqlite3 / 环境缓存数据。
+- `scripts/backup.py`：状态检查、备份（页数/字节数/SHA-256）与受验证恢复（缺 `--yes` 返回 RESTORE_NOT_CONFIRMED）端到端验证。
+- `scripts/vault_gc.py`：删除孤儿密文 1→0、二次运行 0、缺密钥返回 SECRET_KEY_REQUIRED。
+- `scripts/game_profiles.py`：空注册表 0 规则、缺能力 UNSUPPORTED_SELECTOR、写入后 SQLite 读回 5 条规则。
+- `scripts/dns_evidence.sh`：指定 Master 域名的权威 NODATA 归因可一键复现。
 - 在仓库外使用隔离环境安装已构建 wheel，`accelerator --version` 返回 0.1.0。
 
 ## 证据范围
@@ -18,9 +22,13 @@
 
 更新覆盖：多源并发、单源失败、空/损坏更新、304、Master LKG、原子事务故障注入、取消、有限重试、500+ 节点、重启恢复、来源删除与禁用。
 
-安全覆盖：私网/回环/特殊 scheme、DNS 混合地址、重定向、下载/总时限、压缩拒绝、总预算、AES-GCM 篡改、错误密钥、容量限制与容量记账、引用感知 GC（只删无引用密文）、权限、写锁、普通 SQLite 与 CLI 脱敏。
+安全覆盖：私网/回环/特殊 scheme、DNS 混合地址、重定向、下载/总时限、压缩拒绝、总预算、AES-GCM 篡改、错误密钥、容量限制与容量记账、引用感知 GC（只删无引用密文）、schema 版本门禁、备份完整性/key_check 校验、恢复保留 `.previous`、权限、写锁、普通 SQLite 与 CLI 脱敏。
 
 节点覆盖：601 节点上限 8 路、滚动 10 次、稳定性与丢包权重、陈旧/失败过滤、HTTP CONNECT 与 SOCKS5（含认证）的真实 TLS 204/500 回应与协商拒绝、tcp/handshake/http 分段延迟、SOCKS5 UDP ASSOCIATE 丢包测量（含全丢包与中继拒绝）、未支持协议不误报可用、故障恢复和取消清理。
+
+DNS 覆盖：A/AAAA 决策矩阵（IPv6 永不直连解析）、Fake-IP 需 TUN 且默认关闭、代理 DNS 失败一律阻断、缓存 TTL 与容量上限、非法主机名与查询类型拒绝。
+
+适配器覆盖：协议/UDP/IPv6 能力缺口判定、平台过滤、无匹配核心时明确失败、连接历史状态往返（不含凭据）。
 
 ## 未通过或未运行
 

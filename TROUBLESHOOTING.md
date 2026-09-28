@@ -17,6 +17,9 @@
 - `packet_loss` 为 null 表示未测量（非 SOCKS5、中继不支持、`--no-udp` 或 `udp: false`），不代表零丢包；不要把 HTTP 失败率当作 UDP 丢包。
 - `UNSUPPORTED_SELECTOR`：当前平台能力不满足该游戏配置的 selector；不要删掉 selector 蒙混过关，改用平台支持的规则或补齐能力。
 - `SCHEMA_UNSUPPORTED`：游戏配置或数据库 schema 版本不受支持；不要就地改写版本号，按升级流程处理。
+- `BACKUP_TARGET_EXISTS` / `BACKUP_INVALID`：备份目标已存在，或备份文件不可用（非 SQLite、完整性检查失败）；不要覆盖现有备份，改用新路径或重新生成。
+- `RESTORE_NOT_CONFIRMED`：恢复必须显式加 `--yes`；恢复后旧库会保留为 `accelerator.sqlite3.previous` 以便回滚。
+- `CORE_UNSUPPORTED`：没有核心能力满足该节点（协议 / UDP / IPv6 / 平台）；不要静默丢弃节点或改写配置，应换用具备能力的核心或从候选中排除该节点。
 - `STORAGE_FULL`：密文存储达到容量上限；保留数据和密钥，按备份流程处理，禁止自动清空 LKG。
 
 提交问题时仅提供版本、平台、固定错误码与合成测试输入。不附带 URL、token、UUID、密码、DNS/浏览记录。
