@@ -15,6 +15,7 @@ SOURCE_PACKAGE = Path(__file__).resolve().parents[1] / "core" / "accelerator"
 ENTRY_POINT = "accelerator = accelerator.cli:main"
 WHEEL_PACKAGE = "accelerator/"
 WHEEL_NON_PACKAGE_PREFIXES = ("tests/", "scripts/", "profiles/")
+REQUIRED_WHEEL_MEMBERS = ("accelerator/ui/index.html",)
 FORBIDDEN = (
     re.compile(r"\.secret$"),
     re.compile(r"\.sqlite3"),
@@ -79,6 +80,10 @@ def main() -> int:
             bundled = sorted(name for name in names if name.startswith(WHEEL_NON_PACKAGE_PREFIXES))
             if bundled:
                 print(f"  NON_PACKAGE_CONTENT {bundled[:5]}")
+                failures += 1
+            missing_assets = [name for name in REQUIRED_WHEEL_MEMBERS if name not in names]
+            if missing_assets:
+                print(f"  MISSING_ASSET {missing_assets}")
                 failures += 1
     print("ARTIFACT_CHECK_FAILED" if failures else "ARTIFACT_CHECK_OK")
     return 1 if failures else 0

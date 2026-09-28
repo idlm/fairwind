@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from accelerator import __version__
+from accelerator.api import load_or_create_token, serve
 from accelerator.errors import SafeError
 from accelerator.host import DEFAULT_PROBE_TARGET, HostService
 from accelerator.probing import UDP_TARGET_DEFAULT
@@ -53,6 +54,8 @@ def make_parser() -> argparse.ArgumentParser:
     best = nodes.add_parser("best")
     best.add_argument("--country")
     commands.add_parser("status")
+    serving = commands.add_parser("serve")
+    serving.add_argument("--port", type=int, default=8765)
     return parser
 
 
@@ -87,6 +90,22 @@ async def execute(args: argparse.Namespace) -> int:
     )
     vault = SecretVault.from_environment(args.data_dir / "secrets") if sensitive else None
     service = HostService(args.data_dir, vault)
+    if args.command == "serve":
+        token = load_or_create_token(args.data_dir)
+
+        def on_start(host: str, port: int) -> None:
+            emit(
+                {
+                    "listening": f"{host}:{port}",
+                    "panel_url": f"http://{host}:{port}/ui/#token={token}",
+                    "token_file": str(args.data_dir / "control.token"),
+                    "note": "TOKEN_IS_IN_URL_FRAGMENT_AND_NOT_SENT_TO_SERVER",
+                    "core": "NOT_INTEGRATED",
+                }
+            )
+
+        await serve(service, token, args.port, on_start)
+        return 0
     if args.command == "subscriptions":
         summary = await service.update_subscriptions(args.master_url, args.force, args.interval)
         emit(summary)

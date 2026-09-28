@@ -23,6 +23,16 @@
 | `collect_garbage()` | 同步 | 引用感知 GC |
 | `connect()` / `disconnect()` | 同步 | **未接入核心前必须抛 `CORE_NOT_INTEGRATED`**，不允许 UI 声称已连接 |
 
+## 控制面（本机 API + 静态面板）
+
+形态对齐 `docs/REFERENCE_SOLUTIONS.md` 的成熟共识：`accelerator serve` 在 **127.0.0.1** 上启动控制面，并把静态面板挂在 `/ui/`（即 sing-box `external_ui` 的形态）。
+
+- **认证**：除静态面板外所有请求都必须带 `Authorization: Bearer <token>`；token 由 `load_or_create_token()` 生成并写入 `<data-dir>/control.token`（0600），缺失或不匹配返回 401 `CONTROL_UNAUTHORIZED`。
+- **Clash 兼容子集**：`GET /version`、`/configs`、`/proxies`、`/connections`、`/traffic`。未接入核心时如实返回 `core: NOT_INTEGRATED`、端口 0、空连接与 0 流量，**不虚构** `DIRECT`/`REJECT` 等内置代理。
+- **本仓库操作**：`GET /api/host/status|capabilities|nodes|nodes/best|routing`、`POST /api/host/subscriptions/update|nodes/test|profiles|connect`。其中 `POST /api/host/connect` 固定返回 400 `CORE_NOT_INTEGRATED`——控制面不允许让 UI 声称已连接。
+- **加固**：请求体上限 64 KiB；未知字段与非法 JSON 一律 400 `ARGUMENT_INVALID`；响应带 `Cache-Control: no-store`；面板响应带 `X-Frame-Options: DENY`、`Content-Security-Policy: default-src 'self'`；**不使用 `*` CORS**。
+- **令牌传递**：可用 URL **片段**（`http://127.0.0.1:PORT/ui/#token=…`）交给浏览器——片段不会发送给服务器、也不进服务端日志；面板读取后立即用 `history.replaceState` 抹掉地址栏。也可在面板里手动粘贴 `control.token` 内容。
+
 ## 统一约定
 
 - 返回值一律为 JSON 可序列化结构；错误一律 `SafeError` + 固定错误码（见 `docs/CLI.md`、`TROUBLESHOOTING.md`）。

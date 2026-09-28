@@ -15,6 +15,7 @@
 | 核心能力路由与连接历史 | PASS；协议/UDP/IPv6 缺口判定、平台过滤、无匹配 `CORE_UNSUPPORTED`、状态历史往返 |
 | Game Profile 远程更新（M7） | PASS；ed25519 签名、防回滚、1 MiB 限额、能力校验先行、原子替换 + LKG 互换；无公钥即拒绝 |
 | 宿主契约与参考服务层 | PASS；12 个操作、能力声明如实、连接操作明确拒绝、按操作持锁、输出脱敏 |
+| 本机控制面与静态面板 | PASS；仅 127.0.0.1（真实 socket 断言）、Bearer 令牌 401 拒绝、无 `*` CORS、面板不可逃逸 /ui 根、面板资源随 wheel 分发、connect 明确拒绝 |
 | 门禁可复现（规格 §28） | PASS；scripts/verify.sh 覆盖 lint/格式/离线测试/构建/产物检查 |
 | HTTP CONNECT / SOCKS5 真实出口探测 | LOCAL_INTEGRATION_PASS；本地代理 + TLS + 认证 + 204/500/407/协商拒绝 |
 | 测速限并发 / 滚动历史 / 评分 / Smart Select | PASS；601 节点最多 8 路、最近 10 次、低丢包优先 |

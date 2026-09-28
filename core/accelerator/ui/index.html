@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Accelerator 控制面板</title>
+<style>
+  :root { color-scheme: light dark; --line: #d0d7de; --muted: #6a737d; --bg: #ffffff; --fg: #1f2328; }
+  @media (prefers-color-scheme: dark) {
+    :root { --line: #30363d; --muted: #8b949e; --bg: #0d1117; --fg: #e6edf3; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; font: 14px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  h1 { font-size: 18px; margin: 0; }
+  .badge { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+  .badge.warn { color: #9a6700; border-color: #9a6700; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  .card h2 { font-size: 14px; margin: 0 0 8px; }
+  pre { margin: 0; overflow: auto; font-size: 12px; }
+  button { font: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  input { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; width: 100%; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  .muted { color: var(--muted); font-size: 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Smart Accelerator</h1>
+  <span class="badge" id="version">version …</span>
+  <span class="badge warn" id="core">core …</span>
+  <span class="badge" id="state">state …</span>
+</header>
+
+<div class="card" id="auth-card" hidden>
+  <h2>控制面令牌</h2>
+  <div class="row">
+    <input id="token-input" type="password" placeholder="粘贴 control.token 内容" autocomplete="off">
+    <button id="token-save">保存</button>
+  </div>
+  <p class="muted">令牌只保存在本标签页的 sessionStorage；控制面固定为本机 127.0.0.1。</p>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>宿主与订阅</h2>
+    <div class="row">
+      <input id="master-url" type="url" placeholder="Master 订阅地址（留空则复用已保存的）" autocomplete="off">
+    </div>
+    <div class="row">
+      <button id="refresh">刷新状态</button>
+      <button id="update">更新订阅</button>
+      <button id="test">测速</button>
+      <button id="best">推荐线路</button>
+      <button id="connect" disabled title="未接入代理核心：CORE_NOT_INTEGRATED">连接</button>
+    </div>
+    <p class="muted" id="connect-note">连接按钮在接入获审代理核心前保持禁用；本面板不会、也不能声称已连接。</p>
+    <pre id="status">尚未加载</pre>
+  </div>
+
+  <div class="card">
+    <h2>节点（匿名 ID）</h2>
+    <table>
+      <thead><tr><th>ID</th><th>地区</th><th>协议</th><th>状态</th><th>评分</th><th>延迟</th></tr></thead>
+      <tbody id="nodes"><tr><td colspan="6" class="muted">尚未加载</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>推荐线路</h2>
+    <pre id="best">尚未加载</pre>
+  </div>
+</div>
+
+<script>
+const state = { token: sessionStorage.getItem("accelerator.token") || "" };
+
+function setBadge(id, text) {
+  document.getElementById(id).textContent = text;
+}
+
+function showAuth(show) {
+  document.getElementById("auth-card").hidden = !show;
+}
+
+function report(text) {
+  document.getElementById("status").textContent = text;
+}
+
+async function call(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      "Authorization": "Bearer " + state.token,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  const text = await response.text();
+  let payload;
+  try { payload = JSON.parse(text); } catch (error) { payload = { error: "BAD_RESPONSE" }; }
+  if (!response.ok) {
+    if (response.status === 401) { showAuth(true); }
+    throw Object.assign(new Error(payload.error || "REQUEST_FAILED"), payload);
+  }
+  return payload;
+}
+
+async function loadNodes() {
+  const listing = await call("/api/host/nodes");
+  const body = document.getElementById("nodes");
+  body.innerHTML = "";
+  if (!listing.count) {
+    body.innerHTML = '<tr><td colspan="6" class="muted">尚无节点，请先更新订阅</td></tr>';
+    return;
+  }
+  for (const node of listing.nodes) {
+    const row = document.createElement("tr");
+    const cells = [
+      node.id, node.country, node.protocol, node.state,
+      node.score === null ? "-" : node.score,
+      node.latency_ms === null ? "-" : node.latency_ms + " ms",
+    ];
+    for (const value of cells) {
+      const cell = document.createElement("td");
+      cell.textContent = String(value);
+      row.appendChild(cell);
+    }
+    body.appendChild(row);
+  }
+}
+
+async function refresh() {
+  try {
+    const version = await call("/version");
+    setBadge("version", "version " + version.version);
+    setBadge("core", "core " + version.core);
+    const status = await call("/api/host/status");
+    setBadge("state", "state " + status.state);
+    report(JSON.stringify(status, null, 2));
+    showAuth(false);
+    await loadNodes();
+  } catch (error) {
+    report("错误：" + error.message);
+  }
+}
+
+document.getElementById("token-save").addEventListener("click", () => {
+  state.token = document.getElementById("token-input").value.trim();
+  sessionStorage.setItem("accelerator.token", state.token);
+  refresh();
+});
+
+document.getElementById("refresh").addEventListener("click", refresh);
+
+document.getElementById("update").addEventListener("click", async () => {
+  const master = document.getElementById("master-url").value.trim();
+  try {
+    const summary = await call("/api/host/subscriptions/update", {
+      method: "POST",
+      body: JSON.stringify(master ? { master_url: master } : {}),
+    });
+    report(JSON.stringify(summary, null, 2));
+    await loadNodes();
+  } catch (error) {
+    report("错误：" + error.message);
+  }
+});
+
+document.getElementById("test").addEventListener("click", async () => {
+  try {
+    const result = await call("/api/host/nodes/test", {
+      method: "POST",
+      body: JSON.stringify({ samples: 3, concurrency: 4 }),
+    });
+    report(JSON.stringify(result, null, 2));
+    await loadNodes();
+  } catch (error) {
+    report("错误：" + error.message);
+  }
+});
+
+document.getElementById("best").addEventListener("click", async () => {
+  try {
+    const best = await call("/api/host/nodes/best");
+    document.getElementById("best").textContent = JSON.stringify(best, null, 2);
+  } catch (error) {
+    document.getElementById("best").textContent = "错误：" + error.message;
+  }
+});
+
+// 令牌可经 URL 片段传入：片段不会发送给服务器、也不进入服务端日志；读取后立即抹掉地址栏。
+(function bootstrap() {
+  const match = /(?:^|[#&])token=([^&]+)/.exec(location.hash || "");
+  if (match) {
+    state.token = decodeURIComponent(match[1]);
+    sessionStorage.setItem("accelerator.token", state.token);
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+  if (!state.token) { showAuth(true); return; }
+  refresh();
+})();
+</script>
+
+</body>
+</html>

@@ -14,6 +14,7 @@ Python 3.11+ CLI 是现代平台的业务参考实现与测试工具，不作为
 uv sync --locked --extra dev
 uv run accelerator --help
 uv run accelerator status
+uv run accelerator serve            # 本机控制面 + 静态面板（仅 127.0.0.1，令牌见输出）
 ```
 
 敏感内容单独使用 AES-256-GCM 加密。CLI 参考实现要求设置 `ACCELERATOR_SECRET_KEY`（32 字节随机值的 URL-safe Base64 编码），不生成或保存明文密钥。可用 `uv run python -c "import secrets; print(secrets.token_urlsafe(32))"` 在本机生成，保存到密码管理器并通过安全环境注入。不要提交密钥或终端输出；丢失密钥将无法解密本地数据。生产客户端必须接入 DPAPI / Android Keystore / iOS Keychain。

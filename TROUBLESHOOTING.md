@@ -21,6 +21,7 @@
 - `RESTORE_NOT_CONFIRMED`：恢复必须显式加 `--yes`；恢复后旧库会保留为 `accelerator.sqlite3.previous` 以便回滚。
 - `SECRET_SNAPSHOT_INCOMPLETE`：备份引用的密文快照不完整（只备份了 SQLite，或密文已被 GC/删除）。不要强行恢复——这会让所有节点永久无法解密；请先用 `--secrets-from` 补回密文快照再恢复，或重新生成完整备份。
 - `CORE_UNSUPPORTED`：没有核心能力满足该节点（协议 / UDP / IPv6 / 平台）；不要静默丢弃节点或改写配置，应换用具备能力的核心或从候选中排除该节点。
+- `CONTROL_UNAUTHORIZED`：控制面请求缺少或带错 Bearer 令牌；从 `<data-dir>/control.token` 读取，**不要**把它贴到任何在线位置或工单里。
 - `PROFILE_PUBKEY_REQUIRED`：未注入 `ACCELERATOR_PROFILE_PUBKEY`（或公钥非法）；这是设计上的拒绝，不要为了“跑通”而绕过，也不要向仓库提交密钥。
 - `PROFILE_SIGNATURE_INVALID`：信封签名不匹配或文档被改动；更新会被拒绝且现有注册表保持不变。
 - `ROLLBACK_REJECTED`：远端 `version` 未严格大于本地版本；按发布流程重新签名递增版本，不要就地改版本号。

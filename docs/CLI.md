@@ -10,6 +10,7 @@
 | accelerator nodes test [--samples 3] [--concurrency 8] [--udp-target HOST:PORT] [--no-udp] | 有限工作队列；历史最多 10 条；SOCKS5 经 UDP ASSOCIATE 实测丢包，其余保持 null |
 | accelerator nodes best [--country JP] | 至少 3 个最近有效测试样本、成功率 ≥80%、当前可用；地理偏好仅轻量加权 |
 | accelerator status | 持久化节点、订阅与固定 DISCONNECTED；不会声称存在后台隧道 |
+| accelerator serve [--port 8765] | 在 127.0.0.1 启动控制面与静态面板；token 写入 `<data-dir>/control.token`（0600），面板地址用 URL 片段携带 token |
 
 全局 `--data-dir PATH` 必须放在子命令前。只读命令不要求密钥；更新和测速要求 ACCELERATOR_SECRET_KEY。CLI 默认不显示高级脱敏 URL，不提供原始日志导出。
 
