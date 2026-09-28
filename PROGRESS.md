@@ -27,6 +27,7 @@ Done:
 
 Tests:
 - 281 passed；包含 600 节点夹具、601 节点探测队列、故障注入和五命令端到端测试。
+- GitHub Actions（ubuntu/windows × Python 3.11/3.12）四 job 全绿：run `36439441221`，含产物卫生与密钥门禁。
 - ruff lint 通过；wheel/sdist 构建通过，产物卫生检查见 `scripts/check_artifacts.py`。
 - `scripts/verify.sh` 已固化 lint/格式/离线测试/构建/产物检查，可一键复现上述门禁。
 

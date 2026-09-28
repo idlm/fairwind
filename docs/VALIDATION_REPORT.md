@@ -46,4 +46,4 @@ Game Profile 更新覆盖：ed25519 验签（篡改文档、换密钥、非法 B
 
 用户指定 Master 的一次受限真实请求未取得正文。2026-09-28 复核：该域名的两台权威 NS 对 A 与 AAAA 均返回 NOERROR-NODATA（域名存在、有 SOA，但没有地址记录），1.1.1.1 与 8.8.8.8 结论一致，对照域名可解析且本机 443 出网正常；系统解析器给出 EAI_NODATA(-5)，与真正不存在域名的 EAI_NONAME(-2) 不同。因此阻塞在域名侧而非本机解析器，客户端代码无法解除，也不能据此推断所有网络都不可用。真实 URL 与主机名没有写入仓库。
 
-Windows runner 工作流已定义但未在 GitHub 执行；Android/iOS/Win7 没有声称构建或运行成功。HTTP 测试使用本地代理和临时可信测试证书，不等同于真实订阅节点的在线测评。
+Windows runner 工作流已于 2026-09-28 在 GitHub **实际执行**：run `36439441221`，`ubuntu-latest`/`windows-latest` × Python 3.11/3.12 四个 job 全部通过（含 lint、格式、离线测试、构建、产物卫生与密钥门禁）。**注意**：CI runner 通过**不等于**目标平台验收——Win10/11 TUN、Win7 SP1、Android、iOS 仍需真机/VM，见 `PLATFORM_MATRIX.md`。HTTP 测试使用本地代理和临时可信测试证书，不等同于真实订阅节点的在线测评。
