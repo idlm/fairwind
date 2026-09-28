@@ -80,7 +80,9 @@ async def test_clash_compatible_subset_stays_honest(control):
     connections = await (await client.get("/connections", headers=headers)).json()
     assert connections["connections"] == [] and connections["downloadTotal"] == 0
     traffic = await (await client.get("/traffic", headers=headers)).json()
-    assert traffic == {"up": 0, "down": 0, "core": "NOT_INTEGRATED"}
+    assert traffic["up"] == traffic["down"] == 0
+    assert traffic["core"] == "NOT_INTEGRATED"
+    assert traffic["note"] == "ZERO_MEANS_UNMEASURED_UNTIL_CORE_INTEGRATED"
 
 
 async def test_connect_is_refused_through_control_plane(control):
@@ -96,7 +98,10 @@ async def test_security_headers_and_body_validation(control):
     api = await client.get("/api/host/status", headers=headers)
     assert api.headers["Cache-Control"] == "no-store"
     panel = await client.get("/ui/")
-    assert panel.status == 200 and "<html" in (await panel.text())
+    body = await panel.text()
+    assert panel.status == 200
+    assert "<title>Smart Accelerator 控制面板</title>" in body
+    assert 'data-tab="home"' in body and 'id="panel-settings"' in body
     assert panel.headers["X-Frame-Options"] == "DENY"
     assert "default-src 'self'" in panel.headers["Content-Security-Policy"]
     unknown_key = await client.post("/api/host/nodes/test", json={"boom": 1}, headers=headers)
@@ -113,10 +118,17 @@ async def test_security_headers_and_body_validation(control):
 
 async def test_panel_cannot_escape_ui_root(control):
     client, _, _ = control
-    for path in ("/ui/../control.token", "/ui/%2e%2e/control.token", "/ui/..%2fcontrol.token"):
+    for path in (
+        "/ui/../control.token",
+        "/ui/%2e%2e/control.token",
+        "/ui/..%2fcontrol.token",
+        "/ui/index.html/../../control.token",
+    ):
         response = await client.get(path)
         assert response.status != 200, path
         assert "control.token" not in await response.text()
+    assert (await client.get("/ui")).status == 200
+    assert (await client.get("/ui/index.html")).status == 200
 
 
 async def test_host_endpoints_return_sanitized_nodes(tmp_path, vault, fetcher, monkeypatch):
@@ -179,9 +191,59 @@ async def test_serve_binds_loopback_only(tmp_path, vault):
             await task
 
 
+async def test_extended_host_endpoints(control):
+    client, token, _ = control
+    headers = authorization(token)
+    expected = {
+        "/api/host/subscriptions": ("subscriptions", "count"),
+        "/api/host/summary": ("total", "available", "countries", "states"),
+        "/api/host/dns": ("ipv6", "fake_ip", "sample", "core"),
+        "/api/host/profiles": ("version", "profiles", "previous_version", "rules"),
+        "/api/host/history": ("history", "count", "note"),
+    }
+    for path, keys in expected.items():
+        response = await client.get(path, headers=headers)
+        assert response.status == 200, path
+        payload = await response.json()
+        for key in keys:
+            assert key in payload, (path, key)
+    summary = await (await client.get("/api/host/summary", headers=headers)).json()
+    assert summary["total"] == 0 and summary["countries"] == []
+    dns = await (await client.get("/api/host/dns", headers=headers)).json()
+    assert dns["sample"]["route"] == "BLOCK"
+    for bad in ("0", "abc", "1000"):
+        response = await client.get(f"/api/host/history?limit={bad}", headers=headers)
+        assert response.status == 400, bad
+
+
 def test_panel_assets_are_self_contained():
     panel = Path(__file__).resolve().parents[1] / "core" / "accelerator" / "ui" / "index.html"
     text = panel.read_text(encoding="utf-8")
     assert "https://" not in text
     assert "http://" not in text.replace("http://127.0.0.1", "")
     assert "未接入代理核心" in text
+
+
+def test_panel_matches_spec_information_architecture():
+    """规格 §22 的五页信息架构必须都在面板里；不可用的能力要显式标注原因。"""
+    panel = Path(__file__).resolve().parents[1] / "core" / "accelerator" / "ui" / "index.html"
+    text = panel.read_text(encoding="utf-8")
+    for tab in ("home", "nodes", "subscriptions", "games", "settings"):
+        assert f'data-tab="{tab}"' in text, tab
+        assert f'id="panel-{tab}"' in text, tab
+    for label in (
+        "智能加速",
+        "当前模式",
+        "推荐线路",
+        "实时指标",
+        "节点分类",
+        "手动刷新",
+        "注册表状态",
+        "能力声明",
+        "DNS 策略",
+    ):
+        assert label in text, label
+    assert 'id="mode" disabled' in text
+    assert 'id="connect" disabled' in text
+    assert "不会、也不能声称已连接" in text
+    assert "不填 0 冒充" in text

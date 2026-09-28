@@ -4,7 +4,7 @@
 
 ## 已运行
 
-- `uv run pytest -q`：274 passed。全套测试无需互联网；marker 分层子集 unit 150 / integration 63 / security 53 / e2e 8，四者之和与全量一致。
+- `uv run pytest -q`：281 passed。全套测试无需互联网；marker 分层子集 unit 150 / integration 70 / security 53 / e2e 8，四者之和与全量一致。
 - `uv run ruff check .`：通过。
 - `uv run ruff format --check .`：通过。
 - `uv build`：生成 smart_accelerator-0.1.0-py3-none-any.whl 和对应 sdist。
@@ -36,7 +36,9 @@ Game Profile 更新覆盖：ed25519 验签（篡改文档、换密钥、非法 B
 
 宿主覆盖：能力声明如实（未接入核心时全 false）、`connect/disconnect` 明确拒绝、状态与节点列表脱敏、敏感操作需密钥、按操作持锁（并发得到 OPERATION_BUSY）、签名规则仅在传入能力时落库、备份与 GC 委派。
 
-控制面覆盖：令牌文件 0600 与复用、符号链接拒绝、未授权一律 401、Clash 兼容子集如实返回（端口 0 / 空连接 / 0 流量）、`connect` 明确拒绝、未知字段与非法 JSON 400、超限 413、面板不可逃逸 `/ui` 根、**仅绑定 127.0.0.1（真实 socket 断言）**、面板无外部资源引用。
+控制面覆盖：令牌文件 0600 与复用、符号链接拒绝、未授权一律 401、Clash 兼容子集如实返回（端口 0 / 空连接 / 0 流量且标注"未测量"）、`connect` 明确拒绝、未知字段与非法 JSON 400、超限 413、参数越界 400（history limit）、扩展端点形状（summary/subscriptions/dns/profiles/history）、面板不可逃逸 `/ui` 根、**仅绑定 127.0.0.1（真实 socket 断言）**、面板无外部资源引用、**面板结构对应规格 §22 五页且禁用项标注原因**。
+
+面板服务修复（真实运行发现，测试原先漏判）：aiohttp 的静态目录处理器对 `/ui/` 返回的是**目录列表**（152 字节）而不是 `index.html`；原测试只断言 `<html`，目录列表也是 HTML，因此错误通过。现改为显式单文件路由，并把断言加强为"必须包含面板标题与五页标签"。
 
 ## 未通过或未运行
 

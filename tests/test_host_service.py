@@ -10,6 +10,16 @@ from conftest import MASTER
 
 pytestmark = pytest.mark.integration
 
+EXPECTED_SUBSCRIPTION_FIELDS = (
+    "display_name",
+    "last_checked_at",
+    "last_success_at",
+    "node_count",
+    "enabled",
+    "failure_count",
+    "status",
+)
+
 
 class OfflineFetcher:
     def __init__(self, fetcher):
@@ -121,3 +131,77 @@ def test_each_operation_takes_the_lock(tmp_path, vault):
     with operation_lock(tmp_path), pytest.raises(SafeError, match="OPERATION_BUSY"):
         service.status()
     assert service.status()["state"] == "DISCONNECTED"
+
+
+async def seeded_service(tmp_path, vault, fetcher, monkeypatch):
+    from test_node_engine import FakeProbe
+
+    from accelerator import host
+
+    class OfflineFetcher:
+        async def __aenter__(self):
+            return fetcher
+
+        async def __aexit__(self, *args):
+            return None
+
+    monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
+    monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
+    service = HostService(tmp_path, vault)
+    await service.update_subscriptions(MASTER)
+    return service
+
+
+async def test_summary_groups_by_country_and_state(tmp_path, vault, fetcher, monkeypatch):
+    service = await seeded_service(tmp_path, vault, fetcher, monkeypatch)
+    before = service.node_summary()
+    assert before["total"] == 2 and before["available"] == 0
+    assert before["states"] == {"UNTESTED": 2}
+    assert sorted(row["country"] for row in before["countries"]) == ["HK", "JP"]
+    await service.test_nodes(samples=1, concurrency=1)
+    after = service.node_summary()
+    assert after["available"] == 2 and after["states"] == {"AVAILABLE": 2}
+
+
+async def test_subscriptions_view_excludes_identifiers(tmp_path, vault, fetcher, monkeypatch):
+    service = await seeded_service(tmp_path, vault, fetcher, monkeypatch)
+    view = service.subscriptions()
+    assert view["count"] == 2
+    assert all(set(row) == set(EXPECTED_SUBSCRIPTION_FIELDS) for row in view["subscriptions"])
+    assert all(row["display_name"].startswith("Subscription #") for row in view["subscriptions"])
+    assert sum(row["node_count"] for row in view["subscriptions"]) == 3
+
+
+def test_dns_policy_is_read_only_and_blocks_ipv6(service):
+    policy = service.dns_policy()
+    assert policy["ipv6"] == "block" and policy["fake_ip"] is False
+    assert policy["sample"]["route"] == "BLOCK" and policy["sample"]["reason"] == "IPV6_BLOCKED"
+    assert policy["core"] == "NOT_INTEGRATED"
+
+
+def test_profile_versions_report_lkg_and_rules(service):
+    from test_profile_update import ALL_CAPABILITIES, document, envelope
+
+    assert service.profile_versions() == {
+        "version": 0,
+        "profiles": 0,
+        "previous_version": None,
+        "previous_profiles": 0,
+        "rules": 0,
+    }
+    key = Ed25519PrivateKey.generate()
+    service.apply_profiles(
+        envelope(key, document(1)), key.public_key(), ALL_CAPABILITIES, "windows"
+    )
+    service.apply_profiles(
+        envelope(key, document(2)), key.public_key(), ALL_CAPABILITIES, "windows"
+    )
+    versions = service.profile_versions()
+    assert versions["version"] == 2 and versions["previous_version"] == 1
+    assert versions["rules"] == 2
+
+
+def test_connection_history_is_empty_and_not_fabricated(service):
+    view = service.connection_history()
+    assert view["history"] == [] and view["count"] == 0
+    assert view["note"] == "PLATFORM_CLIENTS_WRITE_THIS_TABLE"

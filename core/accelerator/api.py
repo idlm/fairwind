@@ -129,6 +129,7 @@ async def handle_configs(request: web.Request) -> web.Response:
             "mixed-port": 0,
             "allow-lan": False,
             "bind-address": "127.0.0.1",
+            "mode_source": "REFERENCE_DEFAULT",
             "core": CORE_NOT_INTEGRATED,
         }
     )
@@ -153,12 +154,25 @@ async def handle_proxies(request: web.Request) -> web.Response:
 
 async def handle_connections(request: web.Request) -> web.Response:
     return _json(
-        {"downloadTotal": 0, "uploadTotal": 0, "connections": [], "core": CORE_NOT_INTEGRATED}
+        {
+            "downloadTotal": 0,
+            "uploadTotal": 0,
+            "connections": [],
+            "core": CORE_NOT_INTEGRATED,
+            "note": "ZERO_MEANS_UNMEASURED_UNTIL_CORE_INTEGRATED",
+        }
     )
 
 
 async def handle_traffic(request: web.Request) -> web.Response:
-    return _json({"up": 0, "down": 0, "core": CORE_NOT_INTEGRATED})
+    return _json(
+        {
+            "up": 0,
+            "down": 0,
+            "core": CORE_NOT_INTEGRATED,
+            "note": "ZERO_MEANS_UNMEASURED_UNTIL_CORE_INTEGRATED",
+        }
+    )
 
 
 async def handle_host_status(request: web.Request) -> web.Response:
@@ -179,6 +193,29 @@ async def handle_host_best(request: web.Request) -> web.Response:
 
 async def handle_host_routing(request: web.Request) -> web.Response:
     return _json(_service(request).routing_rules())
+
+
+async def handle_host_subscriptions(request: web.Request) -> web.Response:
+    return _json(_service(request).subscriptions())
+
+
+async def handle_host_summary(request: web.Request) -> web.Response:
+    return _json(_service(request).node_summary())
+
+
+async def handle_host_dns(request: web.Request) -> web.Response:
+    return _json(_service(request).dns_policy())
+
+
+async def handle_host_profiles(request: web.Request) -> web.Response:
+    return _json(_service(request).profile_versions())
+
+
+async def handle_host_history(request: web.Request) -> web.Response:
+    limit = request.query.get("limit", "10")
+    if not limit.isdigit() or not 1 <= int(limit) <= 100:
+        raise SafeError("ARGUMENT_INVALID")
+    return _json(_service(request).connection_history(int(limit)))
 
 
 async def handle_subscriptions_update(request: web.Request) -> web.Response:
@@ -223,7 +260,17 @@ async def handle_connect(request: web.Request) -> web.Response:
 
 
 async def handle_ui(request: web.Request) -> web.Response:
-    return web.HTTPFound("/ui/")
+    raise web.HTTPFound("/ui/")
+
+
+async def handle_panel(request: web.Request) -> web.Response:
+    """面板是单文件、零构建、零外部资源；不用静态目录处理器，避免目录穿越与目录列表。"""
+    panel = UI_DIRECTORY / "index.html"
+    if not panel.is_file():
+        return _error("PANEL_MISSING", 500)
+    response = web.FileResponse(panel)
+    response.headers.update(SECURITY_HEADERS)
+    return response
 
 
 def build_app(service: HostService, token: str) -> web.Application:
@@ -242,12 +289,18 @@ def build_app(service: HostService, token: str) -> web.Application:
     app.router.add_get(f"{HOST_PREFIX}/nodes", handle_host_nodes)
     app.router.add_get(f"{HOST_PREFIX}/nodes/best", handle_host_best)
     app.router.add_get(f"{HOST_PREFIX}/routing", handle_host_routing)
+    app.router.add_get(f"{HOST_PREFIX}/subscriptions", handle_host_subscriptions)
+    app.router.add_get(f"{HOST_PREFIX}/summary", handle_host_summary)
+    app.router.add_get(f"{HOST_PREFIX}/dns", handle_host_dns)
+    app.router.add_get(f"{HOST_PREFIX}/profiles", handle_host_profiles)
+    app.router.add_get(f"{HOST_PREFIX}/history", handle_host_history)
     app.router.add_post(f"{HOST_PREFIX}/subscriptions/update", handle_subscriptions_update)
     app.router.add_post(f"{HOST_PREFIX}/nodes/test", handle_nodes_test)
     app.router.add_post(f"{HOST_PREFIX}/profiles", handle_profiles_apply)
     app.router.add_post(f"{HOST_PREFIX}/connect", handle_connect)
     app.router.add_get("/ui", handle_ui)
-    app.router.add_static("/ui/", UI_DIRECTORY, show_index=True)
+    app.router.add_get("/ui/", handle_panel)
+    app.router.add_get("/ui/index.html", handle_panel)
     return app
 
 

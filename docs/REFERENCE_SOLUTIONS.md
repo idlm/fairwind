@@ -40,7 +40,7 @@
 | `GET /connections` | 当前连接（未接入核心时为固定空集 + 状态） |
 | `GET /traffic` | 累积流量（未接入核心时为 0，不伪造） |
 | `/api/host/*` | 本仓库操作：`status`、`subscriptions.update`、`nodes.test`、`nodes.best`、`profiles.apply`、`routing.rules`、`backup` |
-| `GET /ui/` | 单文件静态面板（无构建步骤），即 `external_ui` 形态 |
+| `GET /ui/` | 单文件静态面板（规格 §22 五页：主页/节点/订阅/游戏/设置），零构建、零外部资源 |
 
 安全要求（写进 `SECURITY.md` 与 `docs/HOST_CONTRACT.md`）：
 

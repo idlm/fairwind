@@ -11,7 +11,8 @@ from dataclasses import asdict
 from pathlib import Path
 
 from accelerator import __version__
-from accelerator.domain import ConnectionState
+from accelerator.dns import DnsPolicy, DnsPolicyEngine
+from accelerator.domain import Capabilities, ConnectionState
 from accelerator.errors import SafeError
 from accelerator.network import HttpFetcher
 from accelerator.probing import UDP_TARGET_DEFAULT, NodeTester, ReferenceProbe
@@ -128,6 +129,81 @@ class HostService:
                     }
                 )
         return {"nodes": rows, "count": len(rows)}
+
+    def subscriptions(self) -> dict:
+        """订阅列表：只有匿名显示名与计数，**不含** url_hash/id。"""
+        with self._database() as database:
+            rows = database.subscriptions()
+        return {
+            "subscriptions": [{key: row[key] for key in SUBSCRIPTION_FIELDS} for row in rows],
+            "count": len(rows),
+        }
+
+    def node_summary(self) -> dict:
+        """按分类（国家/地区）与测试状态聚合，供节点页的分类视图使用。"""
+        with self._database() as database:
+            countries: dict[str, int] = {}
+            states: dict[str, int] = {}
+            rated = 0
+            for row in database.nodes():
+                countries[row["country"]] = countries.get(row["country"], 0) + 1
+                history = database.history(row["id"])
+                state = history[0]["state"] if history else "UNTESTED"
+                states[state] = states.get(state, 0) + 1
+                if state in {"AVAILABLE", "DEGRADED"}:
+                    rated += 1
+        ordered = sorted(countries.items(), key=lambda item: (-item[1], item[0]))
+        return {
+            "total": sum(countries.values()),
+            "available": rated,
+            "countries": [{"country": name, "count": count} for name, count in ordered],
+            "states": states,
+        }
+
+    def dns_policy(self) -> dict:
+        """当前 DNS 策略（只读）。附一条真实的 AAAA 决策，便于直观看到"不泄漏"约束。"""
+        policy = DnsPolicy()
+        decision = DnsPolicyEngine(policy).decide(
+            "example.com", "AAAA", capabilities=Capabilities(frozenset()), use_cache=False
+        )
+        return {
+            "ipv6": policy.ipv6,
+            "fake_ip": policy.fake_ip,
+            "cache_ttl": policy.cache_ttl,
+            "max_cache_entries": policy.max_cache_entries,
+            "default_route": str(policy.default_route),
+            "direct_resolver": policy.direct_resolver,
+            "proxy_resolver": policy.proxy_resolver,
+            "sample": {
+                "name": "example.com",
+                "type": "AAAA",
+                "route": decision.route.value,
+                "reason": decision.reason,
+            },
+            "core": "NOT_INTEGRATED",
+        }
+
+    def profile_versions(self) -> dict:
+        """Game Profile 注册表状态：当前版本、LKG 版本与已落库规则数。"""
+        registry = ProfileRegistry(self.data_dir / "profiles")
+        version, profiles = registry.current()
+        try:
+            previous_version, previous_profiles = registry.previous()
+        except SafeError:
+            previous_version, previous_profiles = None, []
+        return {
+            "version": version,
+            "profiles": len(profiles),
+            "previous_version": previous_version,
+            "previous_profiles": len(previous_profiles),
+            "rules": len(self.routing_rules()["rules"]),
+        }
+
+    def connection_history(self, limit: int = 10) -> dict:
+        """连接状态历史；由平台客户端写入，参考宿主不会伪造连接事件。"""
+        with self._database() as database:
+            rows = database.connection_history(limit)
+        return {"history": rows, "count": len(rows), "note": "PLATFORM_CLIENTS_WRITE_THIS_TABLE"}
 
     async def test_nodes(
         self,

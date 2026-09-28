@@ -26,7 +26,7 @@ Done:
 - 五个 CLI 命令与 Linux/Windows CI 配置、wheel/sdist 构建。
 
 Tests:
-- 274 passed；包含 600 节点夹具、601 节点探测队列、故障注入和五命令端到端测试。
+- 281 passed；包含 600 节点夹具、601 节点探测队列、故障注入和五命令端到端测试。
 - ruff lint 通过；wheel/sdist 构建通过，产物卫生检查见 `scripts/check_artifacts.py`。
 - `scripts/verify.sh` 已固化 lint/格式/离线测试/构建/产物检查，可一键复现上述门禁。
 
@@ -47,7 +47,7 @@ Done:
 - Retry/backoff/circuit breaker/failover 控制器与取消清理通过可控 adapter 测试。
 
 Tests:
-- 已纳入上述 274 项；没有使用伪造在线节点结果。
+- 已纳入上述 281 项；没有使用伪造在线节点结果。
 
 Remaining:
 - 获审核心的 VLESS/VMess/Trojan/SS 真实代理握手和端到端测试。
@@ -61,6 +61,7 @@ Done:
 - 平台与 adapter 的边界文档。
 - 宿主契约与参考服务层（`docs/HOST_CONTRACT.md`、`core/accelerator/host.py`）：共用前置，非平台实现。
 - 本机控制面（Clash 兼容子集 + 静态面板，`accelerator serve`）：仅 loopback、Bearer 令牌、未接入核心时明确拒绝连接；形态对齐成熟方案调研结论。
+- 面板按规格 §22 展开为五页（主页/节点/订阅/游戏/设置）：分类筛选、订阅列表与手动刷新、Game Profile 注册表与 LKG、DNS 策略与能力声明；不可用项显式标注原因，不伪造连通性或流量。
 
 Tests:
 - 原生平台、GUI、安装包与签名尚未实现或验收。

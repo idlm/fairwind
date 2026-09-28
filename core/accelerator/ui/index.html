@@ -5,27 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Smart Accelerator 控制面板</title>
 <style>
-  :root { color-scheme: light dark; --line: #d0d7de; --muted: #6a737d; --bg: #ffffff; --fg: #1f2328; }
+  :root { color-scheme: light dark; --line: #d0d7de; --muted: #6a737d; --bg: #ffffff; --fg: #1f2328; --accent: #0969da; }
   @media (prefers-color-scheme: dark) {
-    :root { --line: #30363d; --muted: #8b949e; --bg: #0d1117; --fg: #e6edf3; }
+    :root { --line: #30363d; --muted: #8b949e; --bg: #0d1117; --fg: #e6edf3; --accent: #4493f8; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; padding: 16px; font: 14px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
-  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
   h1 { font-size: 18px; margin: 0; }
+  h2 { font-size: 14px; margin: 0 0 8px; }
   .badge { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
   .badge.warn { color: #9a6700; border-color: #9a6700; }
-  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  nav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; flex-wrap: wrap; }
+  nav button { border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 14px; }
+  nav button.active { border-bottom-color: var(--accent); color: var(--accent); }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
   .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
-  .card h2 { font-size: 14px; margin: 0 0 8px; }
-  pre { margin: 0; overflow: auto; font-size: 12px; }
+  pre { margin: 0; overflow: auto; font-size: 12px; white-space: pre-wrap; }
   button { font: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
   button:disabled { opacity: .5; cursor: not-allowed; }
-  input { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; width: 100%; }
+  input, select, textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; width: 100%; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
   .muted { color: var(--muted); font-size: 12px; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .chips button { padding: 2px 10px; font-size: 12px; border-radius: 999px; }
+  .chips button.active { border-color: var(--accent); color: var(--accent); }
+  .panel[hidden] { display: none; }
+  .blocked { border-left: 3px solid #9a6700; padding-left: 8px; }
 </style>
 </head>
 <body>
@@ -45,51 +53,142 @@
   <p class="muted">令牌只保存在本标签页的 sessionStorage；控制面固定为本机 127.0.0.1。</p>
 </div>
 
-<div class="grid">
+<nav>
+  <button data-tab="home" class="active">主页</button>
+  <button data-tab="nodes">节点</button>
+  <button data-tab="subscriptions">订阅</button>
+  <button data-tab="games">游戏</button>
+  <button data-tab="settings">设置</button>
+</nav>
+
+<section class="panel" id="panel-home">
+  <div class="grid">
+    <div class="card">
+      <h2>智能加速</h2>
+      <div class="row">
+        <button id="connect" disabled title="未接入代理核心：CORE_NOT_INTEGRATED">智能加速（连接）</button>
+        <button id="refresh">刷新状态</button>
+      </div>
+      <p class="muted blocked" id="connect-note">连接在接入获审代理核心前不可用，原因见「设置 → 能力声明」。本面板不会、也不能声称已连接。</p>
+      <h2>当前模式</h2>
+      <div class="row">
+        <select id="mode" disabled>
+          <option>智能分流（规则）</option>
+          <option>全局</option>
+          <option>游戏</option>
+        </select>
+      </div>
+      <p class="muted" id="mode-note">模式切换需要代理核心；规则数据已在本地生成（见「游戏」页）。</p>
+    </div>
+    <div class="card">
+      <h2>推荐线路</h2>
+      <pre id="best">尚未加载</pre>
+    </div>
+    <div class="card">
+      <h2>实时指标</h2>
+      <pre id="live">尚未加载</pre>
+      <p class="muted">未接入核心时上下行与 ping 为未知值，不填 0 冒充。</p>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="panel-nodes" hidden>
   <div class="card">
-    <h2>宿主与订阅</h2>
+    <h2>节点分类</h2>
+    <div class="chips" id="country-chips"></div>
+    <div class="row">
+      <button id="test">测速（3 次采样）</button>
+      <span class="muted" id="nodes-summary"></span>
+    </div>
+    <table>
+      <thead><tr><th>ID</th><th>地区</th><th>协议</th><th>状态</th><th>评分</th><th>延迟</th><th>质量</th></tr></thead>
+      <tbody id="nodes"><tr><td colspan="7" class="muted">尚未加载</td></tr></tbody>
+    </table>
+    <p class="muted">分类来自本地 classifier（名称/地区识别），评分来自最近 10 次真实探测；未测量项显示为「-」。</p>
+  </div>
+</section>
+
+<section class="panel" id="panel-subscriptions" hidden>
+  <div class="card">
+    <h2>订阅</h2>
     <div class="row">
       <input id="master-url" type="url" placeholder="Master 订阅地址（留空则复用已保存的）" autocomplete="off">
     </div>
     <div class="row">
-      <button id="refresh">刷新状态</button>
-      <button id="update">更新订阅</button>
-      <button id="test">测速</button>
-      <button id="best">推荐线路</button>
-      <button id="connect" disabled title="未接入代理核心：CORE_NOT_INTEGRATED">连接</button>
+      <button id="update">手动刷新</button>
+      <label class="muted"><input type="checkbox" id="force" style="width:auto"> 强制（忽略调度与暂停）</label>
     </div>
-    <p class="muted" id="connect-note">连接按钮在接入获审代理核心前保持禁用；本面板不会、也不能声称已连接。</p>
-    <pre id="status">尚未加载</pre>
-  </div>
-
-  <div class="card">
-    <h2>节点（匿名 ID）</h2>
     <table>
-      <thead><tr><th>ID</th><th>地区</th><th>协议</th><th>状态</th><th>评分</th><th>延迟</th></tr></thead>
-      <tbody id="nodes"><tr><td colspan="6" class="muted">尚未加载</td></tr></tbody>
+      <thead><tr><th>显示名</th><th>节点数</th><th>最近检查</th><th>最近成功</th><th>状态</th><th>失败次数</th></tr></thead>
+      <tbody id="subscriptions"><tr><td colspan="6" class="muted">尚未加载</td></tr></tbody>
     </table>
+    <p class="muted">只显示匿名编号；原始订阅地址与 query 永不进入面板。单源失败不影响其他源（LKG 保留）。</p>
   </div>
+  <div class="card" style="margin-top:16px">
+    <h2>最近一次更新结果</h2>
+    <pre id="update-result">尚未执行</pre>
+  </div>
+</section>
 
-  <div class="card">
-    <h2>推荐线路</h2>
-    <pre id="best">尚未加载</pre>
+<section class="panel" id="panel-games" hidden>
+  <div class="grid">
+    <div class="card">
+      <h2>注册表状态</h2>
+      <pre id="profiles">尚未加载</pre>
+      <p class="muted">远程更新要求 ed25519 签名；信任根由服务端环境变量注入，缺失即拒绝。</p>
+    </div>
+    <div class="card">
+      <h2>路由规则</h2>
+      <pre id="rules">尚未加载</pre>
+      <p class="muted">优先级：用户 3000 &gt; 游戏 2000（按 selector 具体程度递减）&gt; 默认 1000。</p>
+    </div>
+    <div class="card">
+      <h2>应用签名信封</h2>
+      <div class="row"><input id="platform" placeholder="目标平台，如 windows" autocomplete="off"></div>
+      <div class="row"><textarea id="envelope" rows="4" placeholder="粘贴 Base64 信封"></textarea></div>
+      <div class="row"><button id="apply-profiles">应用</button></div>
+      <pre id="profiles-result">尚未执行</pre>
+      <p class="muted">未传平台能力时只做签名/版本/schema 校验并落库注册表，不生成规则。</p>
+    </div>
   </div>
-</div>
+</section>
+
+<section class="panel" id="panel-settings" hidden>
+  <div class="grid">
+    <div class="card">
+      <h2>能力声明</h2>
+      <table><thead><tr><th>能力</th><th>可用</th></tr></thead><tbody id="capabilities"></tbody></table>
+      <p class="muted">如实声明：未接入核心时协议/TUN/UDP/IPv6/进程规则全部为否。</p>
+    </div>
+    <div class="card">
+      <h2>DNS 策略（只读）</h2>
+      <pre id="dns">尚未加载</pre>
+      <p class="muted">IPv6 默认明确阻断、Fake-IP 默认关闭；代理 DNS 失败不回退直连。</p>
+    </div>
+    <div class="card">
+      <h2>连接历史</h2>
+      <pre id="history">尚未加载</pre>
+      <p class="muted">由平台客户端写入；参考宿主不伪造连接事件。</p>
+    </div>
+    <div class="card">
+      <h2>会话令牌</h2>
+      <div class="row"><button id="forget-token">清除本标签页令牌</button></div>
+      <p class="muted">令牌来自服务端 control.token（0600）；本面板只放在 sessionStorage，关闭标签页即失效。</p>
+    </div>
+  </div>
+</section>
 
 <script>
-const state = { token: sessionStorage.getItem("accelerator.token") || "" };
+const state = {
+  token: sessionStorage.getItem("accelerator.token") || "",
+  country: "",
+  tab: "home",
+};
 
-function setBadge(id, text) {
-  document.getElementById(id).textContent = text;
-}
-
-function showAuth(show) {
-  document.getElementById("auth-card").hidden = !show;
-}
-
-function report(text) {
-  document.getElementById("status").textContent = text;
-}
+function text(id, value) { document.getElementById(id).textContent = value; }
+function setBadge(id, value) { text(id, value); }
+function showAuth(show) { document.getElementById("auth-card").hidden = !show; }
+function fail(id, error) { text(id, "错误：" + error.message); }
 
 async function call(path, options = {}) {
   const response = await fetch(path, {
@@ -100,9 +199,9 @@ async function call(path, options = {}) {
       ...(options.headers || {}),
     },
   });
-  const text = await response.text();
+  const raw = await response.text();
   let payload;
-  try { payload = JSON.parse(text); } catch (error) { payload = { error: "BAD_RESPONSE" }; }
+  try { payload = JSON.parse(raw); } catch (error) { payload = { error: "BAD_RESPONSE" }; }
   if (!response.ok) {
     if (response.status === 401) { showAuth(true); }
     throw Object.assign(new Error(payload.error || "REQUEST_FAILED"), payload);
@@ -110,87 +209,186 @@ async function call(path, options = {}) {
   return payload;
 }
 
-async function loadNodes() {
-  const listing = await call("/api/host/nodes");
-  const body = document.getElementById("nodes");
+function formatTime(value) {
+  if (!value) { return "-"; }
+  return new Date(value * 1000).toLocaleString();
+}
+
+function fillTable(bodyId, rows, render, emptyText) {
+  const body = document.getElementById(bodyId);
   body.innerHTML = "";
-  if (!listing.count) {
-    body.innerHTML = '<tr><td colspan="6" class="muted">尚无节点，请先更新订阅</td></tr>';
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 7;
+    td.className = "muted";
+    td.textContent = emptyText;
+    tr.appendChild(td);
+    body.appendChild(tr);
     return;
   }
-  for (const node of listing.nodes) {
-    const row = document.createElement("tr");
-    const cells = [
-      node.id, node.country, node.protocol, node.state,
-      node.score === null ? "-" : node.score,
-      node.latency_ms === null ? "-" : node.latency_ms + " ms",
-    ];
-    for (const value of cells) {
-      const cell = document.createElement("td");
-      cell.textContent = String(value);
-      row.appendChild(cell);
+  for (const row of rows) {
+    const tr = document.createElement("tr");
+    for (const value of render(row)) {
+      const td = document.createElement("td");
+      td.textContent = String(value);
+      tr.appendChild(td);
     }
-    body.appendChild(row);
+    body.appendChild(tr);
   }
 }
 
-async function refresh() {
+async function loadStatus() {
   try {
     const version = await call("/version");
     setBadge("version", "version " + version.version);
     setBadge("core", "core " + version.core);
     const status = await call("/api/host/status");
     setBadge("state", "state " + status.state);
-    report(JSON.stringify(status, null, 2));
     showAuth(false);
-    await loadNodes();
+    const best = await call("/api/host/nodes/best");
+    text("best", best.best.length ? JSON.stringify(best.best, null, 2) : "暂无合格候选（" + best.status + "）：需要至少 3 次真实探测样本");
+    const traffic = await call("/traffic");
+    text("live", JSON.stringify({ up: "UNKNOWN", down: "UNKNOWN", ping_ms: null, note: traffic.note }, null, 2));
+    if (state.tab === "home") { await loadSummary(); }
   } catch (error) {
-    report("错误：" + error.message);
+    fail("best", error);
   }
 }
 
+async function loadSummary() {
+  try {
+    const summary = await call("/api/host/summary");
+    text("nodes-summary", `共 ${summary.total} 个节点，可用 ${summary.available}；状态分布 ${JSON.stringify(summary.states)}`);
+  } catch (error) {
+    text("nodes-summary", "错误：" + error.message);
+  }
+}
+
+async function loadNodes() {
+  try {
+    const summary = await call("/api/host/summary");
+    text("nodes-summary", `共 ${summary.total} 个节点，可用 ${summary.available}；状态分布 ${JSON.stringify(summary.states)}`);
+    const chips = document.getElementById("country-chips");
+    chips.innerHTML = "";
+    const options = [{ country: "", label: "全部" }, ...summary.countries.map((row) => ({ country: row.country, label: row.country + " (" + row.count + ")" }))];
+    for (const option of options) {
+      const button = document.createElement("button");
+      button.textContent = option.label;
+      if (option.country === state.country) { button.className = "active"; }
+      button.addEventListener("click", async () => { state.country = option.country; await loadNodes(); });
+      chips.appendChild(button);
+    }
+    const query = state.country ? "?country=" + encodeURIComponent(state.country) : "";
+    const listing = await call("/api/host/nodes" + query);
+    fillTable("nodes", listing.nodes, (node) => [
+      node.id, node.country, node.protocol, node.state,
+      node.score === null ? "-" : node.score,
+      node.latency_ms === null ? "-" : node.latency_ms + " ms",
+      node.quality === null ? "-" : node.quality,
+    ], "尚无节点，请先在「订阅」页刷新");
+  } catch (error) {
+    fail("nodes-summary", error);
+  }
+}
+
+async function loadSubscriptions() {
+  try {
+    const view = await call("/api/host/subscriptions");
+    fillTable("subscriptions", view.subscriptions, (row) => [
+      row.display_name, row.node_count, formatTime(row.last_checked_at),
+      formatTime(row.last_success_at), row.status, row.failure_count,
+    ], "尚无订阅：填入 Master 地址后点击「手动刷新」");
+  } catch (error) {
+    text("update-result", "错误：" + error.message);
+  }
+}
+
+async function loadGames() {
+  try {
+    text("profiles", JSON.stringify(await call("/api/host/profiles"), null, 2));
+    text("rules", JSON.stringify(await call("/api/host/routing"), null, 2));
+  } catch (error) {
+    fail("profiles", error);
+  }
+}
+
+async function loadSettings() {
+  try {
+    const capabilities = await call("/api/host/capabilities");
+    const body = document.getElementById("capabilities");
+    body.innerHTML = "";
+    for (const key of ["tun", "udp", "ipv6", "process_rules"]) {
+      const tr = document.createElement("tr");
+      const name = document.createElement("td");
+      name.textContent = key;
+      const value = document.createElement("td");
+      value.textContent = capabilities[key] ? "是" : "否";
+      tr.appendChild(name);
+      tr.appendChild(value);
+      body.appendChild(tr);
+    }
+    text("dns", JSON.stringify(await call("/api/host/dns"), null, 2));
+    text("history", JSON.stringify(await call("/api/host/history"), null, 2));
+  } catch (error) {
+    fail("dns", error);
+  }
+}
+
+function selectTab(name) {
+  state.tab = name;
+  for (const button of document.querySelectorAll("nav button")) {
+    button.className = button.dataset.tab === name ? "active" : "";
+  }
+  for (const panel of document.querySelectorAll(".panel")) {
+    panel.hidden = panel.id !== "panel-" + name;
+  }
+  if (name === "home") { loadStatus(); }
+  if (name === "nodes") { loadNodes(); }
+  if (name === "subscriptions") { loadSubscriptions(); }
+  if (name === "games") { loadGames(); }
+  if (name === "settings") { loadSettings(); }
+}
+
+for (const button of document.querySelectorAll("nav button")) {
+  button.addEventListener("click", () => selectTab(button.dataset.tab));
+}
+document.getElementById("refresh").addEventListener("click", () => loadStatus());
+document.getElementById("test").addEventListener("click", async () => {
+  try {
+    text("nodes-summary", JSON.stringify(await call("/api/host/nodes/test", { method: "POST", body: JSON.stringify({ samples: 3, concurrency: 4 }) })));
+    await loadNodes();
+  } catch (error) { fail("nodes-summary", error); }
+});
+document.getElementById("update").addEventListener("click", async () => {
+  const master = document.getElementById("master-url").value.trim();
+  const force = document.getElementById("force").checked;
+  try {
+    text("update-result", JSON.stringify(await call("/api/host/subscriptions/update", {
+      method: "POST", body: JSON.stringify(force ? { master_url: master || undefined, force: true } : (master ? { master_url: master } : {})),
+    }), null, 2));
+    await loadSubscriptions();
+  } catch (error) { fail("update-result", error); }
+});
+document.getElementById("apply-profiles").addEventListener("click", async () => {
+  const platform = document.getElementById("platform").value.trim();
+  const envelope = document.getElementById("envelope").value.trim();
+  try {
+    text("profiles-result", JSON.stringify(await call("/api/host/profiles", {
+      method: "POST", body: JSON.stringify(platform ? { envelope: envelope, platform: platform } : { envelope: envelope }),
+    }), null, 2));
+    await loadGames();
+  } catch (error) { fail("profiles-result", error); }
+});
 document.getElementById("token-save").addEventListener("click", () => {
   state.token = document.getElementById("token-input").value.trim();
   sessionStorage.setItem("accelerator.token", state.token);
-  refresh();
+  loadStatus();
 });
-
-document.getElementById("refresh").addEventListener("click", refresh);
-
-document.getElementById("update").addEventListener("click", async () => {
-  const master = document.getElementById("master-url").value.trim();
-  try {
-    const summary = await call("/api/host/subscriptions/update", {
-      method: "POST",
-      body: JSON.stringify(master ? { master_url: master } : {}),
-    });
-    report(JSON.stringify(summary, null, 2));
-    await loadNodes();
-  } catch (error) {
-    report("错误：" + error.message);
-  }
-});
-
-document.getElementById("test").addEventListener("click", async () => {
-  try {
-    const result = await call("/api/host/nodes/test", {
-      method: "POST",
-      body: JSON.stringify({ samples: 3, concurrency: 4 }),
-    });
-    report(JSON.stringify(result, null, 2));
-    await loadNodes();
-  } catch (error) {
-    report("错误：" + error.message);
-  }
-});
-
-document.getElementById("best").addEventListener("click", async () => {
-  try {
-    const best = await call("/api/host/nodes/best");
-    document.getElementById("best").textContent = JSON.stringify(best, null, 2);
-  } catch (error) {
-    document.getElementById("best").textContent = "错误：" + error.message;
-  }
+document.getElementById("forget-token").addEventListener("click", () => {
+  sessionStorage.removeItem("accelerator.token");
+  state.token = "";
+  showAuth(true);
 });
 
 // 令牌可经 URL 片段传入：片段不会发送给服务器、也不进入服务端日志；读取后立即抹掉地址栏。
@@ -202,9 +400,8 @@ document.getElementById("best").addEventListener("click", async () => {
     history.replaceState(null, "", location.pathname + location.search);
   }
   if (!state.token) { showAuth(true); return; }
-  refresh();
+  loadStatus();
 })();
 </script>
-
 </body>
 </html>

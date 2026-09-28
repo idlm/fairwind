@@ -29,7 +29,12 @@
 
 - **认证**：除静态面板外所有请求都必须带 `Authorization: Bearer <token>`；token 由 `load_or_create_token()` 生成并写入 `<data-dir>/control.token`（0600），缺失或不匹配返回 401 `CONTROL_UNAUTHORIZED`。
 - **Clash 兼容子集**：`GET /version`、`/configs`、`/proxies`、`/connections`、`/traffic`。未接入核心时如实返回 `core: NOT_INTEGRATED`、端口 0、空连接与 0 流量，**不虚构** `DIRECT`/`REJECT` 等内置代理。
-- **本仓库操作**：`GET /api/host/status|capabilities|nodes|nodes/best|routing`、`POST /api/host/subscriptions/update|nodes/test|profiles|connect`。其中 `POST /api/host/connect` 固定返回 400 `CORE_NOT_INTEGRATED`——控制面不允许让 UI 声称已连接。
+- **本仓库操作**：`GET /api/host/status|capabilities|nodes|nodes/best|nodes/summary|subscriptions|dns|profiles|routing|history`、
+  `POST /api/host/subscriptions/update|nodes/test|profiles|connect`。其中 `POST /api/host/connect` 固定返回 400 `CORE_NOT_INTEGRATED`——控制面不允许让 UI 声称已连接。
+- **面板**：`GET /ui/` 返回单文件、零构建、零外部资源的静态面板（`ui/index.html`），结构对应规格 §22 的五页信息架构：
+  主页（智能加速 / 当前模式 / 推荐线路 / 实时指标）、节点（分类筛选 + 表格 + 测速）、订阅（列表 + 手动刷新 + 强制刷新）、
+  游戏（注册表版本 / LKG / 路由规则 / 应用签名信封）、设置（能力声明 / DNS 策略 / 连接历史 / 会话令牌）。
+  不用静态目录处理器（既避免目录穿越，也避免目录列表），`/ui` 与 `/ui/index.html` 都能打开面板。
 - **加固**：请求体上限 64 KiB；未知字段与非法 JSON 一律 400 `ARGUMENT_INVALID`；响应带 `Cache-Control: no-store`；面板响应带 `X-Frame-Options: DENY`、`Content-Security-Policy: default-src 'self'`；**不使用 `*` CORS**。
 - **令牌传递**：可用 URL **片段**（`http://127.0.0.1:PORT/ui/#token=…`）交给浏览器——片段不会发送给服务器、也不进服务端日志；面板读取后立即用 `history.replaceState` 抹掉地址栏。也可在面板里手动粘贴 `control.token` 内容。
 
