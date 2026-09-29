@@ -10,7 +10,7 @@ from accelerator.errors import SafeError
 from accelerator.host import HISTORY_FIELDS, HostService
 from accelerator.probing import NodeTester
 from accelerator.subscription import SubscriptionEngine
-from conftest import MASTER
+from conftest import MASTER, offline_core
 
 pytestmark = pytest.mark.integration
 
@@ -76,7 +76,7 @@ def test_find_node_hides_nodes_without_enabled_source(database):
 async def test_node_detail_is_sanitized_and_explained(database, vault, fetcher, tmp_path):
     await SubscriptionEngine(database, vault, fetcher).update(MASTER)
     await NodeTester(database, FakeProbe(), concurrency=1).run(samples=3)
-    service = HostService(tmp_path, vault)
+    service = HostService(tmp_path, vault, adapter=offline_core(tmp_path))
     for row in database.nodes():
         detail = service.node_detail(row["id"][:12])
         assert detail["node"]["id"] == row["id"][:12]
@@ -114,7 +114,7 @@ async def test_node_detail_is_sanitized_and_explained(database, vault, fetcher, 
 
 async def test_node_detail_before_probing_reports_unverified(database, vault, fetcher, tmp_path):
     await SubscriptionEngine(database, vault, fetcher).update(MASTER)
-    service = HostService(tmp_path, vault)
+    service = HostService(tmp_path, vault, adapter=offline_core(tmp_path))
     row = database.nodes()[0]
     detail = service.node_detail(row["id"][:12])
     assert detail["state"] == "UNTESTED" and detail["history"] == []
@@ -128,7 +128,7 @@ async def test_node_detail_before_probing_reports_unverified(database, vault, fe
 
 async def test_node_detail_rejects_bad_prefixes(database, vault, fetcher, tmp_path):
     await SubscriptionEngine(database, vault, fetcher).update(MASTER)
-    service = HostService(tmp_path, vault)
+    service = HostService(tmp_path, vault, adapter=offline_core(tmp_path))
     with pytest.raises(SafeError, match="NODE_ID_INVALID"):
         service.node_detail("zz")
     with pytest.raises(SafeError, match="NODE_NOT_FOUND"):
@@ -139,7 +139,7 @@ def test_explain_route_uses_persisted_rules(tmp_path, vault):
     from test_profile_update import ALL_CAPABILITIES, document, envelope
 
     key = Ed25519PrivateKey.generate()
-    service = HostService(tmp_path, vault)
+    service = HostService(tmp_path, vault, adapter=offline_core(tmp_path))
     assert service.explain_route("steam.example")["decision"] == "DEFAULT"
     service.apply_profiles(
         envelope(key, document(1)), key.public_key(), ALL_CAPABILITIES, "windows"

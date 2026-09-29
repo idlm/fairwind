@@ -11,7 +11,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from accelerator.api import build_app, load_or_create_token, serve
 from accelerator.errors import SafeError
 from accelerator.host import HostService
-from conftest import MASTER
+from conftest import MASTER, offline_core
 
 pytestmark = pytest.mark.integration
 
@@ -25,7 +25,9 @@ def authorization(token: str) -> dict:
 @pytest.fixture
 async def control(tmp_path, vault):
     token = load_or_create_token(tmp_path)
-    client = TestClient(TestServer(build_app(HostService(tmp_path, vault), token)))
+    client = TestClient(
+        TestServer(build_app(HostService(tmp_path, vault, adapter=offline_core(tmp_path)), token))
+    )
     await client.start_server()
     yield client, token, tmp_path
     await client.close()
@@ -81,11 +83,16 @@ async def test_clash_compatible_subset_stays_honest(control):
     proxies = await (await client.get("/proxies", headers=headers)).json()
     assert proxies["proxies"] == {} and proxies["count"] == 0
     connections = await (await client.get("/connections", headers=headers)).json()
-    assert connections["connections"] == [] and connections["downloadTotal"] == 0
+    assert connections["connections"] == []
+    # 未测量时是 null（不是 0）：0 也是数字，会被读成"测到零流量"
+    assert connections["downloadTotal"] is None and connections["uploadTotal"] is None
+    assert connections["measured"] is False
     traffic = await (await client.get("/traffic", headers=headers)).json()
-    assert traffic["up"] == traffic["down"] == 0
+    # 未测量就是 null：0 是一个数字，会被读成"测到零流量"
+    assert traffic["up"] is None and traffic["down"] is None
+    assert traffic["measured"] is False and traffic["traffic_measured"] is False
     assert traffic["core"] == "NOT_INTEGRATED"
-    assert traffic["note"] == "ZERO_MEANS_UNMEASURED_UNTIL_CORE_INTEGRATED"
+    assert traffic["note"] == "TRAFFIC_NOT_MEASURED_UNTIL_A_CORE_IS_CONNECTED"
 
 
 async def test_connect_is_refused_through_control_plane(control):
@@ -146,7 +153,7 @@ async def test_host_endpoints_return_sanitized_nodes(tmp_path, vault, fetcher, m
 
     monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
     token = load_or_create_token(tmp_path)
-    service = HostService(tmp_path, vault)
+    service = HostService(tmp_path, vault, adapter=offline_core(tmp_path))
     await service.update_subscriptions(MASTER)
     client = TestClient(TestServer(build_app(service, token)))
     await client.start_server()
@@ -169,7 +176,7 @@ async def test_host_endpoints_return_sanitized_nodes(tmp_path, vault, fetcher, m
 
 async def test_serve_binds_loopback_only(tmp_path, vault):
     token = load_or_create_token(tmp_path)
-    service = HostService(tmp_path, vault)
+    service = HostService(tmp_path, vault, adapter=offline_core(tmp_path))
     started: list[tuple[str, int]] = []
     task = asyncio.create_task(
         serve(service, token, 0, lambda host, port: started.append((host, port)))
@@ -349,7 +356,9 @@ async def test_subscription_management_round_trip_never_echoes_url(
 
     monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
     token = load_or_create_token(tmp_path)
-    client = TestClient(TestServer(build_app(HostService(tmp_path, vault), token)))
+    client = TestClient(
+        TestServer(build_app(HostService(tmp_path, vault, adapter=offline_core(tmp_path)), token))
+    )
     await client.start_server()
     try:
         headers = authorization(token)
@@ -407,7 +416,7 @@ async def test_node_detail_endpoint_is_sanitized(tmp_path, vault, fetcher, monke
     monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
     monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
     token = load_or_create_token(tmp_path)
-    service = HostService(tmp_path, vault)
+    service = HostService(tmp_path, vault, adapter=offline_core(tmp_path))
     await service.update_subscriptions(MASTER)
     await service.test_nodes(samples=3, concurrency=1)
     node_id = service.list_nodes()["nodes"][0]["id"]

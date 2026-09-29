@@ -10,13 +10,32 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
+from accelerator import core_pin
 from accelerator.errors import SafeError
 from accelerator.network import FetchResult
 from accelerator.parser import SubscriptionParser
 from accelerator.security import SecretVault
 from accelerator.storage import Database
+from accelerator.xray_adapter import XrayCoreAdapter
 
 FIXTURES = Path(__file__).parent / "fixtures"
+ROOT = Path(__file__).resolve().parents[1]
+CORE_BINARY = ROOT / core_pin.DATA_DIRECTORY / core_pin.BINARY_NAME
+# 真实核心测试：本地按 scripts/fetch_core.py 取过二进制才跑，CI 不做下载。
+requires_core = pytest.mark.skipif(
+    not CORE_BINARY.is_file(), reason="需要已校验的核心二进制（scripts/fetch_core.py）"
+)
+
+
+def offline_core(data_dir):
+    """核心二进制**缺失**的适配器。
+
+    开发机可能已取到固定核心，CI 没有；凡是要固定 `CORE_NOT_INTEGRATED` 契约的测试都显式用它，
+    这样两条环境测的是同一件事，断言不会随环境漂移。
+    """
+    return XrayCoreAdapter(data_dir, binary=Path(data_dir) / "missing-core" / core_pin.BINARY_NAME)
+
+
 MASTER = "https://master.example/list?token=synthetic-master-token"
 SOURCE_A = "https://source-a.example/sub?token=synthetic-source-token"
 SOURCE_B = "https://source-b.example/sub"

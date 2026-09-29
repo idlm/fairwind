@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from accelerator.errors import SafeError
 from accelerator.host import HostService
 from accelerator.storage import operation_lock
-from conftest import MASTER
+from conftest import MASTER, offline_core
 
 pytestmark = pytest.mark.integration
 
@@ -37,20 +37,26 @@ class OfflineFetcher:
 
 @pytest.fixture
 def service(tmp_path, vault):
-    return HostService(tmp_path, vault)
+    return HostService(tmp_path, vault, adapter=offline_core(tmp_path))
 
 
 def test_capabilities_are_honest_and_connection_refused(service):
     capabilities = service.capabilities()
     assert capabilities["core"] == "NOT_INTEGRATED"
+    assert capabilities["core_process"] == "NOT_INTEGRATED"
     assert capabilities["connections"] == "CORE_NOT_INTEGRATED"
+    assert capabilities["traffic"] == "NOT_MEASURED"
     assert capabilities["protocols"] == []
     assert not any(capabilities[flag] for flag in ("tun", "udp", "ipv6", "process_rules"))
     assert "nodes.test" in capabilities["operations"]
-    assert "connect" not in capabilities["operations"]
+    # 连接类操作**存在**（控制面形态固定），但在未接入核心时固定拒绝——不用"不列出"来掩饰
+    assert {"connect", "disconnect"} <= set(capabilities["operations"])
+
+
+async def test_connect_and_disconnect_are_refused_without_a_core(service):
     for operation in (service.connect, service.disconnect):
         with pytest.raises(SafeError, match="CORE_NOT_INTEGRATED"):
-            operation()
+            await operation()
 
 
 def test_status_is_disconnected_and_sanitized(service):
@@ -67,7 +73,7 @@ async def test_full_flow_shapes(tmp_path, vault, fetcher, monkeypatch):
 
     monkeypatch.setattr(host, "HttpFetcher", lambda: OfflineFetcher(fetcher))
     monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
-    service = HostService(tmp_path, vault)
+    service = HostService(tmp_path, vault, adapter=offline_core(tmp_path))
     summary = await service.update_subscriptions(MASTER)
     assert summary["nodes"] == 2 and summary["partial_failure"] is False
     listing = service.list_nodes()
@@ -97,7 +103,7 @@ async def test_full_flow_shapes(tmp_path, vault, fetcher, monkeypatch):
 
 
 def test_sensitive_operations_require_key(tmp_path):
-    service = HostService(tmp_path, None)
+    service = HostService(tmp_path, None, adapter=offline_core(tmp_path))
     with pytest.raises(SafeError, match="SECRET_KEY_REQUIRED"):
         service.collect_garbage()
     assert service.status()["nodes"] == 0
@@ -130,7 +136,7 @@ def test_backup_and_garbage_collection(service, tmp_path):
 
 
 def test_each_operation_takes_the_lock(tmp_path, vault):
-    service = HostService(tmp_path, vault)
+    service = HostService(tmp_path, vault, adapter=offline_core(tmp_path))
     with operation_lock(tmp_path), pytest.raises(SafeError, match="OPERATION_BUSY"):
         service.status()
     assert service.status()["state"] == "DISCONNECTED"
@@ -150,7 +156,7 @@ async def seeded_service(tmp_path, vault, fetcher, monkeypatch):
 
     monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
     monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
-    service = HostService(tmp_path, vault)
+    service = HostService(tmp_path, vault, adapter=offline_core(tmp_path))
     await service.update_subscriptions(MASTER)
     return service
 

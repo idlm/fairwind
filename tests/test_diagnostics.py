@@ -11,7 +11,7 @@ from accelerator.errors import SafeError
 from accelerator.host import HostService
 from accelerator.security import SecretVault
 from accelerator.storage import SCHEMA_VERSION, Database
-from conftest import MASTER
+from conftest import MASTER, offline_core
 
 pytestmark = pytest.mark.integration
 
@@ -160,6 +160,6 @@ async def test_nodes_and_master_checks_use_real_state(
 
 def test_no_key_service_can_diagnose(tmp_path, vault):
     Database(tmp_path, vault).close()
-    report = HostService(tmp_path, None).diagnostic()
+    report = HostService(tmp_path, None, adapter=offline_core(tmp_path)).diagnostic()
     assert report["counts"]["FAIL"] == 0
     assert check_of(report, "secret_coverage")["status"] == "SKIP"

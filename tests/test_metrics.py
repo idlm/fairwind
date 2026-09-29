@@ -8,6 +8,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from accelerator.api import build_app, load_or_create_token
 from accelerator.host import HostService
 from accelerator.metrics import NOTE, TRAFFIC_NOTE, UNMATCHED_ROUTE, Metrics
+from conftest import offline_core
 
 pytestmark = pytest.mark.integration
 
@@ -46,7 +47,9 @@ def test_metrics_instances_do_not_share_counters():
 
 async def test_metrics_endpoint_counts_real_requests_without_leaking_paths(tmp_path, vault):
     token = load_or_create_token(tmp_path)
-    client = TestClient(TestServer(build_app(HostService(tmp_path, vault), token)))
+    client = TestClient(
+        TestServer(build_app(HostService(tmp_path, vault, adapter=offline_core(tmp_path)), token))
+    )
     await client.start_server()
     try:
         headers = {"Authorization": f"Bearer {token}"}
@@ -82,7 +85,9 @@ async def test_metrics_endpoint_counts_real_requests_without_leaking_paths(tmp_p
 
 async def test_metrics_snapshot_is_stable_across_calls(tmp_path, vault):
     token = load_or_create_token(tmp_path)
-    client = TestClient(TestServer(build_app(HostService(tmp_path, vault), token)))
+    client = TestClient(
+        TestServer(build_app(HostService(tmp_path, vault, adapter=offline_core(tmp_path)), token))
+    )
     await client.start_server()
     try:
         headers = {"Authorization": f"Bearer {token}"}

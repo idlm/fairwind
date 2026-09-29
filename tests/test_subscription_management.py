@@ -11,7 +11,7 @@ from accelerator.network import FetchResult
 from accelerator.scoring import explain_eligibility
 from accelerator.storage import SUBSCRIPTION_STATE_KEY
 from accelerator.subscription import SubscriptionEngine
-from conftest import MASTER, SOURCE_A
+from conftest import MASTER, SOURCE_A, offline_core
 
 pytestmark = pytest.mark.integration
 
@@ -122,6 +122,10 @@ async def seeded_service(monkeypatch, fetcher, tmp_path, vault):
 
     monkeypatch.setattr(host_module, "HttpFetcher", lambda: OfflineFetcher(fetcher))
     monkeypatch.setattr(host_module, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
+    # 固定"未接入核心"这条路：否则本地有二进制时 `nodes test` 会真起核心，样本变 TIMEOUT
+    monkeypatch.setattr(
+        host_module, "XrayCoreAdapter", lambda data_dir, *a, **k: offline_core(data_dir)
+    )
     return HostService(tmp_path, vault)
 
 

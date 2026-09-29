@@ -14,7 +14,7 @@ from accelerator.network import FetchResult
 from accelerator.probing import UDP_TARGET_DEFAULT
 from accelerator.storage import Database
 from accelerator.subscription import SubscriptionEngine
-from conftest import MASTER
+from conftest import MASTER, offline_core
 
 pytestmark = pytest.mark.e2e
 
@@ -203,6 +203,8 @@ async def test_all_five_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
     monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
     monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
     monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
+    # 核心二进制缺失的适配器：CLI 内部构造 HostService，这里让"未接入核心"这条路可测（见 conftest）
+    monkeypatch.setattr(host, "XrayCoreAdapter", lambda data_dir, *a, **k: offline_core(data_dir))
     commands = [
         ["subscriptions", "update", "--master-url", MASTER],
         ["nodes", "list"],
@@ -237,6 +239,8 @@ async def test_explain_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
     monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
     monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
     monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
+    # 核心二进制缺失的适配器：CLI 内部构造 HostService，这里让"未接入核心"这条路可测（见 conftest）
+    monkeypatch.setattr(host, "XrayCoreAdapter", lambda data_dir, *a, **k: offline_core(data_dir))
     for command in (
         ["subscriptions", "update", "--master-url", MASTER],
         ["nodes", "test"],

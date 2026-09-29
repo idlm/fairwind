@@ -159,3 +159,59 @@ def test_core_binaries_stay_out_of_git():
     ignore = (root / ".gitignore").read_text(encoding="utf-8")
     assert "third_party/" in ignore
     assert "evidence/" in ignore
+
+
+def test_default_config_has_no_stats_api():
+    """缺省不打开统计 API：没有要求测量，就不该多开一个监听端口。"""
+    config = core_config.generate(node(), 10808)
+    assert "api" not in config and "stats" not in config
+    assert [i["tag"] for i in config["inbounds"]] == ["socks-in"]
+    assert len(config["outbounds"]) == 1
+
+
+def test_stats_api_is_loopback_only_and_keeps_one_proxy_outbound():
+    """真实流量字节的唯一来源：只回环的统计入站；出站仍然只有一个代理。"""
+    config = core_config.generate(node(), 10808, api_port=10809)
+    core_config.validate(config)
+    api_inbound = [i for i in config["inbounds"] if i["tag"] == core_config.API_INBOUND_TAG]
+    assert len(api_inbound) == 1
+    assert api_inbound[0]["listen"] == core_config.LOOPBACK
+    assert api_inbound[0]["port"] == 10809
+    assert api_inbound[0]["protocol"] == core_config.API_INBOUND_PROTOCOL
+    assert config["api"] == {"tag": core_config.API_HANDLER_TAG, "services": ["StatsService"]}
+    assert config["policy"]["system"]["statsInboundUplink"] is True
+    assert config["routing"]["rules"] == [
+        {
+            "type": "field",
+            "inboundTag": [core_config.API_INBOUND_TAG],
+            "outboundTag": core_config.API_HANDLER_TAG,
+        }
+    ]
+    assert [o["tag"] for o in config["outbounds"]] == ["proxy"]
+    # 凭据脱敏在带统计入站时也必须照旧
+    redacted = core_config.redact(config)
+    assert UUID not in json.dumps(redacted)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [{"api_port": 0}, {"api_port": 70000}, {"api_port": 10808}, {"http_port": 0}],
+)
+def test_generate_rejects_impossible_ports(kwargs):
+    with pytest.raises(SafeError, match="CONFIG_REJECTED"):
+        core_config.generate(node(), 10808, **kwargs)
+
+
+@pytest.mark.parametrize("broken", ["no_api_handler", "two_api_inbounds", "foreign_rule"])
+def test_validate_rejects_a_malformed_stats_api(broken):
+    config = core_config.generate(node(), 10808, api_port=10809)
+    if broken == "no_api_handler":
+        del config["api"]
+    elif broken == "two_api_inbounds":
+        extra = dict(config["inbounds"][-1])
+        extra["port"] = 10810
+        config["inbounds"].append(extra)
+    else:
+        config["routing"]["rules"][0]["outboundTag"] = "proxy"
+    with pytest.raises(SafeError, match="CORE_CONFIG_INVALID"):
+        core_config.validate(config)
