@@ -26,6 +26,22 @@
 - 构建期发现并修复的源码缺陷（首次真正被编译器解析后才暴露）：Kotlin 块注释可嵌套导致 `GameMode.kt` 被整段注释吞掉、框架主题误用 AppCompat 属性 `?attr/colorControlNormal`、`VpnService` 并无 `protect(FileDescriptor)` / `protect(ParcelFileDescriptor)` 重载、Material3 `NavigationBarItem` 的 `icon` 为必填、`Set + List` 使 `distinct()` 重载歧义等
 - 能力边界不变：无获批核心 → 连接固定 `CORE_NOT_INTEGRATED` / 客户端 `CORE_NOT_AVAILABLE`，`traffic.measured=false`；无签名 keystore → release APK `BLOCKED_EXTERNAL_REQUIREMENT`；无设备/模拟器 → 未安装、未启动、未渲染
 
+### 修复：Windows CI 红灯（2026-09-29）
+
+- **根因**：`cli.emit()` 用 `ensure_ascii=False` 直接打印中文。Windows CI runner 是 en-US（cp1252），
+  中文写 stdout 时 `print` 抛 `UnicodeEncodeError`，被 `main` 的 `except Exception` 兜底成
+  `INTERNAL_ERROR` —— 失败的其实不是命令，是"打印"。`diagnose` 与 `route explain` 因此在 Windows
+  作业上整条失败，而 Linux 作业（UTF-8）与 zh-CN 控制台（cp936）一直是绿的
+- **修复**：`cli.configure_output_streams()` 在入口固定输出流——管道/重定向用 UTF-8，交互终端保留
+  控制台编码并加 `errors="replace"`；`tests/test_cli.py` 按 UTF-8 解码并新增回归测试
+  `test_cli_json_output_survives_a_non_utf8_console`（修复前红、修复后绿）
+- **同时修掉**：`tests/test_core_pin.py` 硬编码 `xray`，而固定清单的二进制名是平台相关的
+  （Windows 发行包内是 `xray.exe`），导致 Windows 上解压后判为 `CORE_ARCHIVE_INVALID`；改用
+  `core_pin.BINARY_NAME` 并新增"另一平台的二进制名必须被拒绝"的断言
+- **验证**：CI 四个作业（ubuntu/windows × 3.11/3.12）由连续 5 次 `failure` 转为 `success`；
+  `365 passed, 6 skipped`、`ARTIFACT_CHECK_OK`（wheel 31 文件 / sdist 225 文件，forbidden=0）、
+  `SECRET_CHECK_OK`
+
 ### CoreConfigGenerator（2026-09-29）
 
 - `core/accelerator/core_config.py`：`ProxyNode → 核心配置`（`vless` / `vmess` / `trojan` / `ss→shadowsocks` 映射集中在 `PROTOCOL_MAP`）
