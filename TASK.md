@@ -17,6 +17,6 @@
 - [x] HTTP CONNECT/TLS 本地集成测试、评分与有限故障恢复控制器。
 - [x] 上游根许可证证据与依赖声明核对，更新进度和验收状态。
 - [ ] 恢复可解析的 Master 网络环境，完成真实源在线验收。
-- [ ] 审查核心具体版本/分发方案，接入真实多协议 test_node。
-- [ ] 完成独立握手、UDP 丢包与 DNS/IPv6 测试后推进对应平台 M0。
+- [x] 审查核心具体版本/分发方案（Gate A `CORE_APPROVED`），接入真实多协议 test_node——本机回环已完成四协议真实握手（`tests/test_real_core_loopback.py`）；**公网节点仍 `BLOCKED_TEST_FIXTURE`**。
+- [ ] 完成独立握手、UDP 丢包与 DNS/IPv6 测试后推进对应平台 M0。（握手：本机回环已完成；UDP 转发与 IPv6 出口**未验证，因此不声明**，平台 M0 不推进。）
 - [ ] Windows VPN/TUN 与 UI；其余平台依次推进。

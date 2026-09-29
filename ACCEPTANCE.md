@@ -34,7 +34,8 @@
 | 分段延迟与 UDP 丢包 | PASS；tcp/handshake/http 三段独立测量；SOCKS5 经 UDP ASSOCIATE 实测丢包，中继不支持时保持 null |
 | 有限重试 / 熔断 / Failover 控制器 | ADAPTER_FIXTURE_PASS；真实核心运行时尚未验证 |
 | 用户指定 Master 在线读取 | BLOCKED_EXTERNAL_REQUIREMENT；域名权威区无 A/AAAA 记录（NOERROR-NODATA，2026-09-28 复核），非本机解析器问题 |
-| VLESS/VMess/Trojan/SS 真实代理测试 | BLOCKED_EXTERNAL_REQUIREMENT；未嵌入获审核心，TCP 成功保持 UNTESTED；SOCKS5 改由参考探测覆盖 |
+| VLESS/VMess/Trojan/SS 真实代理测试（本机回环） | PASS；经固定核心 **sidecar**（进程隔离，非嵌入/非链接）完成四协议真实握手与出口验证，`tests/test_real_core_loopback.py` |
+| VLESS/VMess/Trojan/SS 真实公网节点测试 | **BLOCKED_TEST_FIXTURE**；本环境无节点凭据，公网可达性与真实节点质量未验证 |
 | Windows 10/11 一键连接 / TUN / 系统代理 | BLOCKED_EXTERNAL_REQUIREMENT |
 | Android 一键连接 / 按应用 VPN | BLOCKED_EXTERNAL_REQUIREMENT |
 | 真实代理 Failover / 网络切换 | BLOCKED_EXTERNAL_REQUIREMENT |
