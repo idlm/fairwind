@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive-icon colours only. The UI palette lives in ui/theme/Theme.kt (Compose).
+
+  Spec 88-90, 132. No brand asset, no game artwork and no third-party logo is used
+  anywhere in this client: the icon is a neutral geometric mark drawn as a vector.
+-->
+<resources>
+    <color name="ic_launcher_background">#0B1220</color>
+</resources>

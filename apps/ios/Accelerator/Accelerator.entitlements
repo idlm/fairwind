@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The APP's entitlements (spec 91-92, 134; docs/IOS_LIMITATIONS.md §3).
+
+  EVERY entitlement below requires a PAID Apple Developer account, and
+  `com.apple.developer.networking.networkextension` is granted to the App ID by Apple
+  AFTER REVIEW — a developer account alone is not enough, and the request can be refused.
+  An unentitled, hand-signed build will NOT run the extension on a device.
+
+  * `com.apple.developer.networking.networkextension` = `packet-tunnel-provider` — the only
+    supported traffic path this product needs. If the product ever claims per-app VPN, the
+    value must also list `app-proxy-provider`, and that is a SEPARATE Apple decision.
+  * `com.apple.security.application-groups` — the App Group shared by the app and the
+    extension (`Shared/SharedDefaults.swift`). Without it the two processes cannot share
+    settings, and the app cannot tell the extension which node to use.
+  * `keychain-access-groups` — keychain sharing between the app and the extension, so a
+    credential written by the app (after the user adds a source) can be read by the tunnel.
+
+  No team ID, certificate, provisioning profile or key is committed here: the placeholders
+  below must be replaced by the maintainer's real identifiers, which live in Xcode signing
+  settings, not in git.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.developer.networking.networkextension</key>
+    <array>
+        <string>packet-tunnel-provider</string>
+    </array>
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.club.noclub.accelerator</string>
+    </array>
+    <key>keychain-access-groups</key>
+    <array>
+        <string>$(AppIdentifierPrefix)club.noclub.accelerator</string>
+    </array>
+</dict>
+</plist>

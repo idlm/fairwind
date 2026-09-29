@@ -17,6 +17,15 @@
 - 接入模型：进程隔离 sidecar（ADR-0001 由"提议"转为**已批准**）；UI / CLI / API / Domain Layer 禁止直接调用核心
 - 本机 loopback 真实链路已验证：客户端 SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标取回标记内容（标签 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`，**不是**公网节点验收）
 
+### 平台客户端源码（Gate B，2026-09-29）
+
+- `apps/android/`：Kotlin/VpnService 客户端源码 38 文件；**全量强制重编译 0 error / 0 warning**，`assembleDebug` 产出 debug APK（10,299,095 字节，sha256 `7c27e49b04e85f49d58de1c9d6952e945d6e41bbda961cf9baa68b891c3df83e`，APK Signature Scheme v2 校验通过，`zipalign -c 4` OK，15 个 dex）
+- `apps/ios/`：Swift 客户端源码骨架 32 文件（`NEPacketTunnelProvider`、`Shared/` 契约与模型、entitlements、XcodeGen `project.yml`、Keychain 接口）；**未编译**——无 macOS/Xcode/entitlement，无 `.xcodeproj`、无 `.ipa`
+- `scripts/android_toolchain.sh`：可移植安装 Temurin JDK 17 + Android SDK 35 + Gradle 8.10.2（不改系统 `PATH`、不写注册表、不需要提权，`ANDROID_TOOLCHAIN_ROOT` 可覆盖）
+- `scripts/android_build.sh`：三道内存受限 pass 构建。4 GB 主机上单次 Gradle 调用会死在 JIT 的**原生**内存 arena（`ChunkPool::allocate` / `Failed to commit metaspace`）而非堆 OOM，故编译 / dex / 打包分别调用
+- 构建期发现并修复的源码缺陷（首次真正被编译器解析后才暴露）：Kotlin 块注释可嵌套导致 `GameMode.kt` 被整段注释吞掉、框架主题误用 AppCompat 属性 `?attr/colorControlNormal`、`VpnService` 并无 `protect(FileDescriptor)` / `protect(ParcelFileDescriptor)` 重载、Material3 `NavigationBarItem` 的 `icon` 为必填、`Set + List` 使 `distinct()` 重载歧义等
+- 能力边界不变：无获批核心 → 连接固定 `CORE_NOT_INTEGRATED` / 客户端 `CORE_NOT_AVAILABLE`，`traffic.measured=false`；无签名 keystore → release APK `BLOCKED_EXTERNAL_REQUIREMENT`；无设备/模拟器 → 未安装、未启动、未渲染
+
 ### CoreConfigGenerator（2026-09-29）
 
 - `core/accelerator/core_config.py`：`ProxyNode → 核心配置`（`vless` / `vmess` / `trojan` / `ss→shadowsocks` 映射集中在 `PROTOCOL_MAP`）

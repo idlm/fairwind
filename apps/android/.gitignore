@@ -1,0 +1,40 @@
+# Build output
+build/
+app/build/
+*/build/
+.gradle/
+.kotlin/
+
+# Local machine configuration - never commit (SDK path, and a place secrets could leak)
+local.properties
+local.properties.bak
+
+# Signing material - never commit (docs/PLATFORM_MATRIX.md §5.7, docs/SECURITY.md §5)
+*.keystore
+*.jks
+keystores/
+signing.properties
+*.p12
+*.pfx
+*.pem
+*.key
+
+# Generated / captured on device
+captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# The bundled proxy core binaries are third-party artefacts with a pinned hash
+# (docs/CORE_APPROVAL.md). They are NOT committed here: no core has been chosen or
+# approved, so there is nothing legitimate to commit.
+app/src/main/jniLibs/*/*.so

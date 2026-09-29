@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The EXTENSION's Info.plist (spec 91, 134; docs/IOS_LIMITATIONS.md §2).
+
+  The three keys that matter:
+
+  * `NSExtensionPointIdentifier = com.apple.networkextension.packet-tunnel` — this is what
+    makes the bundle a `NEPacketTunnelProvider` extension. Without it (and without the
+    granted entitlement) the extension cannot run at all.
+  * `NSExtensionPrincipalClass = $(PRODUCT_MODULE_NAME).PacketTunnelProvider` — resolves to
+    the Swift class in PacketTunnel/PacketTunnelProvider.swift.
+  * `NSExtensionAttributes` carries no static VPN profile: the tunnel settings are built at
+    runtime from `NEPacketTunnelNetworkSettings`, because the addresses, routes and DNS
+    servers are a core-specific decision (docs/CORE_APPROVAL.md).
+
+  NOT VERIFIED: this key set has never been loaded by iOS. Whether a given iOS release
+  accepts a hand-written extension Info.plist is exactly the kind of thing that needs a
+  real build and a real device.
+-->
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>zh_CN</string>
+    <key>CFBundleDisplayName</key>
+    <string>智能加速隧道</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>XPC!</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(MARKETING_VERSION)</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>NSExtension</key>
+    <dict>
+        <key>NSExtensionPointIdentifier</key>
+        <string>com.apple.networkextension.packet-tunnel</string>
+        <key>NSExtensionPrincipalClass</key>
+        <string>$(PRODUCT_MODULE_NAME).PacketTunnelProvider</string>
+    </dict>
+</dict>
+</plist>

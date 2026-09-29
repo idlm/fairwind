@@ -100,11 +100,19 @@ Done:
 - 宿主契约与参考服务层（`docs/HOST_CONTRACT.md`、`core/accelerator/host.py`）：共用前置，非平台实现。
 - 本机控制面（Clash 兼容子集 + 静态面板，`accelerator serve`）：仅 loopback、Bearer 令牌、未接入核心时明确拒绝连接；形态对齐成熟方案调研结论。
 - 面板按规格 §22 展开为五页（主页/节点/订阅/游戏/设置）：分类筛选、订阅列表与手动刷新、Game Profile 注册表与 LKG、DNS 策略与能力声明；不可用项显式标注原因，不伪造连通性或流量。
+- `apps/android/`：Kotlin 客户端源码（38 文件）——`VpnService` + 前台服务、CoreHost 契约、SmartSelector、按应用、游戏模式、故障转移、诊断、Compose 六页；无核心时显示未连接、不测量流量（2026-09-29）。
+- `apps/ios/`：Swift 客户端源码骨架（32 文件）——`NEPacketTunnelProvider`、`Shared/` 契约与模型、entitlements、XcodeGen `project.yml`、Keychain 接口（2026-09-29）。
+- `scripts/android_toolchain.sh` / `scripts/android_build.sh`：可移植工具链（不改系统 PATH、不写注册表、不提权）与三道内存受限 pass 构建（4 GB 主机上单次 Gradle 调用会死在 JIT 原生内存 arena）。
 
 Tests:
+- Android：**源码可编译**——全量强制重编译 0 error / 0 warning；`assembleDebug` 产出 debug APK（10,299,095 字节，sha256 `7c27e49b…3df83e`，APK Signature Scheme v2 校验通过，`zipalign -c 4` OK）。仅为编译与打包证据，`apps/android/BUILD.md` 逐项列出未验证内容。
+- iOS：**未编译**（无 macOS/Xcode/entitlement），无 `.xcodeproj`、无 `.ipa`。
 - 原生平台、GUI、安装包与签名尚未实现或验收。
 
 Remaining:
+- Android 真机验证：安装、授权对话、前台通知、切网恢复、按应用路由——`BLOCKED_EXTERNAL_REQUIREMENT`（本环境 `adb devices` 为空，4 GB 主机无法运行模拟器）。
+- Android release 签名：`BLOCKED_EXTERNAL_REQUIREMENT`（无签名 keystore）。
+- iOS：macOS + Xcode + Apple entitlement + 真机，全部 `BLOCKED_EXTERNAL_REQUIREMENT`。
 - 先解除相应 M0 和核心链路门禁，再执行 TASK.md 后续阶段。未开发 GUI。
 
 Milestone 7

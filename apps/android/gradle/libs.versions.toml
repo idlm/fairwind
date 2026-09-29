@@ -1,0 +1,46 @@
+# Version catalogue for the Smart Accelerator Android client (skeleton).
+#
+# VERIFIED BY A REAL BUILD on 2026-09-29 (see BUILD.md): this combination resolves and
+# produces a signed debug APK with Gradle 8.10.2 / JDK 17 / AGP 8.6.1 / Kotlin 2.0.20 /
+# Compose BOM 2024.09.02 / compileSdk 35. A version that is not in that build is not
+# verified - re-verify any bump against the official release notes.
+#
+# Do not add a version you cannot justify from an upstream release note.
+
+[versions]
+agp = "8.6.1"                     # Android Gradle Plugin - requires JDK 17, Gradle 8.7+
+kotlin = "2.0.20"                 # Kotlin + the Compose compiler plugin of the same version
+composeBom = "2024.09.02"         # Compose BOM: one version for all androidx.compose.*
+coreKtx = "1.13.1"
+lifecycle = "2.8.5"
+activityCompose = "1.9.2"
+navigationCompose = "2.8.0"
+datastore = "1.1.1"
+coroutines = "1.9.0"
+okhttp = "4.12.0"
+# compileSdk/targetSdk/minSdk are documented in app/build.gradle.kts. minSdk 26 is a
+# deliberate product decision (notification channels for the mandatory foreground
+# notification + VpnService on a modern API surface), not a default.
+compileSdk = "35"
+targetSdk = "35"
+
+[libraries]
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+compose-ui = { module = "androidx.compose.ui:ui" }
+compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+compose-material3 = { module = "androidx.compose.material3:material3" }
+# The tab bar needs real icons; material3 does not ship them (the BOM pins the version).
+compose-material-icons-core = { module = "androidx.compose.material:material-icons-core" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

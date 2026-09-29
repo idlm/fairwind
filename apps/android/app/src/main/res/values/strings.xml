@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  User-facing strings for the Smart Accelerator Android client (skeleton).
+
+  Spec 88-90, 132; docs/PRODUCT_SPEC.md §3.4 and §4 for the naming rules:
+  an upstream is a "source" (订阅源), a node is identified by its node_id, and a
+  missing measurement renders as "-" - never 0.
+
+  "线路已更新" is the UPDATED update outcome and "暂时无法更新" is the FAILED outcome
+  with the last known good data retained (docs/PRODUCT_SPEC.md §3.4). The two strings
+  exist here so the UI cannot invent its own wording for those two states.
+-->
+<resources>
+    <string name="app_name">智能加速</string>
+
+    <!-- Tabs / screens -->
+    <string name="tab_home">首页</string>
+    <string name="tab_games">游戏</string>
+    <string name="tab_nodes">节点</string>
+    <string name="tab_sources">订阅</string>
+    <string name="tab_diagnostics">诊断</string>
+    <string name="tab_settings">设置</string>
+
+    <!-- The single button -->
+    <string name="accelerate">智能加速</string>
+    <string name="accelerate_stop">停止加速</string>
+    <string name="accelerate_preparing">正在准备…</string>
+    <string name="accelerate_connecting">正在连接…</string>
+    <string name="accelerate_running">已加速</string>
+
+    <!-- Update outcomes (docs/PRODUCT_SPEC.md §3.4) -->
+    <string name="update_updated">线路已更新</string>
+    <string name="update_unavailable">暂时无法更新</string>
+    <string name="update_unchanged">线路无变化</string>
+    <string name="update_checking">正在检查线路…</string>
+
+    <!-- Honest empties -->
+    <string name="no_nodes_yet">暂无节点：本地还没有可用线路数据</string>
+    <string name="no_eligible_node">没有可用节点：尚未通过代理握手验证</string>
+    <string name="not_measured">未测量</string>
+    <string name="placeholder_dash">-</string>
+
+    <!-- Consent -->
+    <string name="vpn_consent_explainer">智能加速需要系统 VPN 授权（Android 会显示自己的确认对话框和常驻 VPN 图标，本应用无法隐藏）。</string>
+    <string name="vpn_notification_channel">智能加速运行中</string>
+    <string name="vpn_notification_text">加速服务正在运行，点击可返回应用</string>
+</resources>

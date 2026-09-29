@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup / device-transfer rules for the Smart Accelerator Android client (skeleton).
+
+  Spec 88-90, 132; docs/SECURITY.md §5 (secret handling) and docs/PRIVACY.md.
+
+  Nothing about acceleration state, node credentials or the tunnel is backed up.
+  The client treats the Apple/Google backup channel as untrusted for secrets: the
+  Keystore-backed SecretStore (core/SecretStore.kt) is deliberately unusable off the
+  device it was written on, and there is nothing here to restore.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

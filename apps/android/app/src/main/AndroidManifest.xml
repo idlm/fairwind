@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Manifest for the Smart Accelerator Android client (skeleton).
+
+  Spec 88-90, 132; docs/PLATFORM_MATRIX.md §5.
+
+  Two declarations carry the whole product contract:
+    * MainActivity   - the single-window Compose UI (首页/游戏/节点/订阅/诊断/设置)
+    * AcceleratorVpnService - the VpnService that owns the TUN, declared with
+      BIND_VPN_SERVICE and a foreground service type so the OS does not kill it.
+
+  NOTHING IS IMPLEMENTED OR VERIFIED HERE. In particular the OS shows its own VPN
+  consent dialog and a persistent VPN key icon; this app can neither skip nor hide
+  them (spec 88; docs/PLATFORM_MATRIX.md §5.1).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- The only network permission the client needs: outbound sockets for the
+         control plane (source/registry fetches) and for the core's upstream
+         connections. INTERNET is granted without a runtime prompt. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Foreground service + the mandatory notification (API 26+ target).
+         FOREGROUND_SERVICE_SPECIAL_USE is the honest type for a VPN tunnel that
+         is not a "connected device"; the type is confirmed at declaration time and
+         must be re-checked against the current Play policy before release. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:name=".AcceleratorApplication"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Accelerator"
+        tools:targetApi="34">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.Accelerator">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- The tunnel. Exported=false: only our own app may bind/start it, so no
+             third-party app can drive the tunnel through an intent. -->
+        <service
+            android:name=".vpn.AcceleratorVpnService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
+        <!-- No receiver, no content provider, no telemetry service is declared.
+             Nothing in this skeleton sends anything anywhere (docs/PRIVACY.md). -->
+    </application>
+</manifest>

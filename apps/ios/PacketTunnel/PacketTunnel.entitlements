@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The EXTENSION's entitlements (spec 91-92, 134; docs/IOS_LIMITATIONS.md §3).
+
+  The extension must be signed with the SAME NetworkExtension entitlement and the SAME App
+  Group and keychain group as the app. A mismatch is the single most common reason a
+  hand-built tunnel "works in the simulator and not on device": the OS refuses to start an
+  extension whose entitlements do not line up with the host app's.
+
+  All four requirements are Apple-gated:
+    1. a paid Apple Developer account,
+    2. the networkextension entitlement GRANTED for `packet-tunnel-provider`,
+    3. an App Group registered for both App IDs,
+    4. keychain sharing configured for both App IDs.
+  None of these can be produced or verified in this environment.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.developer.networking.networkextension</key>
+    <array>
+        <string>packet-tunnel-provider</string>
+    </array>
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.club.noclub.accelerator</string>
+    </array>
+    <key>keychain-access-groups</key>
+    <array>
+        <string>$(AppIdentifierPrefix)club.noclub.accelerator</string>
+    </array>
+</dict>
+</plist>

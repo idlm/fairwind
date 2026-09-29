@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Status-bar icon for the mandatory foreground notification (spec 89, 132).
+
+  A monochrome vector is required: Android tints notification icons, so a colour asset
+  would render as a grey blob. The mark is the same original abstract chevron as the
+  launcher icon - no game art, no third-party logo, no copied SDK asset.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?android:attr/colorControlNormal">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M5,16 L12,6 L19,16 L15.5,16 L12,11 L8.5,16 Z" />
+</vector>

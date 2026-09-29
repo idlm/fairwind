@@ -53,7 +53,7 @@ uv build
 | 数据面 | 真实代理出口验证（VLESS / VMess / Trojan / Shadowsocks） | 未实现，保持 `UNTESTED` | Gate A |
 | 数据面 | 真实流量字节统计（当前 `traffic.measured=false`） | 未实现 | Gate A |
 | 平台 | Windows 10/11：System Proxy → TUN → 游戏规则分流 → 安装包 | 未实现 | Gate B `PLATFORM_READY` |
-| 平台 | Android：VpnService → TUN → 按应用 VPN | 未实现 | Gate B |
+| 平台 | Android：VpnService → TUN → 按应用 VPN | 未实现（`apps/android/` 源码已可编译出 debug APK，未接入核心、未真机验证） | Gate B |
 | 平台 | Windows 7 Legacy（独立 runtime 与验收） | 未实现 | Gate B |
 | 平台 | iOS：NetworkExtension / entitlement / 真机 | 未实现 | Gate B + `NETWORK_EXTENSION_ENTITLEMENT_READY` |
 | 发布 | 代码签名、安装包、商店发布 | 未实现 | Gate C `SIGNING_READY` |
