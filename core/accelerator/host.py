@@ -10,13 +10,19 @@ from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from accelerator import __version__
+from accelerator import __version__, core_config, core_runtime
+from accelerator.connection import ConnectionController
 from accelerator.diagnostics import diagnose
 from accelerator.dns import DnsPolicy, DnsPolicyEngine
 from accelerator.domain import Capabilities, ConnectionState
 from accelerator.errors import SafeError
 from accelerator.network import HttpFetcher
-from accelerator.probing import UDP_TARGET_DEFAULT, NodeTester, ReferenceProbe
+from accelerator.probing import (
+    DEFAULT_PROBE_TARGET,
+    UDP_TARGET_DEFAULT,
+    NodeTester,
+    ReferenceProbe,
+)
 from accelerator.profile_update import ProfileRegistry, load_public_key
 from accelerator.routing import (
     RouteRule,
@@ -34,9 +40,9 @@ from accelerator.scoring import (
 from accelerator.security import SecretVault, canonical_host, private_directory
 from accelerator.storage import Database, operation_lock
 from accelerator.subscription import SubscriptionEngine
+from accelerator.xray_adapter import XrayCoreAdapter
 
 CACHE_DIRECTORIES = ("master", "subscriptions", "nodes", "geo")
-DEFAULT_PROBE_TARGET = "https://www.gstatic.com/generate_204"
 DISCONNECTED = ConnectionState.DISCONNECTED.value
 SUBSCRIPTION_FIELDS = (
     "display_name",
@@ -90,13 +96,39 @@ PORT_MIN = 1
 PORT_MAX = 65535
 
 
+CORE_INTEGRATED = "INTEGRATED"
+CORE_NOT_INTEGRATED = "NOT_INTEGRATED"
+CORE_TEST_CONCURRENCY = 2  # 每次真实探测都要起一个核心实例，并发必须比"纯 TCP 探测"小得多
+NO_ELIGIBLE_NODE = "NO_ELIGIBLE_NODE"
+MEASURED_NOTE = "MEASURED_FROM_THE_CORE_STATS_API"
+UNMEASURED_NOTE = "TRAFFIC_NOT_MEASURED_UNTIL_A_CORE_IS_CONNECTED"
+
+
+def _traffic_view(counts: dict[str, int] | None) -> dict:
+    """把核心计数转成对外视图；`measured` 为 false 时**不给**任何数字（0 也是数字）。"""
+    if not counts:
+        return {"measured": False, "uplink": None, "downlink": None, "note": UNMEASURED_NOTE}
+    return {
+        "measured": True,
+        "uplink": int(counts.get("uplink", 0)),
+        "downlink": int(counts.get("downlink", 0)),
+        "note": MEASURED_NOTE,
+    }
+
+
 class HostService:
-    def __init__(self, data_dir: Path, vault: SecretVault | None = None):
+    def __init__(self, data_dir: Path, vault: SecretVault | None = None, adapter=None):
         self.data_dir = data_dir
         self.vault = vault
+        # 适配器是唯一能接触核心的对象；核心二进制缺失时它如实报告"未接入"。
+        self.adapter = adapter or XrayCoreAdapter(data_dir)
+        self.controller = ConnectionController(self.adapter)
         private_directory(data_dir)
         for name in CACHE_DIRECTORIES:
             private_directory(data_dir / "cache" / name)
+
+    def core_state(self) -> str:
+        return CORE_INTEGRATED if self.adapter.available else CORE_NOT_INTEGRATED
 
     @contextmanager
     def _database(self):
@@ -109,25 +141,33 @@ class HostService:
 
     def capabilities(self) -> dict:
         """声明宿主真实具备的能力；未接入核心时必须如实声明，不得夸大。"""
+        declared = self.adapter.capabilities
+        integrated = self.adapter.available
         return {
             "version": __version__,
             "host": "reference",
-            "core": "NOT_INTEGRATED",
-            "protocols": [],
-            "tun": False,
-            "udp": False,
-            "ipv6": False,
-            "process_rules": False,
-            "connections": "CORE_NOT_INTEGRATED",
-            "operations": list(OPERATIONS),
+            "core": self.core_state(),
+            "core_process": self.adapter.runtime.status if integrated else CORE_NOT_INTEGRATED,
+            "protocols": sorted(declared.protocols) if integrated else [],
+            "tun": bool(declared.tun) and integrated,
+            "udp": bool(declared.udp) and integrated,
+            "ipv6": bool(declared.ipv6) and integrated,
+            "process_rules": bool(declared.process_rules) and integrated,
+            "traffic": "MEASURED" if integrated else "NOT_MEASURED",
+            "connections": "AVAILABLE" if integrated else "CORE_NOT_INTEGRATED",
+            "operations": list(OPERATIONS) + ["connect", "disconnect"],
         }
 
     def status(self) -> dict:
+        """宿主状态。`state` 来自连接控制器，`core` 来自适配器的真实能力，两者都不臆造。"""
         with self._database() as database:
             return {
                 "version": __version__,
-                "state": DISCONNECTED,
-                "core": "NOT_INTEGRATED",
+                "state": self.controller.state.value,
+                "core": self.core_state(),
+                "core_process": (
+                    self.adapter.runtime.status if self.adapter.available else CORE_NOT_INTEGRATED
+                ),
                 "nodes": len(database.nodes()),
                 "routing_rules": len(database.routing_rules()),
                 "subscriptions": self._subscription_views(database),
@@ -205,7 +245,7 @@ class HostService:
             "eligibility": eligibility,
             "history": [{key: item[key] for key in HISTORY_FIELDS} for item in history],
             "sources": sources,
-            "core": "NOT_INTEGRATED",
+            "core": self.core_state(),
             "note": "SENSITIVE_FIELDS_EXCLUDED",
         }
 
@@ -321,7 +361,7 @@ class HostService:
                 "route": decision.route.value,
                 "reason": decision.reason,
             },
-            "core": "NOT_INTEGRATED",
+            "core": self.core_state(),
         }
 
     def profile_versions(self) -> dict:
@@ -355,15 +395,25 @@ class HostService:
     ) -> dict:
         if self.vault is None:
             raise SafeError("SECRET_KEY_REQUIRED")
-        backend = ReferenceProbe(target, udp_target=udp_target)
+        if self.adapter.available:
+            # 真实核心：每个节点起一个独立实例做真实握手 + 出口验证，因此并发要小。
+            backend = self.adapter
+            effective = min(concurrency, CORE_TEST_CONCURRENCY)
+            note = "VERIFIED_THROUGH_THE_PINNED_CORE"
+        else:
+            backend = ReferenceProbe(target, udp_target=udp_target)
+            effective = concurrency
+            note = "TCP_ONLY_IS_NOT_PROXY_AVAILABILITY"
         with self._database() as database:
-            tester = NodeTester(database, backend, concurrency)
+            tester = NodeTester(database, backend, effective)
             counts = await tester.run(samples)
         return {
             "states": counts,
+            "backend": self.core_state(),
+            "concurrency": effective,
             "packet_loss": "UNKNOWN_UNLESS_MEASURED",
             "udp_measurement": "SOCKS5_ONLY" if udp_target is not None else "DISABLED",
-            "note": "TCP_ONLY_IS_NOT_PROXY_AVAILABILITY",
+            "note": note,
         }
 
     def best_nodes(self, country: str | None = None) -> dict:
@@ -376,7 +426,9 @@ class HostService:
     def diagnostic(self) -> dict:
         """离线自检：只读本机状态，不联网、不修改任何东西；输出含固定错误码但不含凭据。"""
         with self._database() as database:
-            return diagnose(self.data_dir, database, self.vault)
+            return diagnose(
+                self.data_dir, database, self.vault, core_available=self.adapter.available
+            )
 
     def routing_rules(self) -> dict:
         with self._database() as database:
@@ -455,12 +507,86 @@ class HostService:
         with self._database():
             return ProfileRegistry(self.data_dir / "profiles").restore_previous()
 
-    def connect(self) -> dict:
-        """未接入核心前必须明确失败：不允许宿主声称已连接。"""
-        raise SafeError("CORE_NOT_INTEGRATED")
+    async def connect(self, node_id: str | None = None, country: str | None = None) -> dict:
+        """连接一条线路：智能选择 → 生成回环单节点配置 → 起核心 → **真实出口验证**。
 
-    def disconnect(self) -> dict:
-        raise SafeError("CORE_NOT_INTEGRATED")
+        只有探针目标经该节点返回预期状态码，才算 `CONNECTED`；否则按候选顺序故障转移到下一条，
+        全部失败返回固定错误码。核心二进制缺失时明确 `CORE_NOT_INTEGRATED`，绝不上报"已连接"。
+        """
+        if not self.adapter.available:
+            raise SafeError("CORE_NOT_INTEGRATED")
+        if self.vault is None:
+            raise SafeError("SECRET_KEY_REQUIRED")
+        with self._database() as database:
+            rows = database.nodes()
+            if node_id is not None:
+                row = database.find_node(node_id)
+                rows = [row]
+            ranked = SmartSelector().select(
+                [(row, database.history(row["id"])) for row in rows], country
+            )
+            if not ranked:
+                raise SafeError(NO_ELIGIBLE_NODE)
+            by_id = {row["id"]: row for row in rows}
+            candidates = self._candidate_configs(database, [by_id[item["id"]] for item in ranked])
+            if not candidates:
+                raise SafeError("CORE_UNSUPPORTED")
+            database.record_connection(ConnectionState.CONNECTING.value)
+        try:
+            chosen = await self.controller.connect(candidates, verify=self.adapter.verify_exit)
+        except SafeError as error:
+            with self._database() as database:
+                database.record_connection(self.controller.state.value, error.code)
+            raise
+        with self._database() as database:
+            database.record_connection(ConnectionState.CONNECTED.value)
+            node = database.find_node(chosen)
+        counts = await self.adapter.get_traffic()
+        return {
+            "state": self.controller.state.value,
+            "node": {
+                "id": node["id"][:NODE_ID_DISPLAY],
+                "country": node["country"],
+                "protocol": node["protocol"],
+            },
+            "core": self.core_state(),
+            "candidates": len(candidates),
+            "traffic": _traffic_view(counts),
+            "note": "EXIT_VERIFIED_THROUGH_THE_NODE",
+        }
+
+    def _candidate_configs(self, database, rows) -> list[tuple[str, dict]]:
+        """把候选节点转成回环单节点配置；本核心不支持的节点被跳过（不伪造配置）。"""
+        configs: list[tuple[str, dict]] = []
+        for row in rows:
+            node = database.load_node(row)
+            try:
+                config = core_config.generate(
+                    node,
+                    socks_port=core_runtime.free_loopback_port(),
+                    api_port=core_runtime.free_loopback_port(),
+                )
+            except SafeError:
+                continue
+            configs.append((node.id, config))
+        return configs
+
+    async def disconnect(self) -> dict:
+        if not self.adapter.available:
+            raise SafeError("CORE_NOT_INTEGRATED")
+        await self.controller.stop()
+        with self._database() as database:
+            database.record_connection(ConnectionState.DISCONNECTED.value)
+        return {
+            "state": self.controller.state.value,
+            "core": self.core_state(),
+            "note": "CORE_STOPPED_AND_CONFIG_REMOVED",
+        }
+
+    async def traffic(self) -> dict:
+        """真实流量字节：来自核心统计 API；没有统计入站或未连接时如实"未测量"。"""
+        counts = await self.adapter.get_traffic()
+        return _traffic_view(counts)
 
     def backup(self, destination: Path) -> dict:
         with self._database() as database:

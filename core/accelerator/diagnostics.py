@@ -186,11 +186,27 @@ def _routing_rules_check(database: Database) -> dict:
     )
 
 
-def _core_check() -> dict:
+def _core_check(integrated: bool = False) -> dict:
+    """核心检查：缺二进制标 SKIP（不是"通过"），就位才说就位。
+
+    这里只检查"固定核心是否已在本机就位"，**不**把它写成"节点可用"——节点可用只能由真实握手证明。
+    """
+    if integrated:
+        return _check(
+            "core",
+            "PASS",
+            "CORE_INTEGRATED：固定核心已按清单就位（版本与摘要由 scripts/fetch_core.py 校验）",
+            None,
+        )
     return _check("core", "SKIP", "CORE_NOT_INTEGRATED：未接入任何核心，连接类操作固定拒绝", None)
 
 
-def diagnose(data_dir: Path, database: Database, vault: SecretVault | None = None) -> dict:
+def diagnose(
+    data_dir: Path,
+    database: Database,
+    vault: SecretVault | None = None,
+    core_available: bool = False,
+) -> dict:
     """运行全部离线检查；不联网、不修改状态、输出里不含凭据或订阅 URL。"""
     checks = [
         _permission_check("data_directory", data_dir, "数据目录"),
@@ -207,7 +223,7 @@ def diagnose(data_dir: Path, database: Database, vault: SecretVault | None = Non
         _nodes_check(database),
         _routing_rules_check(database),
         _profiles_check(data_dir),
-        _core_check(),
+        _core_check(core_available),
     ]
     counts = {
         status: sum(1 for check in checks if check["status"] == status) for status in STATUS_ORDER
@@ -223,7 +239,7 @@ def diagnose(data_dir: Path, database: Database, vault: SecretVault | None = Non
         "status": overall,
         "counts": counts,
         "checks": checks,
-        "core": "NOT_INTEGRATED",
+        "core": "INTEGRATED" if core_available else "NOT_INTEGRATED",
         "note": DIAGNOSTIC_NOTE,
         "network": NETWORK_NOTE,
     }

@@ -46,7 +46,8 @@ class ConnectionController:
             self.state = ConnectionState.ERROR
             raise
 
-    async def connect(self, candidates: list[tuple[str, dict]]) -> str:
+    async def connect(self, candidates: list[tuple[str, dict]], verify=None) -> str:
+        """按候选顺序连接；`verify` 给出时，它必须为真才算连接成功（真实出口验证）。"""
         self.state = ConnectionState.CONNECTING
         try:
             for node_id, config in candidates[: self.candidate_limit]:
@@ -62,6 +63,8 @@ class ConnectionController:
                             await self.adapter.start(config)
                             if not await self.adapter.health_check():
                                 raise SafeError("CORE_UNHEALTHY")
+                            if verify is not None and not await verify():
+                                raise SafeError("CORE_EXIT_UNVERIFIED")
                         circuit.failures = 0
                         self.current_id = node_id
                         self.state = ConnectionState.CONNECTED
