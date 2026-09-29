@@ -10,8 +10,8 @@
 
 | 操作 | 形态 | 说明 |
 |---|---|---|
-| `capabilities()` | 同步 | 宿主真实能力声明；未接入核心时 `core=NOT_INTEGRATED`、能力位全 `false`、`connections=CORE_NOT_INTEGRATED` |
-| `status()` | 同步 | 版本、固定 `DISCONNECTED`、核心状态、节点数、规则数、订阅摘要（仅 7 个非敏感字段） |
+| `capabilities()` | 同步 | 宿主真实能力声明；未接入核心时 `core=NOT_INTEGRATED`、能力位全 `false`、`connections=CORE_NOT_INTEGRATED`；接入后按适配器声明的协议与 `core_process` 如实上报，`traffic` 为 `MEASURED`/`NOT_MEASURED` |
+| `status()` | 同步 | 版本、**连接状态**（连接控制器）、核心接入与核心进程状态、节点数、规则数、订阅摘要（仅 7 个非敏感字段） |
 | `update_subscriptions(master_url, force, interval)` | 异步 | Master 一层加载 → 多源并发 → 事务提交；返回含 `partial_failure` 与 `paused` |
 | `subscriptions()` | 同步 | 订阅视图：匿名显示名、12 位摘要句柄、来源、用户状态、节点数与调度状态；不含 URL |
 | `add_subscription(url)` | 同步 | 手动加入订阅源；URL 加密落库且永不回显；需要密钥 |
@@ -28,7 +28,9 @@
 | `previous_profiles()` / `restore_previous_profiles()` | 同步 | LKG 读取与互换回退 |
 | `backup(destination)` | 同步 | 一致性备份（WAL 安全、0600、返回 SHA-256） |
 | `collect_garbage()` | 同步 | 引用感知 GC |
-| `connect()` / `disconnect()` | 同步 | **未接入核心前必须抛 `CORE_NOT_INTEGRATED`**，不允许 UI 声称已连接 |
+| `connect(node_id=None, country=None)` | 异步 | 智能选择 → 回环单节点配置 → 起核心 → **真实出口验证**；只有探针目标经该节点返回预期状态码才算 `CONNECTED`，否则按候选故障转移，全败 `NO_ELIGIBLE_NODE`。未接入核心抛 `CORE_NOT_INTEGRATED` |
+| `disconnect()` | 异步 | 停止核心进程并删除临时配置；未接入核心抛 `CORE_NOT_INTEGRATED` |
+| `traffic()` | 异步 | 真实流量字节（核心统计 API）；未测量时 `measured=false` 且 `uplink/downlink` 为 `null` |
 
 ## 控制面（本机 API + 静态面板）
 

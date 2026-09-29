@@ -14,14 +14,17 @@
 | accelerator nodes test [--samples 3] [--concurrency 8] [--udp-target HOST:PORT] [--no-udp] | 有限工作队列；历史最多 10 条；SOCKS5 经 UDP ASSOCIATE 实测丢包，其余保持 null |
 | accelerator nodes best [--country JP] | 至少 3 个最近有效测试样本、成功率 ≥80%、当前可用；地理偏好仅轻量加权 |
 | accelerator nodes explain NODE_ID | 节点详情 + 分数解释 + 资格解释；NODE_ID 为列表中的 12 位前缀（4–64 位十六进制均可，唯一命中）。**不含**凭据/订阅 URL |
-| accelerator status | 持久化节点、订阅与固定 DISCONNECTED；不会声称存在后台隧道 |
+| accelerator connect [--node-id ID] [--country JP] | 智能选择 → 回环单节点配置 → 起核心 → **真实出口验证**；只有探针目标经该节点返回预期状态码才算连上。需要密钥（要解密节点凭据）；未接入核心即 `CORE_NOT_INTEGRATED` |
+| accelerator disconnect | 停止核心进程并删除临时配置；未接入核心即 `CORE_NOT_INTEGRATED` |
+| accelerator traffic | 真实流量字节（核心统计 API）；未测量时 `measured=false` 且 `uplink/downlink` 为 `null`。计数是**进程内**的：CLI 每条命令一个新进程，因此重启即清零 |
+| accelerator status | 持久化节点、订阅与真实连接状态（来自连接控制器），并给出核心接入与核心进程状态 |
 | accelerator diagnose | 离线自检：schema/完整性/权限/密钥匹配/密文覆盖/Master/订阅与调度/节点/Profile 信任根/核心状态；不联网、不需要密钥（缺密钥的检查标 SKIP）；`FAILED` 退出 2 |
 | accelerator route explain HOST [--port P] [--protocol tcp\|udp] [--process NAME] | 按已落库规则给出生效动作（PROXY / DIRECT / DEFAULT）与命中的规则；未命中即 `DEFAULT`，不会声称已连接 |
 | accelerator serve [--port 8765] | 在 127.0.0.1 启动控制面与静态面板；token 写入 `<data-dir>/control.token`（0600），面板地址用 URL 片段携带 token |
 
 全局 `--data-dir PATH` 必须放在子命令前。只读命令不要求密钥；更新和测速要求 ACCELERATOR_SECRET_KEY。CLI 默认不显示高级脱敏 URL，不提供原始日志导出。
 
-探测只覆盖可离线验证的代理类型：HTTP CONNECT 与 SOCKS5（RFC 1928 + RFC 1929，支持无认证与用户名/密码）。其余协议在接入获审核心前保持 UNTESTED，不进入 AVAILABLE。探测通过代理请求配置的 HTTPS 204 测试地址，证书验证开启，不接受重定向。
+探测只覆盖可离线验证的代理类型：HTTP CONNECT 与 SOCKS5（RFC 1928 + RFC 1929，支持无认证与用户名/密码）。其余协议由**已接入的固定核心**验证：`nodes test` 在核心就位时为每个节点单独起一个回环实例做真实协议握手并访问探针目标，只有目标返回预期状态码才记 `AVAILABLE`（`backend=INTEGRATED`、`note=VERIFIED_THROUGH_THE_PINNED_CORE`）；核心缺失时退回 TCP/HTTP CONNECT 探测，`note=TCP_ONLY_IS_NOT_PROXY_AVAILABILITY`。探测通过代理请求配置的 HTTPS 204 测试地址，证书验证开启，不接受重定向。
 
 延迟分三段独立记录：`tcp_ms`（到代理的 TCP 连接）、`handshake_ms`（代理协议协商 + 到目标的 TLS 握手）、`http_ms`（隧道内 HTTP 请求到响应）。
 
@@ -30,6 +33,8 @@ UDP 丢包只在 SOCKS5 且出口已验证可用时测量：通过 UDP ASSOCIATE
 实测得到的 `packet_loss` 会进入评分（未测量仍按保守中值计分），因此可测量 UDP 的节点在丢包分项上可能高于不可测量节点。
 
 固定错误码：`PROXY_CONNECT_FAILED`（CONNECT/SOCKS5 协商被拒）、`PROXY_AUTH_FAILED`（代理认证失败）、`PROXY_HTTP_FAILED`（出口返回非 204）、`PROBE_TLS_FAILED`（目标证书校验失败）、`PROBE_UNSUPPORTED`（无可用验证后端）、`PROBE_TIMEOUT`、`PROBE_FAILED`、`URL_REJECTED`；`PROXY_UDP_FAILED` 仅用于 UDP 丢包测量，不会改变节点状态。
+
+核心与数据面相关：`CORE_NOT_INTEGRATED`（没有固定核心二进制）、`CORE_UNSUPPORTED`（该节点超出核心能力，不静默丢弃）、`CORE_CONFIG_UNSUPPORTED` / `CORE_CONFIG_INVALID`（配置生成拒绝）、`CORE_EXIT_DURING_START`（启动期退出，含退出码）、`CORE_START_TIMEOUT`、`CORE_CRASH_LOOP`（窗口内失败超限，熔断）、`CORE_ALREADY_RUNNING`、`CORE_EXIT_UNVERIFIED`（健康检查通过但出口验证未通过）、`NO_ELIGIBLE_NODE`。
 
 ## 订阅管理（本地）
 

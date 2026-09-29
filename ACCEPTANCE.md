@@ -22,6 +22,11 @@
 | 本地订阅管理（C1） | PASS；`add/list/pause/resume/remove`（CLI + API + 面板同源）：指纹去重与 128 上限、句柄前缀唯一/歧义/非法、URL 只以密文保存且任何输出不回显、手动源不被 Master 漂移禁用、暂停不删节点且不混入 `RETRY_PAUSED`、恢复无需 `--force`、移除清理独占节点并如实标注 Master 是否会让它回来 |
 | 离线自检诊断（C2） | PASS；`diagnose`（CLI + API + 面板同源）15 项检查：schema/完整性/权限/密钥匹配/密文覆盖/Master/订阅调度/节点与候选/路由规则/Profile 信任根/核心状态；`PASS/WARN/FAIL/SKIP` + 固定错误码，`FAIL` 退出 2；不联网、不修改状态、不含凭据或数据目录名 |
 | 进程内可观测性（C3） | PASS；`GET /api/host/metrics`（+ 面板同源）：按路由模板统计真实请求、状态码分类与固定错误码，路径中的用户输入不进入指标；标注重启清零与 `traffic.measured=false`，未测量不给数字 |
+| 核心接入与应用层解耦（Gate A 收口） | PASS；`core/accelerator/core_runtime.py`（sidecar 生命周期、0600 临时配置用后删除、无 shell 启动、退出码检查、有界重启与熔断）+ `core/accelerator/xray_adapter.py`（九个契约方法）；`get_logs()` 只回结构化安全事件 |
+| 真实协议握手与出口验证（本机回环） | PASS；四协议（VLESS / VMess / Trojan / Shadowsocks）经固定核心 `v26.3.27` 在本机回环完成真实握手并访问受控 HTTPS 目标，返回 204 才记 `verified`；`tests/test_real_core_loopback.py` |
+| 真实流量字节统计 | PASS；配置显式打开只回环统计入站，字节数由核心统计 API 读回；未连接时 `measured=false` 且数值为 `null`（不给 0 冒充） |
+| 连接语义（connect / disconnect / 故障转移） | PASS（离线部分）；`connect` 必须通过 `verify_exit()`，未通过按候选故障转移，全败 `NO_ELIGIBLE_NODE` 且不写 `CONNECTED`；`disconnect` 停止核心并删除配置；`tests/test_host_connect_unit.py` |
+| 真实公网节点验收 | **BLOCKED_TEST_FIXTURE**；本环境无任何节点凭据，公网可达性与真实节点质量未被验证 |
 | 本机控制面与静态面板 | PASS；仅 127.0.0.1（真实 socket 断言）、Bearer 令牌 401 拒绝、无 `*` CORS、面板不可逃逸 /ui 根、面板资源随 wheel 分发、connect 明确拒绝、**五页信息架构对齐规格 §22 且禁用项标注原因**、新增解释端点为只读且 400 固定错误码 |
 | 门禁可复现（规格 §28） | PASS；scripts/verify.sh 覆盖 lint/格式/离线测试/构建/产物检查 |
 | HTTP CONNECT / SOCKS5 真实出口探测 | LOCAL_INTEGRATION_PASS；本地代理 + TLS + 认证 + 204/500/407/协商拒绝 |

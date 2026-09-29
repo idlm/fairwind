@@ -80,17 +80,26 @@ Remaining:
 - 真实核心运行时 Failover 与 DNS/IPv6 泄漏验收。
 
 Milestone 3 · Core Integration（v0.3.0，数据面）
-█░░░░░░░░░ 10%（Gate A 完成；适配器、运行时、连接未开始）
+████████░░ 80%（本机回环已真实验证；公网节点与平台层未做）
 
 Done:
 - Gate A `CORE_APPROVED`：Xray-core 固定 `v26.3.27` / `d2758a02…`、MPL-2.0、资产 SHA-256 三方一致、许可证哈希两来源一致、二进制不进 Git（`docs/CORE_APPROVAL.md`）。
 - `scripts/fetch_core.py` 按固定清单获取并校验（下载后先比对摘要，不一致即删；`--check` 可离线复核本地核心）。
-- 本机 loopback 真实链路：SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标返回成功（`LOCAL_LOOPBACK_NOT_REMOTE_NODE`）。
+- `core_config.generate(..., api_port=…)`：可选**只回环**统计入站（`dokodemo-door` + StatsService + 统计开关），出站仍只有一个代理；`validate()` 同步收紧。
+- `core_runtime.py`：sidecar 生命周期——0600 原子配置、停止即删除、无 shell 启动、最小环境、就绪探测、启动期退出读退出码、有界重启与熔断、结构化安全事件（不转发核心原始日志）。
+- `xray_adapter.py`：九个契约方法全部实现，能力声明如实（UDP / IPv6 / TUN / 进程规则未验证即不声明）；`verify_exit()` 用真实出口证明连通。
+- `connect` / `disconnect` / `traffic` 接入宿主、CLI 与 HTTP API；`connect` 必须通过出口验证才算 `CONNECTED`，否则按候选故障转移。
+- 真实流量字节：`xray api statsquery` 读回上行/下行；未测量时 `null` 而不是 0。
+- `nodes test` 在核心就位时改用真实握手后端（每个节点一个隔离实例，并发收紧到 2）。
+- **本机回环真实验证**：四协议（VLESS / VMess / Trojan / Shadowsocks）真实握手 + 出口验证 + 真实字节计数 + 熔断 + 停止后配置删除，`tests/test_real_core_loopback.py`（7 项，3.6s）。
+
+Tests:
+- 新增：`tests/test_core_runtime_unit.py`（11）、`tests/test_host_connect_unit.py`（10）、`tests/test_core_control_surface.py`（5）、`tests/test_real_core_loopback.py`（7）。
+- 既有断言按"未测量不给数字 / 未接入不声称"收紧（例如 `/traffic` 与 `/connections` 未测量时是 `null` 而不是 0）。
 
 Remaining:
-- `CoreService` / `XrayCoreAdapter` / `CoreConfigGenerator` / `CoreRuntimeManager`（进程生命周期、健康检查、有界重启与熔断）。
-- `connect` / `disconnect` / `status` 与真实 `test_node`、真实流量字节统计、真实 Failover。
-- 真实公网远程节点验收：`BLOCKED_TEST_FIXTURE`（本环境无真实节点凭据）。
+- 真实公网远程节点验收：`BLOCKED_TEST_FIXTURE`（本环境无真实节点凭据）；UDP 转发、IPv6 出口未验证。
+- 平台层（Windows 系统代理/TUN、Android VpnService、iOS NetworkExtension）仍属 Gate B。
 
 Milestone 3–6、8
 ░░░░░░░░░░ 0%

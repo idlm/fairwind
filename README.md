@@ -49,9 +49,9 @@ uv build
 | 控制面 | 受限探测（HTTP CONNECT / SOCKS5 / UDP 丢包实测）、滚动历史、可解释评分、Smart Select、节点详情与三层解释 | 已实现 | 同上 |
 | 控制面 | Game Profile 校验、路由规则生成与解释、签名远程更新 + LKG | 已实现（**规则尚未作用于真实流量**） | 同上 |
 | 控制面 | 本地订阅管理、离线自检诊断、进程内指标、CLI / 本机 API / 五页静态面板 | 已实现 | 同上 |
-| **数据面** | **CoreAdapter → 已批准核心 → 配置生成 → 进程生命周期 → 本地 SOCKS5 → 真实协议握手 → 真实流量** | **未实现**（`v0.3.0-core-integration` 目标） | Gate A `CORE_APPROVED` |
-| 数据面 | 真实代理出口验证（VLESS / VMess / Trojan / Shadowsocks） | 未实现，保持 `UNTESTED` | Gate A |
-| 数据面 | 真实流量字节统计（当前 `traffic.measured=false`） | 未实现 | Gate A |
+| **数据面** | **CoreAdapter → 已批准核心 → 配置生成 → 进程生命周期 → 本地 SOCKS5 → 真实协议握手 → 真实流量** | **已实现并在本机回环验证**；公网节点仍未验收 | Gate A ✓ / 公网节点 `BLOCKED_TEST_FIXTURE` |
+| 数据面 | 真实代理出口验证（VLESS / VMess / Trojan / Shadowsocks） | **已实现**：四协议在本机回环完成真实握手并经出口验证（`tests/test_real_core_loopback.py`）；公网节点保持 `BLOCKED_TEST_FIXTURE` | Gate A ✓ |
+| 数据面 | 真实流量字节统计 | **已实现**：只回环统计 API（`xray api statsquery`），`traffic.measured=true` 时给出真实字节；未连接时为 `null` | Gate A ✓ |
 | 平台 | Windows 10/11：System Proxy → TUN → 游戏规则分流 → 安装包 | 未实现 | Gate B `PLATFORM_READY` |
 | 平台 | Android：VpnService → TUN → 按应用 VPN | 未实现（`apps/android/` 源码已可编译出 debug APK，未接入核心、未真机验证） | Gate B |
 | 平台 | Windows 7 Legacy（独立 runtime 与验收） | 未实现 | Gate B |

@@ -17,6 +17,17 @@
 - 接入模型：进程隔离 sidecar（ADR-0001 由"提议"转为**已批准**）；UI / CLI / API / Domain Layer 禁止直接调用核心
 - 本机 loopback 真实链路已验证：客户端 SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标取回标记内容（标签 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`，**不是**公网节点验收）
 
+### 数据面接入：真实核心 sidecar（Gate A 收口，2026-09-29）
+
+- `core/accelerator/core_config.py`：新增可选**只回环统计入站**（`dokodemo-door` + `StatsService` + 统计开关 + 仅指向该入站的路由规则）；出站仍然只有一个代理，`validate()` 同步收紧
+- `core/accelerator/core_runtime.py`（新）：sidecar 生命周期——0600 原子配置、停止即删除、`create_subprocess_exec` 无 shell 启动、最小环境变量、就绪探测、**启动期退出读退出码**、有界重启与熔断（`CORE_CRASH_LOOP`）、结构化安全事件（**不转发核心原始日志**，核心输出只用于分类）
+- `core/accelerator/xray_adapter.py`（新）：`CORE_ADAPTER_SPEC.md` 的九个方法全部实现；能力声明如实（UDP / IPv6 / TUN / 进程规则未验证即不声明）；`test_node` 为每个节点起隔离实例做真实握手，`verify_exit` 用真实出口证明连通
+- 宿主 / CLI / HTTP API：`connect`（智能选择 → 回环配置 → 起核心 → **出口验证**，未通过即故障转移）、`disconnect`、`traffic`；`/traffic` 与 `/connections` 未测量时返回 `null` 而不是 0；`capabilities()` / `status()` / `/version` 等不再硬编码 `NOT_INTEGRATED`
+- `nodes test`：核心就位时改用真实握手后端（每节点一个隔离实例，并发收紧到 2），并如实标注后端
+- 面板：智能加速按钮只在核心接入后可用，接上 `POST /api/host/connect|disconnect`，实时显示真实流量或"未测量"
+- **本机回环真实验证**（`tests/test_real_core_loopback.py`）：VLESS / VMess / Trojan / Shadowsocks 四协议真实握手 + 出口验证（受控 HTTPS 目标 204）+ 真实字节计数（统计 API）+ 熔断 + 停止后配置删除，7 项 3.6s
+- 边界不变：真实公网节点仍 `BLOCKED_TEST_FIXTURE`（本环境无节点凭据）；UDP 转发与 IPv6 出口未验证，因此不声明
+
 ### 平台客户端源码（Gate B，2026-09-29）
 
 - `apps/android/`：Kotlin/VpnService 客户端源码 38 文件；**全量强制重编译 0 error / 0 warning**，`assembleDebug` 产出 debug APK（10,299,095 字节，sha256 `7c27e49b04e85f49d58de1c9d6952e945d6e41bbda961cf9baa68b891c3df83e`，APK Signature Scheme v2 校验通过，`zipalign -c 4` OK，15 个 dex）
