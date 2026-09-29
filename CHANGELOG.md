@@ -4,6 +4,19 @@
 
 格式参考 Keep a Changelog；版本语义为参考基线，而非已发布产品。
 
+## [0.3.0-core-integration] — 开发中（未发布）
+
+数据面阶段：让已完成的控制面真正驱动**已批准的核心**，并通过真实代理协议完成连接与数据转发。
+
+### Gate A — `CORE_APPROVED`（2026-09-29）
+
+- 固定核心：`XTLS/Xray-core`，tag `v26.3.27` → commit `d2758a023cd7f4174a5a5fa4ff66e487d4342ba0`，MPL-2.0（Incompatible With Secondary Licenses），`docs/CORE_APPROVAL.md`
+- 固定资产：`Xray-linux-64.zip` `23cd9af9…`、`Xray-windows-64.zip` `d004c392…`、`Xray-win7-64.zip` `02a47988…`；官方 `.dgst`、GitHub 资产 digest 与本地三方一致
+- 许可证 SHA-256 `1f256eca…` 在**仓库路径**与**发行包内**两个来源一致；核心二进制与 geo 数据**不进入 Git**（`third_party/` 已 gitignore）
+- `scripts/fetch_core.py`：只按固定清单下载、下载后先校验 SHA-256（不一致立即删除、绝不解压）、`--check` 只校验本地核心
+- 接入模型：进程隔离 sidecar（ADR-0001 由"提议"转为**已批准**）；UI / CLI / API / Domain Layer 禁止直接调用核心
+- 本机 loopback 真实链路已验证：客户端 SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标取回标记内容（标签 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`，**不是**公网节点验收）
+
 ## [0.2.0-control-plane] — 2026-09-29
 
 控制面基线（包版本 `0.2.0`；tag `v0.2.0-control-plane`）：把**既有** Domain Logic 暴露为节点详情、分数/资格/选择解释与路由解释，并补齐本地订阅管理、离线自检诊断与进程内指标。解释层不新增算法、不新增权重、不虚构负分项。

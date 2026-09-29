@@ -79,6 +79,19 @@ Remaining:
 - 长期稳定性与真实网络的丢包基线；未知项保持 null。
 - 真实核心运行时 Failover 与 DNS/IPv6 泄漏验收。
 
+Milestone 3 · Core Integration（v0.3.0，数据面）
+█░░░░░░░░░ 10%（Gate A 完成；适配器、运行时、连接未开始）
+
+Done:
+- Gate A `CORE_APPROVED`：Xray-core 固定 `v26.3.27` / `d2758a02…`、MPL-2.0、资产 SHA-256 三方一致、许可证哈希两来源一致、二进制不进 Git（`docs/CORE_APPROVAL.md`）。
+- `scripts/fetch_core.py` 按固定清单获取并校验（下载后先比对摘要，不一致即删；`--check` 可离线复核本地核心）。
+- 本机 loopback 真实链路：SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标返回成功（`LOCAL_LOOPBACK_NOT_REMOTE_NODE`）。
+
+Remaining:
+- `CoreService` / `XrayCoreAdapter` / `CoreConfigGenerator` / `CoreRuntimeManager`（进程生命周期、健康检查、有界重启与熔断）。
+- `connect` / `disconnect` / `status` 与真实 `test_node`、真实流量字节统计、真实 Failover。
+- 真实公网远程节点验收：`BLOCKED_TEST_FIXTURE`（本环境无真实节点凭据）。
+
 Milestone 3–6、8
 ░░░░░░░░░░ 0%
 
