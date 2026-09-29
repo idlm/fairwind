@@ -93,15 +93,22 @@ def test_verify_archive_refuses_and_deletes_on_mismatch(tmp_path):
 
 
 def test_extract_only_takes_pinned_members_and_blocks_traversal(tmp_path):
+    # 固定清单里的二进制名是**平台相关**的（Windows 发行包内是 xray.exe）。夹具必须用本平台
+    # 的同一个名字，否则写进去的成员会被"非固定成员"过滤掉——那会让 Windows 上这条测试失败，
+    # 而实现其实是对的。另一平台的二进制名则必须被拒绝。
+    binary = core_pin.BINARY_NAME
+    other = "xray.exe" if binary == "xray" else "xray"
     archive = tmp_path / "core.zip"
     with zipfile.ZipFile(archive, "w") as bundle:
-        bundle.writestr("xray", b"#!/bin/sh\n")
+        bundle.writestr(binary, b"#!/bin/sh\n")
         bundle.writestr("LICENSE", b"Mozilla Public License Version 2.0\n")
         bundle.writestr("../evil.sh", b"boom\n")
-        bundle.writestr("nested/xray", b"boom\n")
+        bundle.writestr(f"nested/{binary}", b"boom\n")
+        bundle.writestr(other, b"another platform's binary name\n")
     destination = tmp_path / "out"
     extracted = fetch_core.extract(archive, destination)
-    assert extracted == ["LICENSE", "xray"]
+    assert extracted == sorted(["LICENSE", binary])
+    assert other not in extracted, "另一平台的二进制名不在本平台固定清单里"
     assert not (tmp_path / "evil.sh").exists()
     assert not (destination / "nested").exists()
     empty = tmp_path / "empty.zip"

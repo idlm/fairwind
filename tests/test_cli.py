@@ -44,9 +44,33 @@ def test_cli_read_commands_without_key(tmp_path, command):
         env=environment,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
     )
     assert result.returncode == 0 and json.loads(result.stdout)
+    assert result.stderr == ""
+
+
+@pytest.mark.parametrize("command", [["route", "explain", "example.com"], ["diagnose"]])
+def test_cli_json_output_survives_a_non_utf8_console(tmp_path, command):
+    """非 UTF-8 控制台不得让命令失败（回归）。
+
+    Windows CI（en-US）默认 cp1252：`emit` 用 `ensure_ascii=False`，中文写进 stdout 时
+    `print` 抛 `UnicodeEncodeError`，被 `main` 的兜底当成 `INTERNAL_ERROR`——`diagnose`
+    与 `route explain` 两条命令整条变成错误。这里显式用 cp1252 模拟那个控制台。
+    """
+    environment = {**os.environ, "PYTHONIOENCODING": "cp1252"}
+    result = subprocess.run(
+        [sys.executable, "-m", "accelerator.cli", "--data-dir", str(tmp_path), *command],
+        env=environment,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout
+    document = json.loads(result.stdout)
+    assert "error" not in document, document
     assert result.stderr == ""
 
 
@@ -69,6 +93,7 @@ def test_cli_sensitive_command_missing_key(tmp_path):
         env=environment,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
     )
     assert result.returncode == 2
@@ -115,6 +140,7 @@ def test_cli_diagnose_on_unsupported_schema(tmp_path, vault):
         env=environment,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
     )
     assert result.returncode == 2
@@ -136,6 +162,7 @@ def test_invalid_cli_argument_not_echoed(tmp_path):
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
     )
     assert result.returncode == 2

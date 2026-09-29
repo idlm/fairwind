@@ -99,6 +99,26 @@ def emit(value: object) -> None:
     print(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False))
 
 
+def configure_output_streams() -> None:
+    """让输出不依赖控制台编码。
+
+    `emit` 用 `ensure_ascii=False`，中文会直接写进 stdout。Windows CI（en-US）默认
+    cp1252，`print` 于是抛 `UnicodeEncodeError`，被 `main` 的兜底捕获成
+    `INTERNAL_ERROR`——命令本身没失败，失败的是"打印"（诊断与路由解释因此整条返回错误）。
+
+    规则：管道/重定向（工具、面板、CI 消费方）固定 UTF-8；交互终端保留控制台编码但用
+    `errors="replace"`。两种情况都不会再因为写不出某个字符而让命令失败。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:  # 被替换过的流（测试替身、已包装的流）不碰
+            continue
+        if stream.isatty():
+            reconfigure(errors="replace")
+        else:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 def optional_vault(data_dir: Path) -> SecretVault | None:
     """控制面用：环境提供了密钥就加载（订阅添加等敏感操作需要），缺失时不让 serve 启动失败。
 
@@ -186,6 +206,7 @@ async def execute(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
+    configure_output_streams()
     try:
         return asyncio.run(execute(make_parser().parse_args()))
     except SafeError as error:
