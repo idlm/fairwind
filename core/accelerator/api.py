@@ -145,24 +145,27 @@ async def handle_version(request: web.Request) -> web.Response:
             "version": __version__,
             "meta": False,
             "premium": False,
-            "core": CORE_NOT_INTEGRATED,
+            "core": _service(request).core_state(),
             "note": "CONTROL_API_IS_REFERENCE_HOST",
         }
     )
 
 
 async def handle_configs(request: web.Request) -> web.Response:
-    """只读配置摘要：未接入核心时不虚构监听端口。"""
+    """只读配置摘要：未连接时不虚构监听端口（连上了才报真实回环端口）。"""
+    service = _service(request)
+    runtime = service.adapter.runtime
+    connected = service.controller.state.value == "CONNECTED" and runtime.socks_port is not None
     return _json(
         {
             "mode": "rule",
-            "port": 0,
-            "socks-port": 0,
+            "port": runtime.api_port if connected else 0,
+            "socks-port": runtime.socks_port if connected else 0,
             "mixed-port": 0,
             "allow-lan": False,
             "bind-address": "127.0.0.1",
-            "mode_source": "REFERENCE_DEFAULT",
-            "core": CORE_NOT_INTEGRATED,
+            "mode_source": "CORE_LOOPBACK_INBOUND" if connected else "REFERENCE_DEFAULT",
+            "core": service.core_state(),
         }
     )
 
@@ -181,28 +184,43 @@ async def handle_proxies(request: web.Request) -> web.Response:
         }
         for row in listing["nodes"]
     }
-    return _json({"proxies": proxies, "count": listing["count"], "core": CORE_NOT_INTEGRATED})
+    return _json(
+        {
+            "proxies": proxies,
+            "count": listing["count"],
+            "core": _service(request).core_state(),
+        }
+    )
 
 
 async def handle_connections(request: web.Request) -> web.Response:
+    service = _service(request)
+    history = service.connection_history(int(request.query.get("limit", "10")))
+    traffic = await service.traffic()
     return _json(
         {
-            "downloadTotal": 0,
-            "uploadTotal": 0,
-            "connections": [],
-            "core": CORE_NOT_INTEGRATED,
-            "note": "ZERO_MEANS_UNMEASURED_UNTIL_CORE_INTEGRATED",
+            "downloadTotal": traffic["downlink"],
+            "uploadTotal": traffic["uplink"],
+            "connections": history["history"],
+            "core": service.core_state(),
+            "measured": traffic["measured"],
+            "note": traffic["note"],
         }
     )
 
 
 async def handle_traffic(request: web.Request) -> web.Response:
+    """真实流量字节：来自核心统计 API；未连接时 `null`，不是 0。"""
+    service = _service(request)
+    traffic = await service.traffic()
     return _json(
         {
-            "up": 0,
-            "down": 0,
-            "core": CORE_NOT_INTEGRATED,
-            "note": "ZERO_MEANS_UNMEASURED_UNTIL_CORE_INTEGRATED",
+            "up": traffic["uplink"],
+            "down": traffic["downlink"],
+            "measured": traffic["measured"],
+            "traffic_measured": traffic["measured"],
+            "core": service.core_state(),
+            "note": traffic["note"],
         }
     )
 
@@ -282,7 +300,10 @@ async def handle_host_metrics(request: web.Request) -> web.Response:
     """进程内指标：只统计本进程真实发生过的请求；流量未测量，不做任何推算。"""
     metrics = request.app.get(METRICS_KEY)
     payload = metrics.snapshot() if metrics is not None else {}
-    return _json({**payload, "core": CORE_NOT_INTEGRATED})
+    service = _service(request)
+    traffic = await service.traffic()
+    payload["traffic"] = {**payload.get("traffic", {}), **traffic}
+    return _json({**payload, "core": service.core_state()})
 
 
 async def handle_subscriptions_update(request: web.Request) -> web.Response:
@@ -344,8 +365,19 @@ async def handle_profiles_apply(request: web.Request) -> web.Response:
 
 
 async def handle_connect(request: web.Request) -> web.Response:
-    """未接入核心前必须明确失败：控制面不允许让 UI 声称已连接。"""
-    return _error("CORE_NOT_INTEGRATED", 400)
+    """连接一条线路：成功返回真实状态与节点；核心未接入时固定 `CORE_NOT_INTEGRATED`。"""
+    payload = await _body(request, ())
+    node_id = payload.get("node_id") or payload.get("nodeId")
+    country = payload.get("country")
+    for value, code in ((node_id, "NODE_ID_INVALID"), (country, "ARGUMENT_INVALID")):
+        if value is not None and not isinstance(value, str):
+            raise SafeError(code)
+    return _json(await _service(request).connect(node_id, country))
+
+
+async def handle_disconnect(request: web.Request) -> web.Response:
+    """断开：停止核心进程并删除临时配置（凭据不留在磁盘上）。"""
+    return _json(await _service(request).disconnect())
 
 
 async def handle_ui(request: web.Request) -> web.Response:
@@ -388,6 +420,8 @@ def build_app(service: HostService, token: str, metrics: Metrics | None = None) 
     app.router.add_get(f"{HOST_PREFIX}/history", handle_host_history)
     app.router.add_get(f"{HOST_PREFIX}/diagnostic", handle_host_diagnostic)
     app.router.add_get(f"{HOST_PREFIX}/metrics", handle_host_metrics)
+    app.router.add_post(f"{HOST_PREFIX}/connect", handle_connect)
+    app.router.add_post(f"{HOST_PREFIX}/disconnect", handle_disconnect)
     app.router.add_post(f"{HOST_PREFIX}/subscriptions/update", handle_subscriptions_update)
     app.router.add_post(f"{HOST_PREFIX}/subscriptions", handle_subscriptions_add)
     app.router.add_post(f"{HOST_PREFIX}/subscriptions/{{handle}}", handle_subscription_action)

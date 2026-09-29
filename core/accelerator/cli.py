@@ -67,6 +67,11 @@ def make_parser() -> argparse.ArgumentParser:
     route_explain.add_argument("--port", type=int)
     route_explain.add_argument("--protocol", choices=("tcp", "udp"))
     route_explain.add_argument("--process")
+    connecting = commands.add_parser("connect")
+    connecting.add_argument("--node-id")
+    connecting.add_argument("--country")
+    commands.add_parser("disconnect")
+    commands.add_parser("traffic")
     commands.add_parser("diagnose")
     commands.add_parser("status")
     serving = commands.add_parser("serve")
@@ -133,8 +138,10 @@ def optional_vault(data_dir: Path) -> SecretVault | None:
 
 
 async def execute(args: argparse.Namespace) -> int:
-    sensitive = (args.command == "subscriptions" and args.action in {"update", "add"}) or (
-        args.command == "nodes" and args.action == "test"
+    sensitive = (
+        (args.command == "subscriptions" and args.action in {"update", "add"})
+        or (args.command == "nodes" and args.action == "test")
+        or args.command == "connect"  # 节点凭据要解密才能生成核心配置
     )
     if sensitive:
         vault = SecretVault.from_environment(args.data_dir / "secrets")
@@ -153,7 +160,7 @@ async def execute(args: argparse.Namespace) -> int:
                     "panel_url": f"http://{host}:{port}/ui/#token={token}",
                     "token_file": str(args.data_dir / "control.token"),
                     "note": "TOKEN_IS_IN_URL_FRAGMENT_AND_NOT_SENT_TO_SERVER",
-                    "core": "NOT_INTEGRATED",
+                    "core": service.core_state(),
                 }
             )
 
@@ -181,6 +188,15 @@ async def execute(args: argparse.Namespace) -> int:
         return 2 if report["status"] == "FAILED" else 0
     if args.command == "status":
         emit(service.status())
+        return 0
+    if args.command == "connect":
+        emit(await service.connect(args.node_id, args.country))
+        return 0
+    if args.command == "disconnect":
+        emit(await service.disconnect())
+        return 0
+    if args.command == "traffic":
+        emit(await service.traffic())
         return 0
     if args.command == "route":
         emit(service.explain_route(args.host, args.port, args.protocol, args.process))

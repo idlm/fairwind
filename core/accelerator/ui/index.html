@@ -67,9 +67,11 @@
       <h2>智能加速</h2>
       <div class="row">
         <button id="connect" disabled title="未接入代理核心：CORE_NOT_INTEGRATED">智能加速（连接）</button>
+        <button id="disconnect" disabled title="尚未连接">断开</button>
         <button id="refresh">刷新状态</button>
       </div>
       <p class="muted blocked" id="connect-note">连接在接入获审代理核心前不可用，原因见「设置 → 能力声明」。本面板不会、也不能声称已连接。</p>
+      <pre id="connect-output" class="muted"></pre>
       <h2>当前模式</h2>
       <div class="row">
         <select id="mode" disabled>
@@ -223,6 +225,7 @@ const state = {
   token: sessionStorage.getItem("accelerator.token") || "",
   country: "",
   tab: "home",
+  connected: false,
 };
 
 function text(id, value) { document.getElementById(id).textContent = value; }
@@ -286,10 +289,28 @@ async function loadStatus() {
     const status = await call("/api/host/status");
     setBadge("state", "state " + status.state);
     showAuth(false);
+    state.connected = status.state === "CONNECTED";
+    const capabilities = await call("/api/host/capabilities");
+    const integrated = capabilities.core === "INTEGRATED";
+    const connectButton = document.getElementById("connect");
+    connectButton.disabled = !integrated || state.connected;
+    connectButton.title = integrated
+      ? "连接必须经真实出口验证；失败会按候选顺序故障转移"
+      : "未接入代理核心：CORE_NOT_INTEGRATED";
+    const disconnectButton = document.getElementById("disconnect");
+    disconnectButton.disabled = !integrated || !state.connected;
+    disconnectButton.title = state.connected ? "停止核心并删除临时配置" : "尚未连接";
+    const note = document.getElementById("connect-note");
+    note.textContent = integrated
+      ? "已接入固定核心（" + (capabilities.protocols || []).join("/") + "）。只有探针目标经该节点返回预期状态码才算已连接；UDP 与 IPv6 未验证，本面板不声明。"
+      : "连接在接入获审代理核心前不可用，原因见「设置 → 能力声明」。本面板不会、也不能声称已连接。";
+    note.className = integrated ? "muted" : "muted blocked";
     const best = await call("/api/host/nodes/best");
     text("best", best.best.length ? JSON.stringify(best.best, null, 2) : "暂无合格候选（" + best.status + "）：需要至少 3 次真实探测样本");
     const traffic = await call("/traffic");
-    text("live", JSON.stringify({ up: "UNKNOWN", down: "UNKNOWN", ping_ms: null, note: traffic.note }, null, 2));
+    text("live", JSON.stringify(traffic.measured
+      ? { up: traffic.up, down: traffic.down, measured: true, note: traffic.note }
+      : { up: "UNKNOWN", down: "UNKNOWN", ping_ms: null, note: traffic.note }, null, 2));
     if (state.tab === "home") { await loadSummary(); }
   } catch (error) {
     fail("best", error);
@@ -425,6 +446,26 @@ document.getElementById("token-save").addEventListener("click", () => {
   state.token = document.getElementById("token-input").value.trim();
   sessionStorage.setItem("accelerator.token", state.token);
   loadStatus();
+});
+document.getElementById("connect").addEventListener("click", async () => {
+  const output = document.getElementById("connect-output");
+  output.textContent = "连接中（智能选择 → 生成回环配置 → 起核心 → 真实出口验证）…";
+  try {
+    const result = await call("/api/host/connect", { method: "POST", body: "{}" });
+    output.textContent = JSON.stringify(result, null, 2);
+  } catch (error) {
+    output.textContent = "连接失败：" + error.message + "（失败会按候选顺序故障转移；未经验证不会显示已连接）";
+  }
+  await loadStatus();
+});
+document.getElementById("disconnect").addEventListener("click", async () => {
+  const output = document.getElementById("connect-output");
+  try {
+    output.textContent = JSON.stringify(await call("/api/host/disconnect", { method: "POST", body: "{}" }), null, 2);
+  } catch (error) {
+    output.textContent = "断开失败：" + error.message;
+  }
+  await loadStatus();
 });
 document.getElementById("metrics").addEventListener("click", async () => {
   try {
