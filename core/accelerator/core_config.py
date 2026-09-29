@@ -32,6 +32,11 @@ SECRET_KEYS = ("id", "password")
 # 必须留在配置里（核心要用），因此不能算作"泄漏"。
 SECRET_CREDENTIAL_KEYS = ("uuid", "password")
 DEFAULT_SOCKS_PORT = 10808
+# 统计 API（真实流量字节的唯一来源）：只监听回环，且只在显式请求时才写进配置。
+API_INBOUND_TAG = "api-in"
+API_HANDLER_TAG = "api"
+API_INBOUND_PROTOCOL = "dokodemo-door"
+STATS_SERVICE = "StatsService"
 
 
 def _stream_settings(node: ProxyNode) -> dict:
@@ -124,15 +129,24 @@ def generate(
     socks_port: int = DEFAULT_SOCKS_PORT,
     *,
     http_port: int | None = None,
+    api_port: int | None = None,
     log_level: str = "warning",
 ) -> dict:
     """生成只监听本机回环的单节点代理配置。
 
     入站只允许 127.0.0.1；SOCKS 的 `udp` 恒为 false（UDP 转发尚未实现，就不开）。
+
+    `api_port` 打开统计 API（只回环）：没有它就没有真实流量字节，`traffic.measured` 只能是 false。
+    打开时额外出现一个 `dokodemo-door` 入站与一条只把该入站交给 API handler 的路由规则——
+    出站仍然**只有一个**代理。
     """
     if not 1 <= socks_port <= 65535 or not 1 <= node.secret.port <= 65535:
         raise SafeError("CONFIG_REJECTED")
     if http_port is not None and not 1 <= http_port <= 65535:
+        raise SafeError("CONFIG_REJECTED")
+    if api_port is not None and not 1 <= api_port <= 65535:
+        raise SafeError("CONFIG_REJECTED")
+    if api_port is not None and api_port == socks_port:
         raise SafeError("CONFIG_REJECTED")
     if log_level not in LOG_LEVELS:
         raise SafeError("CONFIG_REJECTED")
@@ -157,11 +171,43 @@ def generate(
                 "sniffing": {"enabled": False},
             }
         )
-    return {
+    config: dict = {
         "log": {"loglevel": log_level, "access": "none"},
         "inbounds": inbounds,
         "outbounds": [{"tag": "proxy", **_outbound(node)}],
     }
+    if api_port is not None:
+        inbounds.append(
+            {
+                "tag": API_INBOUND_TAG,
+                "listen": LOOPBACK,
+                "port": api_port,
+                "protocol": API_INBOUND_PROTOCOL,
+                "settings": {"address": LOOPBACK},
+                "sniffing": {"enabled": False},
+            }
+        )
+        # 计数开关：只有 stats + policy 同时打开，StatsService 才会返回非零计数。
+        config["stats"] = {}
+        config["api"] = {"tag": API_HANDLER_TAG, "services": [STATS_SERVICE]}
+        config["policy"] = {
+            "system": {
+                "statsInboundUplink": True,
+                "statsInboundDownlink": True,
+                "statsOutboundUplink": True,
+                "statsOutboundDownlink": True,
+            }
+        }
+        config["routing"] = {
+            "rules": [
+                {
+                    "type": "field",
+                    "inboundTag": [API_INBOUND_TAG],
+                    "outboundTag": API_HANDLER_TAG,
+                }
+            ]
+        }
+    return config
 
 
 def redact(config: dict) -> dict:
@@ -230,17 +276,34 @@ def remove_config(path: Path) -> None:
 
 
 def validate(config: dict) -> None:
-    """结构化校验：入站只能是回环 SOCKS/HTTP，出站恰好一个已知协议的代理。"""
+    """结构化校验：入站只能是回环 SOCKS/HTTP（外加可选的统计 API），出站恰好一个已知协议的代理。"""
     inbounds = config.get("inbounds") or []
     outbounds = config.get("outbounds") or []
     if not inbounds or len(outbounds) != 1:
         raise SafeError("CORE_CONFIG_INVALID")
+    api_port = (config.get("api") or {}).get("tag")
+    api_inbounds = 0
     for inbound in inbounds:
         if inbound.get("listen") != LOOPBACK:
             raise SafeError("CORE_CONFIG_INVALID")
-        if inbound.get("protocol") not in ("socks", "http"):
+        protocol = inbound.get("protocol")
+        if protocol == API_INBOUND_PROTOCOL:
+            # 统计 API 也必须在回环上，且必须与 api handler 的 tag 一致
+            if inbound.get("tag") != API_INBOUND_TAG or api_port != API_HANDLER_TAG:
+                raise SafeError("CORE_CONFIG_INVALID")
+            api_inbounds += 1
+            continue
+        if protocol not in ("socks", "http"):
             raise SafeError("CORE_CONFIG_INVALID")
-        if inbound.get("protocol") == "socks" and inbound["settings"].get("udp") is not False:
+        if protocol == "socks" and inbound["settings"].get("udp") is not False:
+            raise SafeError("CORE_CONFIG_INVALID")
+    if api_inbounds > 1:
+        raise SafeError("CORE_CONFIG_INVALID")
+    rules = (config.get("routing") or {}).get("rules") or []
+    for rule in rules:
+        if rule.get("outboundTag") != API_HANDLER_TAG or rule.get("inboundTag") != [
+            API_INBOUND_TAG
+        ]:
             raise SafeError("CORE_CONFIG_INVALID")
     outbound = outbounds[0]
     if outbound.get("protocol") not in CORE_PROTOCOLS or not outbound.get("settings"):
