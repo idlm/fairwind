@@ -68,7 +68,19 @@ Core Adapter → Core Process/Library → Local Config Generator → Health Chec
 
 签名材料与凭据**不得写入源码、不得提交 Git**（`.p12` / `.keystore` / 私钥 / 签名口令一律禁止），也不得创建假证书。
 
-## 已发布基线记录：`v0.1.0-reference`
+## 已发布基线记录
+
+### `v0.2.0-control-plane`
+
+| 项 | 值 |
+|---|---|
+| 收口 commit | 见 tag `v0.2.0-control-plane` 解引用 |
+| tag | `v0.2.0-control-plane`（annotated，**不可修改、不可 force-move**） |
+| Release URL | https://github.com/idlm/smart-accelerator/releases/tag/v0.2.0-control-plane |
+| 清单 | `docs/validation/VA-0.2.0-2026-09-29.manifest.json` |
+| 范围 | **仅控制面**：节点详情与三层解释、路由解释、本地订阅管理、离线自检诊断、进程内指标、CLI/API/面板；**不含**代理核心接入、真实隧道、TUN/系统代理、原生客户端 |
+
+### `v0.1.0-reference`
 
 | 项 | 值 |
 |---|---|

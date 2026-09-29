@@ -39,9 +39,26 @@ uv build
 
 门禁已固化为 `scripts/verify.sh`（lint、格式、离线测试、构建与产物卫生检查：wheel/sdist 不得包含 `.secret`、`.sqlite3` 等敏感文件）。
 
-## 当前状态（`v0.1.0-reference` 已发布；工作区为 `0.2.0` 开发线）
+## 当前状态（已发布：`v0.1.0-reference`、`v0.2.0-control-plane`；工作区为 `0.3.0` 开发线）
 
-**已实现（离线可验证）**：Master 一层加载与多源并发（单源失败隔离）、URI / Base64 / Clash·Mihomo YAML / sing-box JSON 严格解析、规范化与语义去重、地区分类、受限探测（HTTP CONNECT、SOCKS5、UDP 丢包实测）、滚动历史与可解释评分、Smart Select、节点详情与三层解释（分数分项/资格/选择）、路由匹配与解释（优先级首个命中，未命中即 `DEFAULT`）、本地订阅管理（列出/添加/暂停/恢复/移除，句柄为不可逆摘要前缀）、Game Profile 校验与路由规则生成、签名远程更新与 LKG、AES-GCM 密文存储与引用感知 GC、SQLite 迁移/备份/恢复、DNS 策略引擎、本机控制面（Clash 兼容子集）与五页静态面板、参考 CLI（订阅更新/列出/添加/暂停/恢复/移除、节点列表/测速/推荐/解释、路由解释、状态、控制面）。
+### 能力矩阵
+
+| 层 | 能力 | 状态 | 阻塞 / 证据 |
+|---|---|---|---|
+| 控制面 | 订阅加载（Master 一层 + 多源并发）、严格解析、规范化去重、分类、密文存储、LKG、备份/恢复、引用感知 GC | 已实现（离线可验证） | `CHANGELOG.md`、`docs/VALIDATION_REPORT.md` |
+| 控制面 | 受限探测（HTTP CONNECT / SOCKS5 / UDP 丢包实测）、滚动历史、可解释评分、Smart Select、节点详情与三层解释 | 已实现 | 同上 |
+| 控制面 | Game Profile 校验、路由规则生成与解释、签名远程更新 + LKG | 已实现（**规则尚未作用于真实流量**） | 同上 |
+| 控制面 | 本地订阅管理、离线自检诊断、进程内指标、CLI / 本机 API / 五页静态面板 | 已实现 | 同上 |
+| **数据面** | **CoreAdapter → 已批准核心 → 配置生成 → 进程生命周期 → 本地 SOCKS5 → 真实协议握手 → 真实流量** | **未实现**（`v0.3.0-core-integration` 目标） | Gate A `CORE_APPROVED` |
+| 数据面 | 真实代理出口验证（VLESS / VMess / Trojan / Shadowsocks） | 未实现，保持 `UNTESTED` | Gate A |
+| 数据面 | 真实流量字节统计（当前 `traffic.measured=false`） | 未实现 | Gate A |
+| 平台 | Windows 10/11：System Proxy → TUN → 游戏规则分流 → 安装包 | 未实现 | Gate B `PLATFORM_READY` |
+| 平台 | Android：VpnService → TUN → 按应用 VPN | 未实现 | Gate B |
+| 平台 | Windows 7 Legacy（独立 runtime 与验收） | 未实现 | Gate B |
+| 平台 | iOS：NetworkExtension / entitlement / 真机 | 未实现 | Gate B + `NETWORK_EXTENSION_ENTITLEMENT_READY` |
+| 发布 | 代码签名、安装包、商店发布 | 未实现 | Gate C `SIGNING_READY` |
+
+**已实现（离线可验证）**：Master 一层加载与多源并发（单源失败隔离）、URI / Base64 / Clash·Mihomo YAML / sing-box JSON 严格解析、规范化与语义去重、地区分类、受限探测（HTTP CONNECT、SOCKS5、UDP 丢包实测）、滚动历史与可解释评分、Smart Select、节点详情与三层解释（分数分项/资格/选择）、路由匹配与解释（优先级首个命中，未命中即 `DEFAULT`）、本地订阅管理（列出/添加/暂停/恢复/移除，句柄为不可逆摘要前缀）、Game Profile 校验与路由规则生成、签名远程更新与 LKG、AES-GCM 密文存储与引用感知 GC、SQLite 迁移/备份/恢复、DNS 策略引擎、本机控制面（Clash 兼容子集）与五页静态面板、参考 CLI（订阅更新/列出/添加/暂停/恢复/移除、节点列表/测速/推荐/解释、路由解释、诊断、状态、控制面）。
 
 **解释层原则**：`nodes explain`、`route explain` 与两个控制面端点只暴露既有 Domain Logic 的实际计算过程与判定条件——不新增评分、权重或路由理由，也不发明数据模型里没有的语义（例如域名通配符）。算法没有独立负分项，因此输出中没有 `penalty` 之类的字段。
 
@@ -51,7 +68,7 @@ uv build
 
 **可观测性**：`GET /api/host/metrics`（面板「设置 → 进程内指标」）按路由模板统计本进程真实发生的请求、状态码分类与固定错误码。它明确标注"重启即清零、不做持久化"，且 `traffic.measured=false`——未接入核心前不给任何流量数字。
 
-**尚未实现（不依赖它们做任何宣称）**：真实代理隧道连接、Windows TUN 与系统代理、Android VpnService、iOS NetworkExtension、任何代理核心的运行时接入、代码签名、Apple entitlement、真机验证。核心接入模型仍是 `docs/CORE_INTEGRATION_ADR.md` 的**提议**（候选仅 Xray-core，待批准），因此 `connect` 类操作固定返回 `CORE_NOT_INTEGRATED`。
+**尚未实现（不依赖它们做任何宣称）**：真实代理隧道连接、Windows TUN 与系统代理、Android VpnService、iOS NetworkExtension、任何代理核心的运行时接入、代码签名、Apple entitlement、真机验证。核心接入模型仍是 `docs/CORE_INTEGRATION_ADR.md` 的提议，属于 `v0.3.0-core-integration` 的 Gate A 收口范围；在核心获批并跑通真实握手之前，`connect` 类操作固定返回 `CORE_NOT_INTEGRATED`。
 
 能力边界与版本历史见 `CHANGELOG.md`；验证证据见 `docs/VALIDATION_REPORT.md`（人读）与对应 Release 的机器证据资产。
 

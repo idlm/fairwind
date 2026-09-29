@@ -4,9 +4,11 @@
 
 格式参考 Keep a Changelog；版本语义为参考基线，而非已发布产品。
 
-## [0.2.0] — 2026-09-28
+## [0.2.0-control-plane] — 2026-09-29
 
-可解释性基线（B 周期，**不打 tag**）：把**既有** Domain Logic 暴露为节点详情、分数/资格/选择解释与路由解释。解释层不新增算法、不新增权重、不虚构负分项。
+控制面基线（包版本 `0.2.0`；tag `v0.2.0-control-plane`）：把**既有** Domain Logic 暴露为节点详情、分数/资格/选择解释与路由解释，并补齐本地订阅管理、离线自检诊断与进程内指标。解释层不新增算法、不新增权重、不虚构负分项。
+
+**本基线不包含数据面**：没有代理核心接入、没有真实隧道、没有 TUN/系统代理、没有原生客户端；`connect` 类操作固定返回 `CORE_NOT_INTEGRATED`。真实代理能力属于 `v0.3.0-core-integration`（Gate A）。
 
 ### Implemented
 
@@ -30,7 +32,7 @@
 
 ### Notes
 
-- 本周期只递增版本号，**不打 tag**；A 阶段 tag `v0.1.0-reference` 未移动，`evidence/` 仍在 `.gitignore` 中。
+- 本基线已打 tag `v0.2.0-control-plane` 并发布（资产与摘要见 `RELEASE.md`）；`v0.1.0-reference` **未移动**，`evidence/` 仍在 `.gitignore` 中。
 - 解释层的每条"理由"都必须能对应到代码里的阈值或公式；数据模型没有的语义（如域名通配符 `*.example.com`）不会被发明出来——域名规则是精确匹配。
 
 ## [0.1.0-reference] — 2026-09-28

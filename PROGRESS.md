@@ -1,8 +1,17 @@
 # Progress
 
-更新时间：2026-09-28。百分比为工作项进度，不代表可发布平台完成度。
+更新时间：2026-09-29。百分比为工作项进度，不代表可发布平台完成度。
 
-## 已发布基线：`v0.1.0-reference`
+## 已发布基线
+
+### `v0.2.0-control-plane`（控制面基线）
+
+- annotated tag `v0.2.0-control-plane`（**不可修改、不可 force-move**）；Release 与资产摘要见 `RELEASE.md`。
+- 范围**仅控制面**：节点详情 + 分数/资格/选择解释、路由解释、本地订阅管理、离线自检诊断、进程内指标、CLI/本机 API/面板。
+- `341 passed`（unit 171 / integration 103 / security 53 / e2e 14）；`scripts/verify.sh` → `VERIFY_OK`（23/23 模块、密钥门禁 0 致命）。
+- **不含**代理核心接入、真实隧道、TUN/系统代理、原生客户端：`connect` 类操作固定 `CORE_NOT_INTEGRATED`，`traffic.measured=false`。
+
+### `v0.1.0-reference`（参考基线）
 
 - 收口 commit `cf4835473fa7a2c46fa55ab5babb2d92f938a3e3`，annotated tag `v0.1.0-reference`（**不可修改、不可 force-move**）。
 - Release：https://github.com/idlm/smart-accelerator/releases/tag/v0.1.0-reference — 7 个资产：wheel / sdist / `VA-0.1.0-2026-09-28.zip` 证据包 / `SHA256SUMS.txt` / `SBOM.json` / `TEST_REPORT.md` / `RELEASE_MANIFEST.json`。
