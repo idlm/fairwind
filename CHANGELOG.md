@@ -17,6 +17,14 @@
 - 接入模型：进程隔离 sidecar（ADR-0001 由"提议"转为**已批准**）；UI / CLI / API / Domain Layer 禁止直接调用核心
 - 本机 loopback 真实链路已验证：客户端 SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标取回标记内容（标签 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`，**不是**公网节点验收）
 
+### CoreConfigGenerator（2026-09-29）
+
+- `core/accelerator/core_config.py`：`ProxyNode → 核心配置`（`vless` / `vmess` / `trojan` / `ss→shadowsocks` 映射集中在 `PROTOCOL_MAP`）
+- 入站**只监听 127.0.0.1**，SOCKS `udp:false`（UDP 未实现就不开），`log.access=none`
+- 拒绝而不猜：未知协议 / 非 tcp·ws 传输 / 声明了 `reality` 等未建模安全类型 → `CORE_CONFIG_UNSUPPORTED`；缺凭据 → `CORE_CONFIG_INVALID`；**声明了不支持的安全类型时不允许被 `tls=true` 静默降级**
+- 凭据边界：配置文件强制 0600 + 原子替换、停止后删除；`redact()` 只替换真正的密值（uuid/password），`alterId`、vmess `security`、ss `method` 是公开参数必须保留
+- **真实核心校验**：生成的 4 种协议配置全部被固定核心 `xray run -test` 接受，且核心自身输出里不出现密值（此项当场发现并修掉 `ss` 应为 `shadowsocks` 的协议 id 错误）
+
 ## [0.2.0-control-plane] — 2026-09-29
 
 控制面基线（包版本 `0.2.0`；tag `v0.2.0-control-plane`）：把**既有** Domain Logic 暴露为节点详情、分数/资格/选择解释与路由解释，并补齐本地订阅管理、离线自检诊断与进程内指标。解释层不新增算法、不新增权重、不虚构负分项。
