@@ -11,7 +11,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from accelerator.api import build_app, load_or_create_token, serve
 from accelerator.errors import SafeError
 from accelerator.host import HostService
-from conftest import MASTER, offline_core
+from conftest import MASTER, offline_core, requires_symlinks
 
 pytestmark = pytest.mark.integration
 
@@ -42,6 +42,7 @@ def test_token_file_is_private_and_reused(tmp_path):
     assert path.read_text(encoding="ascii").strip() == token
 
 
+@requires_symlinks
 def test_token_file_symlink_rejected(tmp_path):
     target = tmp_path / "elsewhere.token"
     target.write_text("x")

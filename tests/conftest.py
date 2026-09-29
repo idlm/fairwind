@@ -27,6 +27,31 @@ requires_core = pytest.mark.skipif(
 )
 
 
+def _symlinks_supported() -> bool:
+    """当前环境能否创建符号链接（Windows 需要 SeCreateSymbolicLinkPrivilege）。
+
+    用**能力探测**而不是平台判断：GitHub 的 Windows runner 有该权限、普通开发机往往没有，
+    按平台跳过会让这条检查在 CI 上白白消失。
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        target = root / "target"
+        target.write_text("x", encoding="utf-8")
+        try:
+            (root / "link").symlink_to(target)
+        except (OSError, NotImplementedError):
+            return False
+    return True
+
+
+SYMLINKS_SUPPORTED = _symlinks_supported()
+requires_symlinks = pytest.mark.skipif(
+    not SYMLINKS_SUPPORTED, reason="当前环境无法创建符号链接（Windows 需要额外权限）"
+)
+
+
 def offline_core(data_dir):
     """核心二进制**缺失**的适配器。
 

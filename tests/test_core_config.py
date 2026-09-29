@@ -9,6 +9,7 @@ import pytest
 from accelerator import core_config
 from accelerator.domain import NodeSecret, ProxyNode
 from accelerator.errors import SafeError
+from conftest import requires_symlinks
 
 pytestmark = pytest.mark.unit
 
@@ -138,6 +139,7 @@ def test_config_file_is_atomic_private_and_removable(tmp_path):
     core_config.remove_config(path)  # 幂等
 
 
+@requires_symlinks
 def test_config_writer_refuses_symlinked_paths(tmp_path):
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
