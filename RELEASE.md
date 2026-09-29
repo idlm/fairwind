@@ -74,11 +74,17 @@ Core Adapter → Core Process/Library → Local Config Generator → Health Chec
 
 | 项 | 值 |
 |---|---|
-| 收口 commit | 见 tag `v0.2.0-control-plane` 解引用 |
-| tag | `v0.2.0-control-plane`（annotated，**不可修改、不可 force-move**） |
+| 收口 commit | `48825c126fdb24e83947c288ae6af5e7be614123` |
+| tag | `v0.2.0-control-plane`（annotated `5f48fd42…`，**不可修改、不可 force-move**） |
 | Release URL | https://github.com/idlm/smart-accelerator/releases/tag/v0.2.0-control-plane |
+| 发布时间 | `2026-09-29T05:32:34Z` |
 | 清单 | `docs/validation/VA-0.2.0-2026-09-29.manifest.json` |
-| 范围 | **仅控制面**：节点详情与三层解释、路由解释、本地订阅管理、离线自检诊断、进程内指标、CLI/API/面板；**不含**代理核心接入、真实隧道、TUN/系统代理、原生客户端 |
+| Gate 退出码 | lint / format / tests / build / artifact_hygiene / secret_gate 全 `0` |
+| 测试 | `341 passed`（unit 171 / integration 103 / security 53 / e2e 14） |
+| 资产 | `smart_accelerator-0.2.0-py3-none-any.whl`(74,849)、`smart_accelerator-0.2.0.tar.gz`(265,211)、`VA-0.2.0-2026-09-29.zip`(2,821)、`SHA256SUMS.txt`(361)、`SBOM.json`(5,053)、`TEST_REPORT.md`(2,902)、`RELEASE_MANIFEST.json`(943) |
+| 资产摘要 | whl `a01b3dc6…`、sdist `0db74088…`、TEST_REPORT `43b2b586…`、SBOM `2fe069a8…`、证据包 `227636cb…` |
+| 范围 | **仅控制面**：节点详情与三层解释、路由解释、本地订阅管理、离线自检诊断、进程内指标、CLI/API/面板；**不含**代理核心接入、真实隧道、TUN/系统代理、原生客户端（`connect` 固定 `CORE_NOT_INTEGRATED`，`traffic.measured=false`） |
+| 复核 | 发布后现场重查：`gh release view` 的 7 个资产 digest 与本地 SHA-256 逐项一致；`v0.1.0-reference` 未移动 |
 
 ### `v0.1.0-reference`
 

@@ -1,0 +1,68 @@
+{
+  "validation_id": "VA-0.2.0-2026-09-29",
+  "version": "0.2.0",
+  "tag": "v0.2.0-control-plane",
+  "tagged_commit": "48825c126fdb24e83947c288ae6af5e7be614123",
+  "branch": "main",
+  "repository": "https://github.com/idlm/smart-accelerator",
+  "release_url": "https://github.com/idlm/smart-accelerator/releases/tag/v0.2.0-control-plane",
+  "released_at": "2026-09-29T05:32:34Z",
+  "evidence_generated_at": "2026-09-29T05:32:10.420992+00:00",
+  "scope": "CONTROL_PLANE_ONLY",
+  "data_plane": "NOT_INCLUDED",
+  "gate": {
+    "lint": 0,
+    "format": 0,
+    "tests": 0,
+    "build": 0,
+    "artifact_hygiene": 0,
+    "secret_gate": 0
+  },
+  "markers": {
+    "unit": 0,
+    "integration": 0,
+    "security": 0,
+    "e2e": 0
+  },
+  "tests_passed": 341,
+  "failed_gates": [],
+  "artifacts": [
+    {
+      "name": "smart_accelerator-0.2.0-py3-none-any.whl",
+      "bytes": 74849,
+      "sha256": "a01b3dc659d0c3443642e4f17f3422194795615d996fa741c942b8726555ec82"
+    },
+    {
+      "name": "smart_accelerator-0.2.0.tar.gz",
+      "bytes": 265211,
+      "sha256": "0db74088fa5436db3e2487b925fb9f863f092931ea559afccc1f31f9f8c81676"
+    }
+  ],
+  "evidence_files": [
+    {
+      "name": "TEST_REPORT.md",
+      "sha256": "43b2b5868dfecb297e04ea65a747c5db8ee7a62dc69b45c16596829a64209075"
+    },
+    {
+      "name": "SBOM.json",
+      "sha256": "2fe069a85615d2266e3ff321600bed45d7a18affce5323d41b3b7c82b6c0075b"
+    },
+    {
+      "name": "smart_accelerator-0.2.0-py3-none-any.whl",
+      "sha256": "a01b3dc659d0c3443642e4f17f3422194795615d996fa741c942b8726555ec82"
+    },
+    {
+      "name": "smart_accelerator-0.2.0.tar.gz",
+      "sha256": "0db74088fa5436db3e2487b925fb9f863f092931ea559afccc1f31f9f8c81676"
+    }
+  ],
+  "evidence_bundle": {
+    "name": "VA-0.2.0-2026-09-29.zip",
+    "bytes": 2821,
+    "sha256": "227636cb10c4530250eed754a20e203fe84723c943b3bc7f1755b5c6431c9b3f"
+  },
+  "sbom_components": 22,
+  "human_readable_evidence": "docs/VALIDATION_REPORT.md",
+  "capability_boundary": "CHANGELOG.md",
+  "notes": "本清单记录不可变 tag `v0.2.0-control-plane` 的内容，因此落在 tag 之后的独立 docs commit。范围仅控制面：不含代理核心接入、真实隧道、TUN/系统代理与原生客户端；`connect` 类操作固定 CORE_NOT_INTEGRATED，traffic.measured=false。完整证据包只作为 Release 资产（evidence/ 已 gitignore），Release 的 7 个资产 digest 已与本地 SHA-256 逐项核对一致。"
+}
