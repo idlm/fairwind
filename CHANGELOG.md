@@ -38,6 +38,8 @@
   服务端**，字节全真）、能力账本；`scripts/android_test.sh` 是两 pass 的内存受限配方
 - 能力边界不变：TUN / 按应用分流 / DNS / IPv6 / UDP **仍未验证，一条都不声明**；签名仍
   `BLOCKED_EXTERNAL_REQUIREMENT`（无 keystore）
+- 预览资产（**非发布**）：`v0.3.0-android-core-preview`（prerelease）附 `app-debug.apk` 与验证证据；
+  调试密钥签名、不可分发；证据已脱敏，不含订阅链接 / Master URL / 凭据 / token
 
 ### Windows 10/11 系统代理（Gate B 起步，2026-10-01）
 

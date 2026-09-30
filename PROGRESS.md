@@ -92,6 +92,9 @@ Done:
 - **Windows 7 Legacy 能力账本**（`core/fairwind/win7.py`）：全部 `UNVERIFIED`，`fairwind platform` 可见；只有真实 Win7 SP1 验证过的项才允许改成 `VERIFIED`。
 
 Android（Gate B · Android）:
+- 预览资产（非发布）：https://github.com/idlm/fairwind/releases/tag/v0.3.0-android-core-preview ——
+  `app-debug.apk`（10,331,863 字节，sha256 `0e1670df…`）+ 验证证据；调试密钥签名、**不可分发**。
+  证据经脱敏，不含订阅链接 / Master URL / 凭据 / token。
 - **核心适配层**（`apps/android/.../core/`）：`XrayDialect.kt` 按已批准核心的方言生成配置（四协议、
   恰好一个代理出站、入站只监听 127.0.0.1、可选只回环统计入站），`XrayConfigValidator` 解析真正要交给
   核心的文本并断言这些不变式；`CoreSupervisor.kt` 是纯 Kotlin 的生命周期状态机（依赖全注入：进程工厂/

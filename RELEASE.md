@@ -68,6 +68,23 @@ Core Adapter → Core Process/Library → Local Config Generator → Health Chec
 
 签名材料与凭据**不得写入源码、不得提交 Git**（`.p12` / `.keystore` / 私钥 / 签名口令一律禁止），也不得创建假证书。
 
+## 开发预览资产（不是发布基线）
+
+与上面的基线分开记录：它们**不构成发布**，只让本轮验证结果可被独立下载核对，且**不可分发**。
+
+### `v0.3.0-android-core-preview`（prerelease）
+
+| 项 | 值 |
+|---|---|
+| 类型 | **prerelease（非发布）**，指向 `main` 的 `767f780` |
+| Release URL | https://github.com/idlm/fairwind/releases/tag/v0.3.0-android-core-preview |
+| 内容 | Android 核心适配层 + 39 项 JVM 单测 + 重建的 `app-debug.apk` |
+| 资产 | `app-debug.apk`(10,331,863)、`SHA256SUMS.txt`、`APK-VERIFY.txt`、`ANDROID-UNIT-TESTS.txt`、`SYSTEM-PROXY-SMOKE.txt`、`PYTHON-GATES.txt`、`EVIDENCE-MANIFEST.json` |
+| APK 摘要 | `0e1670df436442f898a8265b4eb3a36bfcd6070f32175eb6eed47a6974ef541d`（远端 `SHA256SUMS.txt` 与本地逐字一致） |
+| 签名 | **自动生成的调试密钥**；无 release keystore → 不可分发（Gate C 仍为外部阻塞） |
+| 脱敏 | 附件的地址、端口、绕过列表与用户路径已移除；**不含任何订阅链接、Master URL、节点凭据或 token**；不含第三方核心二进制 |
+| 复核 | 发布后现场重查：远端 `SHA256SUMS.txt` 与本地 `sha256sum` 一致；远端 `SYSTEM-PROXY-SMOKE.txt` 明文 IP 计数为 0 |
+
 ## 已发布基线记录
 
 ### `v0.2.0-control-plane`
