@@ -17,6 +17,24 @@
 - 接入模型：进程隔离 sidecar（ADR-0001 由"提议"转为**已批准**）；UI / CLI / API / Domain Layer 禁止直接调用核心
 - 本机 loopback 真实链路已验证：客户端 SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标取回标记内容（标签 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`，**不是**公网节点验收）
 
+### UDP 中继与 IPv6 目标：本机回环真实验证（2026-10-01）
+
+- `core_config.generate(..., udp=False)` 新增**显式 UDP 开关**：默认仍关闭（连接态不开，因为
+  TUN/游戏分流尚未接入），只有明确要求才在 SOCKS 入站打开；`validate()` 改为要求该字段必须是
+  布尔值（类型错误仍拒绝）
+- 新增 `tests/test_real_core_udp_ipv6.py`（4 项，真实核心）：
+  1. **UDP 中继**：SOCKS5 `UDP ASSOCIATE` → 隧道 → 本机 UDP echo，字节真实往返（对比：直连
+     freedom 与过隧道两条路径都验证过，避免把"测试写法错"当成"功能不通"）；
+  2. **默认关闭**：同一路径在不显式开启时必须失败——否则"默认关闭"只是文档里的一句话；
+  3. **IPv6 目标**：经隧道 CONNECT 到 `[::1]` 返回 204，证明 ATYP=IPv6 编码与核心 IPv6 出口工作；
+  4. **连接态默认配置**里 `udp` 必须为 `false`（产品当前真实状态）
+- 测试过程中的一个真教训记在文件顶部：**收发包不能在事件循环里阻塞**——echo 服务端与客户端在
+  同一循环时，阻塞 `recvfrom` 会把对端一起冻住，第一版因此误判"回程不通"；现在用
+  `run_in_executor` 收包（仓库既有 UDP 探测用的是 `setblocking(False)` + `loop.sock_recvfrom`）
+
+范围：**本机回环**（标签同 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`），证明我们的配置与代码路径正确，
+**不**证明真实网络上的 UDP/IPv6 可用性——那需要真实节点，仍属 `BLOCKED_TEST_FIXTURE`。
+
 ### Android 随包固定核心：双重哈希校验 + 设备端复核（Gate B · A8，2026-10-01）
 
 - `core_pin.py`：新增 `android-arm64` 资产（`Xray-android-arm64-v8a.zip`，19,883,196 字节，

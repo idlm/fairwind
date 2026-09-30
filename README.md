@@ -76,7 +76,7 @@ uv build
 **可观测性**：`GET /api/host/metrics`（面板「设置 → 进程内指标」）按路由模板统计本进程真实发生的请求、状态码分类与固定错误码。它明确标注"重启即清零、不做持久化"，且 `traffic.measured=false`——未接入核心前不给任何流量数字。
 
 **已实现（本机可验证）**：固定代理核心的接入（sidecar 进程、配置生成、生命周期、熔断）、真实协议握手与出口验证、真实流量字节（只回环统计 API）、`connect`/`disconnect`/`traffic`（CLI/API/面板）、Windows 10/11 系统代理（快照/接管/还原/异常退出恢复，Windows 11 真机验证）。
-**尚未实现（不依赖它们做任何宣称）**：公网 VMess/Trojan/Shadowsocks 节点（本机回环已验证、公网无节点可测）、公网节点的长期稳定性与吞吐、UDP 转发与 IPv6 出口（未验证即不声明）、Windows TUN/按进程分流/安装包、Android VpnService、iOS NetworkExtension、代码签名、Apple entitlement、真机验证。
+**尚未实现（不依赖它们做任何宣称）**：公网 VMess/Trojan/Shadowsocks 节点（本机回环已验证、公网无节点可测）、**真实网络**上的 UDP 与 IPv6（本机回环已实测通过）、公网节点的长期稳定性与吞吐、Windows TUN/按进程分流/安装包、Android VpnService、iOS NetworkExtension、代码签名、Apple entitlement、真机验证。
 
 能力边界与版本历史见 `CHANGELOG.md`；验证证据见 `docs/VALIDATION_REPORT.md`（人读）与对应 Release 的机器证据资产。
 

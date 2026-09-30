@@ -35,6 +35,8 @@
 | 有限重试 / 熔断 / Failover 控制器 | ADAPTER_FIXTURE_PASS；真实核心运行时尚未验证 |
 | 用户指定 Master 在线读取 | BLOCKED_EXTERNAL_REQUIREMENT；域名权威区无 A/AAAA 记录（NOERROR-NODATA，2026-09-28 复核），非本机解析器问题 |
 | VLESS/VMess/Trojan/SS 真实代理测试（本机回环） | PASS；经固定核心 **sidecar**（进程隔离，非嵌入/非链接）完成四协议真实握手与出口验证，`tests/test_real_core_loopback.py` |
+| UDP 中继（回环） | PASS；SOCKS5 `UDP ASSOCIATE` → 隧道 → 本机 UDP echo 真实往返；默认配置 `udp=false`，显式要求才开（两条都有测试钉住） | `tests/test_real_core_udp_ipv6.py` |
+| IPv6 目标（回环） | PASS；经隧道 CONNECT 到 `[::1]` 返回 204，证明 ATYP=IPv6 编码与核心 IPv6 出口工作 | 同上 |
 | VLESS + Reality + `xtls-rprx-vision` 真实公网节点测试 | **PASS（有范围）**；项目所有者临时提供 3 个真实节点，经固定核心完成**真实握手 + 出口验证 + 真实字节统计**（3/3，`verified=true`，`traffic.measured=true`）。凭据只以密文存在于本机数据目录，**不进入版本库**；未做长期稳定性与吞吐测量 |
 | VMess / Trojan / Shadowsocks 真实公网节点测试 | 未验证（仅本机回环）；公网这三类缺少可测节点 |
 | Reality 配置生成（`security=reality` + `pbk`/`sni`/`fp`/`flow`） | PASS；`core/fairwind/core_config.py` 生成 `realitySettings` 且与 `tlsSettings` 互斥，缺 `publicKey` 一律拒绝；`tests/test_core_config.py` |

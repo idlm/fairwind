@@ -25,4 +25,6 @@ CLI 自带 HTTP CONNECT 测试后端仅验证 HTTP 代理的 HTTPS 出口，不�
 
 已用真实公网节点验证（项目所有者临时提供，凭据不入库）：3 个 VLESS + Reality + `xtls-rprx-vision` 节点，**3/3 真实握手成功、出口验证通过、字节计数为真实值**。
 
-尚未验证（因此不声明）：公网 VMess / Trojan / Shadowsocks 节点（仅本机回环）、公网节点的长期稳定性与吞吐、UDP 转发、IPv6 出口、TUN/系统代理、进程规则。
+**UDP 中继与 IPv6 目标已建模并回环验证**（`tests/test_real_core_udp_ipv6.py`）：SOCKS5 `UDP ASSOCIATE` → 隧道 → 本机 UDP echo 真实往返；经隧道 CONNECT 到 `[::1]` 返回 204（证明 ATYP=IPv6 编码与核心 IPv6 出口都工作）。核心配置默认 `udp=false`，只有显式 `udp=True` 才打开——连接态仍不开，因为 TUN/游戏分流尚未接入，开了也没有用户路径。
+
+尚未验证（因此不声明）：公网 VMess / Trojan / Shadowsocks 节点（仅本机回环）、真实网络上的 UDP 与 IPv6（需真实节点）、公网节点的长期稳定性与吞吐、TUN/系统代理、进程规则。

@@ -138,7 +138,8 @@ Tests:
 Remaining:
 - 真实公网节点验收（VLESS + Reality + `xtls-rprx-vision`）：**已通过**——3 个真实节点 3/3 完成真实握手、出口验证与真实字节统计（`traffic.measured=true`）。凭据由项目所有者临时提供，只以密文存在于本机数据目录，**不入库**。
 - Reality 建模：`core_config` 生成 `realitySettings`（缺 `publicKey` 拒绝），并修正"显式 `security` 必须优先于 `tls` 标志"——此前会静默降级成普通 TLS。
-- 仍剩余：公网 VMess/Trojan/Shadowsocks（本机回环已验证）、长期稳定性与吞吐、UDP 转发、IPv6 出口、平台层。
+- **UDP 中继与 IPv6 目标**：已用真实核心在本机回环验证（`tests/test_real_core_udp_ipv6.py`）——SOCKS5 `UDP ASSOCIATE` 经隧道到本机 UDP echo 往返成功；经隧道 CONNECT 到 `[::1]` 返回 204。核心配置默认 `udp=false`（连接态不开，因为 TUN/游戏分流未接入）。
+- 仍剩余：公网 VMess/Trojan/Shadowsocks（本机回环已验证）、真实网络上的 UDP/IPv6、长期稳定性与吞吐、平台层。
 - 平台层（Windows 系统代理/TUN、Android VpnService、iOS NetworkExtension）仍属 Gate B。
 
 Milestone 3–6、8
