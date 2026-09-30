@@ -9,6 +9,7 @@ import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
 from conftest import MASTER, offline_core, requires_symlinks
+from fairwind import api
 from fairwind.api import build_app, load_or_create_token, serve
 from fairwind.errors import SafeError
 from fairwind.host import HostService
@@ -253,6 +254,32 @@ def test_panel_assets_are_self_contained():
     assert "https://" not in text
     assert "http://" not in text.replace("http://127.0.0.1", "")
     assert "未接入代理核心" in text
+
+
+def test_panel_csp_allows_its_own_inline_blocks_by_hash():
+    """面板是内联 CSS/JS 的单文件；`default-src 'self'` 会让浏览器拒绝内联块。
+
+    这条测试钉住"用内容哈希放行"这个机制：哈希必须与文件里的内联块逐一对应，
+    且策略里不出现 `unsafe-inline`（那等于把 XSS 面重新打开）。
+    """
+    import base64 as _base64
+    import hashlib as _hashlib
+    import re as _re
+
+    panel = Path(__file__).resolve().parents[1] / "core" / "fairwind" / "ui" / "index.html"
+    raw = panel.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    policy = api.panel_csp(panel)
+
+    assert "default-src 'self'" in policy
+    assert "unsafe-inline" not in policy
+    blocks = _re.findall(
+        rb"<(?:style|script)[^>]*>(.*?)</(?:style|script)>", raw, _re.DOTALL | _re.IGNORECASE
+    )
+    assert blocks, "面板应当包含内联样式与脚本"
+    for block in blocks:
+        digest = "sha256-" + _base64.b64encode(_hashlib.sha256(block).digest()).decode("ascii")
+        assert f"'{digest}'" in policy, digest
+    assert "style-src 'self'" in policy and "script-src 'self'" in policy
 
 
 def test_panel_matches_spec_information_architecture():

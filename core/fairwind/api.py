@@ -9,9 +9,11 @@ loopback RESTful + Bearer 令牌、静态前端由宿主在 `/ui` 提供。
 
 import asyncio
 import base64
+import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import time
 from pathlib import Path
@@ -38,6 +40,41 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "no-referrer",
     "Content-Security-Policy": "default-src 'self'; connect-src 'self'; img-src 'self' data:",
 }
+
+# 面板是单文件（内联 CSS/JS）。CSP 是 `default-src 'self'`，**内联块默认被浏览器拒绝**——
+# 那会让面板在真实浏览器里完全没有样式、脚本也不执行（测试只检查头里的子串，抓不到）。
+# 解法不是 'unsafe-inline'（那等于放开 XSS 面），而是按**内容哈希**精确放行这两个块：
+# 文件一改哈希就变，因此这里每次都从磁盘重算，不存在"忘了更新哈希"的静默失效。
+INLINE_BLOCK = re.compile(
+    rb"<(?:style|script)[^>]*>(?P<body>.*?)</(?:style|script)>", re.DOTALL | re.IGNORECASE
+)
+_csp_cache: dict[str, str] = {}
+
+
+def panel_csp(panel: Path) -> str:
+    """返回针对该面板文件的 CSP：保留 `default-src 'self'`，只加两个内联块的哈希白名单。"""
+    key = str(panel)
+    if key in _csp_cache:
+        return _csp_cache[key]
+    try:
+        text = panel.read_bytes()
+    except OSError:
+        return SECURITY_HEADERS["Content-Security-Policy"]
+    # HTML 解析会把 CRLF/CR 归一成 LF，浏览器按**归一化后**的文本算哈希；这里必须一致，
+    # 否则策略看着对、哈希却永远不匹配（本仓库的工作树是 CRLF，正好踩中）。
+    normalized = text.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    digests = [
+        "sha256-" + base64.b64encode(hashlib.sha256(match.group("body")).digest()).decode("ascii")
+        for match in INLINE_BLOCK.finditer(normalized)
+    ]
+    policy = SECURITY_HEADERS["Content-Security-Policy"]
+    if digests:
+        quoted = " ".join(f"'{item}'" for item in digests)
+        # 两个指令都显式声明：style-src 给样式哈希，script-src 给脚本哈希（同一批哈希无副作用，
+        # 浏览器只会匹配对应类型的内联块）。
+        policy = f"{policy}; style-src 'self' {quoted}; script-src 'self' {quoted}"
+    _csp_cache[key] = policy
+    return policy
 
 
 def load_or_create_token(data_dir: Path) -> str:
@@ -95,7 +132,10 @@ def _auth_middleware(token: str):
         started = time.perf_counter()
         if request.path.startswith(PUBLIC_PREFIXES):
             response = await handler(request)
-            response.headers.update(SECURITY_HEADERS)
+            # setdefault 而不是 update：处理器可能已经针对具体资源设过更精确的头
+            # （面板的 CSP 哈希白名单就是这样被整表覆盖抹掉过一次）。
+            for name, value in SECURITY_HEADERS.items():
+                response.headers.setdefault(name, value)
             _record(request, response.status, started)
             return response
         if not hmac.compare_digest(request.headers.get("Authorization", ""), f"Bearer {token}"):
@@ -116,7 +156,8 @@ def _auth_middleware(token: str):
             _record(request, response.status, started, "INTERNAL_ERROR")
             return response
         response.headers["Cache-Control"] = "no-store"
-        response.headers.update(SECURITY_HEADERS)
+        for name, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(name, value)
         _record(request, response.status, started)
         return response
 
@@ -391,6 +432,7 @@ async def handle_panel(request: web.Request) -> web.Response:
         return _error("PANEL_MISSING", 500)
     response = web.FileResponse(panel)
     response.headers.update(SECURITY_HEADERS)
+    response.headers["Content-Security-Policy"] = panel_csp(panel)
     return response
 
 
