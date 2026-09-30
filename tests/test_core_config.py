@@ -92,6 +92,65 @@ def test_ws_transport_carries_path_and_host():
     assert stream["wsSettings"] == {"path": "/tunnel", "headers": {"Host": "cdn.example"}}
 
 
+def test_a_reality_node_generates_reality_settings_without_tls():
+    """Reality 节点必须生成 realitySettings（公开参数照抄），且**不得**同时写 tlsSettings。"""
+    config = core_config.generate(
+        node(
+            options={
+                "security": "reality",
+                "public_key": "synthetic-public-key",
+                "sni": "www.example.com",
+                "fingerprint": "random",
+                "short_id": "abcd",
+                "flow": "xtls-rprx-vision",
+            }
+        ),
+        10808,
+    )
+
+    stream = config["outbounds"][0]["streamSettings"]
+    assert stream["security"] == "reality"
+    assert "tlsSettings" not in stream
+    assert stream["realitySettings"] == {
+        "serverName": "www.example.com",
+        "fingerprint": "random",
+        "publicKey": "synthetic-public-key",
+        "shortId": "abcd",
+        "spiderX": "/",
+    }
+    core_config.validate(config)
+
+
+def test_reality_defaults_are_explicit_not_invented_per_run():
+    """缺 fp / sid / spx 时用固定的默认值（同一节点每次生成同一份配置，指纹才可比对）。"""
+    first = core_config.generate(
+        node(options={"security": "reality", "public_key": "k", "sni": "www.example.com"}), 10808
+    )
+    second = core_config.generate(
+        node(options={"security": "reality", "public_key": "k", "sni": "www.example.com"}), 10808
+    )
+    assert first == second
+    assert first["outbounds"][0]["streamSettings"]["realitySettings"]["fingerprint"] == "chrome"
+
+
+def test_the_uri_flow_parameter_reaches_the_user_object():
+    """URI 订阅把 ?flow= 放在 options；丢掉它等于静默降级（能连但更慢/更易被识别）。"""
+    config = core_config.generate(node(options={"flow": "xtls-rprx-vision"}, tls=True), 10808)
+
+    assert config["outbounds"][0]["settings"]["vnext"][0]["users"][0]["flow"] == "xtls-rprx-vision"
+
+
+def test_reality_without_a_public_key_is_refused_by_the_validator_too():
+    """生成器会拒绝；校验器也不能放行一份手写的、缺 publicKey 的 reality 配置。"""
+    config = core_config.generate(node(), 10808)
+    stream = config["outbounds"][0]["streamSettings"]
+    stream["security"] = "reality"
+    stream["realitySettings"] = {"serverName": "www.example.com"}
+
+    with pytest.raises(SafeError, match="CORE_CONFIG_INVALID"):
+        core_config.validate(config)
+
+
 def test_unsupported_inputs_are_refused_not_guessed():
     for bad in (
         node(protocol="hysteria2"),

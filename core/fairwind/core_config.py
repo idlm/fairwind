@@ -25,7 +25,11 @@ PROTOCOLS = ("vless", "vmess", "trojan", "ss")
 PROTOCOL_MAP = {"vless": "vless", "vmess": "vmess", "trojan": "trojan", "ss": "shadowsocks"}
 CORE_PROTOCOLS = tuple(PROTOCOL_MAP.values())
 NETWORKS = ("tcp", "ws")
-SECURITIES = ("none", "tls")
+SECURITIES = ("none", "tls", "reality")
+# Reality 的公开参数（不是凭据）：缺 publicKey 一律拒绝，绝不降级成普通 TLS。
+REALITY_REQUIRED = ("public_key",)
+DEFAULT_REALITY_FINGERPRINT = "chrome"
+DEFAULT_REALITY_SPIDER = "/"
 # 这些键在配置里承载真实凭据：redact() 与测试都以它们为准。
 SECRET_KEYS = ("id", "password")
 # 凭据里**只有** uuid / password 是密；alterId、vmess security、ss method 都是公开参数，
@@ -48,7 +52,10 @@ def _stream_settings(node: ProxyNode) -> dict:
         # reality / xtls 等需要本仓库尚未建模的字段：**明确拒绝**，
         # 不允许因为 tls=true 就静默降级成普通 TLS（那会生成错误配置）。
         raise SafeError("CORE_CONFIG_UNSUPPORTED")
-    security = "tls" if node.tls else (declared or "none")
+    # 顺序很重要：订阅里**显式声明**的 security 优先于 tls 标志。反过来的话，一个
+    # security=reality 的节点会被静默降级成普通 TLS——能连、但更慢更易被识别，
+    # 正是这个文件一直在防的那类"看着对的错误配置"。
+    security = declared or ("tls" if node.tls else "none")
     if security not in SECURITIES:
         raise SafeError("CORE_CONFIG_UNSUPPORTED")
     stream: dict = {"network": transport, "security": security}
@@ -63,6 +70,21 @@ def _stream_settings(node: ProxyNode) -> dict:
             or node.secret.options.get("host")
             or node.secret.server
         }
+    elif security == "reality":
+        # Reality：与 TLS 互斥（核心 schema 里二者不会同时出现）。缺公开参数就拒绝，
+        # 不做"大概能连"的猜测——猜出来的 realitySettings 只会握手失败。
+        public_key = node.secret.options.get("public_key")
+        if not public_key:
+            raise SafeError("CORE_CONFIG_UNSUPPORTED")
+        stream["realitySettings"] = {
+            "serverName": node.secret.options.get("sni")
+            or node.secret.options.get("host")
+            or node.secret.server,
+            "fingerprint": node.secret.options.get("fingerprint") or DEFAULT_REALITY_FINGERPRINT,
+            "publicKey": public_key,
+            "shortId": node.secret.options.get("short_id") or "",
+            "spiderX": node.secret.options.get("spider_x") or DEFAULT_REALITY_SPIDER,
+        }
     return stream
 
 
@@ -73,8 +95,12 @@ def _outbound(node: ProxyNode) -> dict:
     credentials = node.secret.credentials
     if protocol == "vless":
         user: dict = {"id": credentials.get("uuid"), "encryption": "none"}
-        if credentials.get("flow"):
-            user["flow"] = credentials["flow"]
+        # flow 有两种来源：订阅解析器把它放在 options（URI 的 ?flow=），sing-box 形式放在
+        # credentials。xtls-rprx-vision 丢掉的后果是"能连但更慢/更易被识别"，属静默降级，
+        # 因此两处都要看。
+        flow = credentials.get("flow") or node.secret.options.get("flow")
+        if flow:
+            user["flow"] = flow
         if not user["id"]:
             raise SafeError("CORE_CONFIG_INVALID")
         settings = {"vnext": [{"address": address, "port": port, "users": [user]}]}
@@ -308,5 +334,12 @@ def validate(config: dict) -> None:
     outbound = outbounds[0]
     if outbound.get("protocol") not in CORE_PROTOCOLS or not outbound.get("settings"):
         raise SafeError("CORE_CONFIG_INVALID")
-    if (outbound.get("streamSettings") or {}).get("network") not in NETWORKS:
+    stream = outbound.get("streamSettings") or {}
+    if stream.get("network") not in NETWORKS:
+        raise SafeError("CORE_CONFIG_INVALID")
+    if stream.get("security") not in SECURITIES:
+        raise SafeError("CORE_CONFIG_INVALID")
+    reality = stream.get("realitySettings")
+    if reality is not None and (not reality.get("publicKey") or "tlsSettings" in stream):
+        # Reality 与 TLS 互斥；没有 publicKey 的 realitySettings 一定握手失败。
         raise SafeError("CORE_CONFIG_INVALID")
