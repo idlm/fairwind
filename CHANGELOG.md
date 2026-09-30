@@ -17,6 +17,15 @@
 - 接入模型：进程隔离 sidecar（ADR-0001 由"提议"转为**已批准**）；UI / CLI / API / Domain Layer 禁止直接调用核心
 - 本机 loopback 真实链路已验证：客户端 SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标取回标记内容（标签 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`，**不是**公网节点验收）
 
+### 文档：真实 Master 在线验收操作手册（2026-10-01）
+
+新增 `docs/ONLINE_ACCEPTANCE.md`——这一项卡的是**外部输入**（可解析的 Master URL），不是代码。
+手册把"拿到它之后怎么跑"写成可执行步骤：前置检查（DNS → HTTPS → 确认拿到的是 Master 响应而不是
+登录墙 HTML）、密钥与独立 `--data-dir` 的正确姿势、四条命令的顺序、每步的 PASS 判据（含
+"`backend=INTEGRATED` 才说明核心真的参与了握手"这类容易被误读的字段）、这一轮能证明与不能证明的
+边界、证据怎么留（输出本来就不回显 URL/凭据，且机器证据不入库）、以及常见错误码对照——
+**别把"拿到了 CDN 错误页"当成"我们的解析器坏了"**。
+
 ### UDP 中继与 IPv6 目标：本机回环真实验证（2026-10-01）
 
 - `core_config.generate(..., udp=False)` 新增**显式 UDP 开关**：默认仍关闭（连接态不开，因为
