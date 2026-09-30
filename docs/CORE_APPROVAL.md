@@ -26,6 +26,19 @@
 | `linux-amd64` | `Xray-linux-64.zip` | 21,136,402 | `23cd9af937744d97776ee35ecad4972cf4b2109d1e0fe6be9930467608f7c8ae` |
 | `windows-amd64` | `Xray-windows-64.zip` | 20,913,304 | `d004c39288ce9ada487c6f398c7c545f7d749e44bdfdd59dbc9f865afba4e1ad` |
 | `windows7-amd64` | `Xray-win7-64.zip` | 20,912,410 | `02a4798854975435981a5c6fb4aaf7059f58d22d73d2762363cd56788d92d758` |
+| `android-arm64` | `Xray-android-arm64-v8a.zip` | 19,883,196 | `57149ffd48b629c07bf76938e73ab2729fde5910091497eab3e93d1c190f4c1b` |
+
+**Android 的额外固定项**（进 APK 的是解包后的二进制，设备端没有归档可比对）：
+
+| 项 | 值 |
+|---|---|
+| 归档内二进制 | `xray`，36,516,696 字节 |
+| 二进制 SHA-256（设备端校验对象） | `19101a8191d6d606da975f719c8cdb80b8710b87ab17edc00ef74b9e39588714` |
+| 落地位置 | `apps/android/app/src/main/jniLibs/arm64-v8a/libxray.so`（`lib*.so` 命名是 API 29+ 从 `nativeLibraryDir` 执行的前提；**gitignored，从不提交**） |
+| 获取方式 | `python scripts/fetch_core.py --android`（先校验归档 SHA-256，再校验解出的二进制 SHA-256；不一致即 `CORE_HASH_MISMATCH` 并删除） |
+| 设备端校验 | `CorePin.kt` 在 `CoreHost.prepare()` 里比对同一摘要，不符即拒绝执行 |
+| ABI 范围 | **仅 `arm64-v8a`**：上游没有 Android arm32 构建（`Xray-android-*` 只有 arm64-v8a 与 amd64），因此不能声称支持 32 位设备 |
+| geo 数据 | **不随包**：生成的配置只用 CIDR 与 `outboundTag`，不引用 `geoip:`/`geosite:`；若将来引入 geo 规则，必须把数据文件一并纳入固定清单 |
 
 ## 核验证据（只读核验 + 真实运行）
 

@@ -103,6 +103,10 @@ Android（Gate B · Android）:
 - **JVM 单元测试**（新增测试源集）：39 项通过，含"测试内实现的真实回环 SOCKS5 服务端"这条真链路；
   `bash scripts/android_test.sh` 是本机/CI 可复现的两 pass 配方。
 - 全量编译与打包：main + test 源集从零编译 0 错误；`assembleDebug` 产出 debug APK（哈希见 BUILD.md）。
+- **核心二进制随包**：`scripts/fetch_core.py --android` 按固定清单取 `Xray-android-arm64-v8a.zip`，
+  先校验归档 SHA-256、再校验解出二进制的 SHA-256，装成 `jniLibs/arm64-v8a/libxray.so`（gitignored）；
+  `CorePin.kt` 在 `CoreHost.prepare()` 里复核同一摘要，不符即 `CORE_HASH_MISMATCH` 拒绝执行。
+  ABI 收窄为 **arm64-v8a**（上游没有 Android arm32 构建，列上 armeabi-v7a 等于承诺一个不存在的核心）。
 - **仍未验证**：真机安装与隧道（VpnService）、按应用 VPN、DNS 与 IPv6、核心二进制的按 ABI 打包与哈希
   固定、签名（`BLOCKED_EXTERNAL_REQUIREMENT`）。
 

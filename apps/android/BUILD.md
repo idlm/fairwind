@@ -1,8 +1,8 @@
 # Building the Android client
 
-**Status: the sources compile, the JVM unit tests pass, and a signed debug APK is produced.**
-Re-verified on this machine on 2026-10-01 (the date the core adapter landed). Nothing has been
-installed or run on a device — see *What is not verified*.
+**Status: the sources compile, the JVM unit tests pass, and a signed debug APK is produced —
+now with the pinned proxy core bundled inside it.** Re-verified on this machine on 2026-10-01.
+Nothing has been installed or run on a device — see *What is not verified*.
 
 The hash below is one real build's; **the APK is not bit-for-bit reproducible** (zip entry
 timestamps plus the auto-generated debug key), so a rebuild gives the same size and the same
@@ -10,20 +10,47 @@ verification results with a different hash.
 
 ```
 APK        apps/android/app/build/outputs/apk/debug/app-debug.apk
-size       10,331,863 bytes
-sha256     0e1670df436442f898a8265b4eb3a36bfcd6070f32175eb6eed47a6974ef541d
+size       46,827,647 bytes   (36.5 MB of it is the bundled core library)
+sha256     bf538ed66f33a44cebd5525dda989f0d6b0cd9b553153b5d7b45e6ff30872a24
 package    club.noclub.accelerator.debug   (versionName 0.3.0-android-source)
 sdk        compileSdk 35 / targetSdk 35 / minSdk 26
-contents   165 entries, 15 dex files; the core adapter classes are in the dex
+contents   164 entries, 15 dex files; the core adapter classes are in the dex
            (XrayConfigRenderer, XrayConfigValidator, CoreSupervisor, Socks5ExitVerifier, JsonText)
+core       lib/arm64-v8a/libxray.so — 36,516,696 bytes, STORED (uncompressed)
+           sha256 19101a8191d6d606da975f719c8cdb80b8710b87ab17edc00ef74b9e39588714
+           (identical to the pinned digest; `zipalign -c -P 16 4` passes, so it is page-aligned
+           and executable from nativeLibraryDir)
 signature  APK Signature Scheme v2, verified, signer "C=US, O=Android, CN=Android Debug"
 alignment  zipalign -c 4 → OK
 kotlin     42 main source files + 5 test source files, 0 errors (full compile of both source sets)
-tests      39 JVM unit tests, all passing — `bash scripts/android_test.sh`
+tests      44 JVM unit tests, all passing — `bash scripts/android_test.sh`
 ```
 
-The 2026-09-29 build (10,299,095 bytes, sha256 `7c27e49b…`) predates the core adapter and is
-kept only as a historical data point; it is not the current artefact.
+Earlier builds are historical data points only: 2026-09-29 (10,299,095 bytes, `7c27e49b…`,
+before the core adapter) and the adapter-only build (10,331,863 bytes, `0e1670df…`, before the
+core was bundled). Neither is the current artefact.
+
+## Bundling the pinned core
+
+The core is **fetched, never committed** (`apps/android/.gitignore` excludes `jniLibs/*/*.so`):
+
+```bash
+uv run python scripts/fetch_core.py --android          # fetch + verify + install as a native library
+uv run python scripts/fetch_core.py --android --check  # offline: verify what is installed
+```
+
+Two digests are checked, because the device can only ever see the second one:
+
+| Step | What is verified | Value |
+|---|---|---|
+| 1 | the release archive | `57149ffd…4c1b` (matches upstream's published `.dgst`) |
+| 2 | the extracted `xray` binary, after installation | `19101a81…8714` (pinned in `core_pin.py`, mirrored in `CorePin.kt`) |
+
+At runtime `CoreHost.prepare()` re-checks the installed library against the same pin and refuses
+with `CORE_HASH_MISMATCH` when it differs — "we bundled a core once" is not the same claim as "we
+know which bytes we execute". The ABI is **arm64-v8a only**: upstream publishes no Android arm32
+build, so listing `armeabi-v7a` would promise 32-bit devices a core that does not exist. Geo data
+is deliberately not bundled (our generated config uses plain CIDRs, never `geoip:`/`geosite:`).
 
 ## Toolchain
 
@@ -148,10 +175,10 @@ against a loopback server implemented inside the test** — real bytes, local pe
 * **No release artefact.** There is no signing keystore, so `assembleRelease` cannot be
   signed and none was attempted (`PLATFORM_MATRIX.md`). The APK above is
   **debug-signed with the auto-generated debug key** and is not distributable.
-* **No connection.** The config dialect is implemented and the lifecycle is unit-tested, but
-  **the core binary is not bundled**: nothing ships in `jniLibs/<abi>/`, so `prepare()` refuses
-  with `CORE_NOT_AVAILABLE` and no tunnel is created. Pinning the Android artefact's hash is
-  part of Gate B.
+* **No connection on a device.** The core **is** bundled and its digest is verified at prepare
+  time, but nothing has executed it: the client has never been installed, so "the pinned library
+  starts on real hardware and tunnels traffic" remains unverified. That is exactly what a device
+  run has to show.
 * **No on-device tunnel.** `VpnService` is still skeleton code — it has never been started, so
   TUN, per-app routing, DNS and IPv6 remain unverified and unclaimed (`AndroidCapabilities`).
 * **The unit tests prove logic, not the device.** They cover the adapter's decisions with a fake

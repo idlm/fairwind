@@ -17,6 +17,29 @@
 - 接入模型：进程隔离 sidecar（ADR-0001 由"提议"转为**已批准**）；UI / CLI / API / Domain Layer 禁止直接调用核心
 - 本机 loopback 真实链路已验证：客户端 SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标取回标记内容（标签 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`，**不是**公网节点验收）
 
+### Android 随包固定核心：双重哈希校验 + 设备端复核（Gate B · A8，2026-10-01）
+
+- `core_pin.py`：新增 `android-arm64` 资产（`Xray-android-arm64-v8a.zip`，19,883,196 字节，
+  `57149ffd…4c1b`，与上游 `.dgst` 两来源一致），并固定**解包后二进制**的摘要
+  `19101a81…8714`（36,516,696 字节）——设备端能校验的只有它，归档在设备上根本不存在
+- `scripts/fetch_core.py --android`：按清单取件 → 校验归档 SHA-256 → 解出 `xray` → 再校验其
+  SHA-256 → 装成 `jniLibs/arm64-v8a/libxray.so`（`lib*.so` 是 API 29+ 从 `nativeLibraryDir`
+  执行的前提）；`--check` 可在离线环境只校验已装文件
+- `CorePin.kt` + `CoreHost.prepare()`：运行前复核同一摘要，不符即 `CORE_HASH_MISMATCH` 拒绝执行
+  ——"曾经打过包"和"知道正在执行哪串字节"不是同一个claim
+- **ABI 收窄为 `arm64-v8a`**：上游没有 Android arm32 构建（只有 arm64-v8a 与 amd64），
+  原先列上 `armeabi-v7a` 等于承诺 32 位设备一个不存在的核心
+- **不随包 geo 数据**：生成的配置只用 CIDR 与 `outboundTag`，不引用 `geoip:`/`geosite:`，
+  带上只会让 APK 多约 30 MB；将来若引入 geo 规则必须把数据文件一并纳入固定清单
+- 测试：`CorePinTest`（5 项：摘要正确性、大小写与长度、非固定字节必拒、缺失文件报
+  `CORE_NOT_AVAILABLE` 而非 mismatch）；`tests/test_core_pin.py` 新增 3 项**跨语言一致性**测试，
+  读 Kotlin 源逐项比对 tag/commit/ABI/库名/摘要——"两处都记得改"不可靠，测试要盯住
+
+真机验证（本机）：APK 由 10,331,863 → **46,827,647 字节**（sha256 `bf538ed6…`），
+包内 `lib/arm64-v8a/libxray.so` 为**未压缩存储**、包内摘要与固定值逐字节一致、
+`zipalign -c 4` 与 `zipalign -c -P 16 4` 均通过（16 KB 页对齐）、v2 签名有效；
+Android JVM 单测 **44 项全通过**。
+
 ### 面板改版：iOS + Instagram 视觉语言（方案 2 深色 / 方案 3 浅色，2026-10-01）
 
 - 参考 GitHub 同类客户端（FlClash / Hiddify）与 iOS / Instagram 语汇重做视觉层：**手机列 + 固定底部标签栏**（毛玻璃、内联 SVG 图标、安全区适配）、**故事环**品牌头像、**渐变胶囊主操作**（禁用时明确变灰）、**iOS 分组卡片**、分类胶囊改为**分段控件**、等宽数据块
