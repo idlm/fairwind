@@ -78,12 +78,14 @@ Core Adapter → Core Process/Library → Local Config Generator → Health Chec
 |---|---|
 | 类型 | **prerelease（非发布）**，指向 `main` 的 `767f780` |
 | Release URL | https://github.com/idlm/fairwind/releases/tag/v0.3.0-android-core-preview |
-| 内容 | Android 核心适配层 + 39 项 JVM 单测 + 重建的 `app-debug.apk` |
-| 资产 | `app-debug.apk`(10,331,863)、`SHA256SUMS.txt`、`APK-VERIFY.txt`、`ANDROID-UNIT-TESTS.txt`、`SYSTEM-PROXY-SMOKE.txt`、`PYTHON-GATES.txt`、`EVIDENCE-MANIFEST.json`、`panel-plan2-dark.png`(226,813)、`panel-plan3-light.png`(238,733) |
+| 内容 | Android 核心适配层 + 44 项 JVM 单测 + 重建的 `app-debug.apk`（**随包固定核心**） |
+| 资产 | `app-debug.apk`(**46,827,647**)、`CORE-BUNDLE.txt`、`SHA256SUMS.txt`、`APK-VERIFY.txt`、`ANDROID-UNIT-TESTS.txt`、`SYSTEM-PROXY-SMOKE.txt`、`PYTHON-GATES.txt`、`EVIDENCE-MANIFEST.json`、`panel-plan2-dark.png`(226,813)、`panel-plan3-light.png`(238,733) |
+| 附件更新 | **同一 tag 的 `app-debug.apk` 于 2026-10-01 被替换**：10,331,863 → 46,827,647 字节（旧附件不含核心）。Release 正文的"更新记录"写明了这一点，`CORE-BUNDLE.txt` 可核对新附件 |
+| 随包核心 | `lib/arm64-v8a/libxray.so`（未修改的上游 Xray-core v26.3.27，MPL-2.0）；归档 sha256 `57149ffd…4c1b`、二进制 sha256 `19101a81…8714`；**包内摘要与固定值逐字节一致**；`CoreHost.prepare()` 运行前复核，不符即 `CORE_HASH_MISMATCH` |
 | 面板设计 | 方案 2（深色，默认）/ 方案 3（浅色）同一模板切换；设计说明与验证方式见 `docs/PANEL_DESIGN.md`；两套方案的渲染截图即上面两张 PNG |
-| APK 摘要 | `0e1670df436442f898a8265b4eb3a36bfcd6070f32175eb6eed47a6974ef541d`（远端 `SHA256SUMS.txt` 与本地逐字一致） |
+| APK 摘要 | `bf538ed66f33a44cebd5525dda989f0d6b0cd9b553153b5d7b45e6ff30872a24`（**已从 Release 下载回来重算，与本地逐字节一致**）；旧附件（不含核心）为 `0e1670df…541d` |
 | 签名 | **自动生成的调试密钥**；无 release keystore → 不可分发（Gate C 仍为外部阻塞） |
-| 脱敏 | 附件的地址、端口、绕过列表与用户路径已移除；**不含任何订阅链接、Master URL、节点凭据或 token**；不含第三方核心二进制 |
+| 脱敏 | 附件的地址、端口、绕过列表与用户路径已移除；**不含任何订阅链接、Master URL、节点凭据或客户端 UUID**（随包 APK 逐条目复扫：订阅链接 0、真实节点 IP 0、Reality 公钥 0、Master 变量 0；3 个 UUID 形态串均为上游库常量）；随包核心为未修改的上游二进制 |
 | 复核 | 发布后现场重查：远端 `SHA256SUMS.txt` 与本地 `sha256sum` 一致；远端 `SYSTEM-PROXY-SMOKE.txt` 明文 IP 计数为 0 |
 
 ## 已发布基线记录
