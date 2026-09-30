@@ -17,6 +17,14 @@
 - 接入模型：进程隔离 sidecar（ADR-0001 由"提议"转为**已批准**）；UI / CLI / API / Domain Layer 禁止直接调用核心
 - 本机 loopback 真实链路已验证：客户端 SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标取回标记内容（标签 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`，**不是**公网节点验收）
 
+### 面板改版：iOS + Instagram 视觉语言（方案 2 深色 / 方案 3 浅色，2026-10-01）
+
+- 参考 GitHub 同类客户端（FlClash / Hiddify）与 iOS / Instagram 语汇重做视觉层：**手机列 + 固定底部标签栏**（毛玻璃、内联 SVG 图标、安全区适配）、**故事环**品牌头像、**渐变胶囊主操作**（禁用时明确变灰）、**iOS 分组卡片**、分类胶囊改为**分段控件**、等宽数据块
+- 两套配色（方案 2 深色默认 / 方案 3 浅色）共用同一套语义变量与组件样式，顶栏开关经 `localStorage` 记忆，**不发起任何请求**；设计说明见 `docs/PANEL_DESIGN.md`
+- 约束不变：单文件自包含（**零外链**，图标改为 HTML 内联 SVG 以免 data URI 里出现 `http://`）、五个页面 id 与 `data-tab`/`panel-*`/规格文案逐字保留、**既有 JS 一行未改**
+- **顺带修掉一个真缺陷**：面板是单文件（内联 CSS/JS），在 `default-src 'self'` 下内联块被浏览器拒绝——面板此前是"有测试覆盖却完全没有样式、脚本也不执行"。现在 `api.panel_csp()` 按文件内容为每个内联块算 `sha256-…` 放行（保留 `default-src 'self'`，不含 `unsafe-inline`）；哈希按 HTML 归一化口径计算，且认证中间件改用 `setdefault` 以免在处理器之后整表覆盖安全头。浏览器实测 `document.styleSheets.length` 由 0 → 1（52 条规则）
+- 两套方案的真实渲染截图作为预览资产上传（`panel-plan2-dark.png` / `panel-plan3-light.png`），不进版本库
+
 ### Reality 支持与首个公网节点实测（2026-10-01）
 
 - `core/fairwind/core_config.py`：`SECURITIES` 纳入 `reality`，生成 `realitySettings`
