@@ -5,43 +5,172 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fairwind 控制面板</title>
 <style>
-  :root { color-scheme: light dark; --line: #d0d7de; --muted: #6a737d; --bg: #ffffff; --fg: #1f2328; --accent: #0969da; }
-  @media (prefers-color-scheme: dark) {
-    :root { --line: #30363d; --muted: #8b949e; --bg: #0d1117; --fg: #e6edf3; --accent: #4493f8; }
+  /* 设计语言：iOS（分组卡片 / 大标题 / 底部标签栏 / 安全区）+ Instagram（故事环 / 渐变 CTA / 圆角 24）。
+     语义变量名与组件类名不变，因此两套配色只是变量切换，布局与组件样式共用一份。 */
+  :root, [data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #000000; --bg-2: #0b0b0d;
+    --card: #1c1c1e; --card-2: #2c2c2e; --card-3: #3a3a3c;
+    --line: rgba(255,255,255,.10); --line-2: rgba(255,255,255,.18);
+    --fg: #f5f5f7; --muted: #9b9ba1; --faint: #6e6e73;
+    --accent: #0a84ff; --accent-2: #64d2ff; --accent-fg: #ffffff; --accent-soft: rgba(10,132,255,.16);
+    --ok: #30d158; --warn: #ffd60a; --danger: #ff453a;
+    --shadow: none;
+    --ins: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    --glass: rgba(28,28,30,.72);
   }
-  * { box-sizing: border-box; }
-  body { margin: 0; padding: 16px; font: 14px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
-  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-  h1 { font-size: 18px; margin: 0; }
-  h2 { font-size: 14px; margin: 0 0 8px; }
-  .badge { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
-  .badge.warn { color: #9a6700; border-color: #9a6700; }
-  nav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; flex-wrap: wrap; }
-  nav button { border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 14px; }
-  nav button.active { border-bottom-color: var(--accent); color: var(--accent); }
-  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-  .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
-  pre { margin: 0; overflow: auto; font-size: 12px; white-space: pre-wrap; }
-  button { font: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  input, select, textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; width: 100%; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
-  .muted { color: var(--muted); font-size: 12px; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-  .chips button { padding: 2px 10px; font-size: 12px; border-radius: 999px; }
-  .chips button.active { border-color: var(--accent); color: var(--accent); }
+  [data-theme="light"] {
+    color-scheme: light;
+    --bg: #f2f2f7; --bg-2: #ffffff;
+    --card: #ffffff; --card-2: #f2f2f7; --card-3: #e5e5ea;
+    --line: rgba(60,60,67,.12); --line-2: rgba(60,60,67,.20);
+    --fg: #1c1c1e; --muted: #6e6e73; --faint: #8e8e93;
+    --accent: #007aff; --accent-2: #5ac8fa; --accent-fg: #ffffff; --accent-soft: rgba(0,122,255,.12);
+    --ok: #248a3d; --warn: #b25000; --danger: #d70015;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+    --ins: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    --glass: rgba(255,255,255,.78);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  ::selection { background: var(--accent-soft); }
+  body {
+    margin: 0 auto; padding: 20px 16px 108px; max-width: 560px;
+    font: 15px/1.5 -apple-system, "SF Pro Text", BlinkMacSystemFont, system-ui, "PingFang SC",
+      "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--fg); -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.02em; font-weight: 700; }
+  h2 { font-size: 13px; margin: 0 0 10px; font-weight: 600; color: var(--muted); letter-spacing: .01em; }
+  a { color: var(--accent); text-decoration: none; }
+
+  /* 顶栏：故事环头像（Instagram）+ 状态胶囊（iOS） */
+  header {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; margin-right: auto; }
+  .brand-ring {
+    width: 46px; height: 46px; border-radius: 50%; flex: none; padding: 2.5px;
+    background: var(--ins); display: grid; place-items: center;
+    box-shadow: 0 6px 18px rgba(220,39,67,.28);
+  }
+  .brand-mark {
+    width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center;
+    background: var(--bg-2); font: 700 19px/1 system-ui, sans-serif;
+    background-image: var(--ins); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .brand-sub { color: var(--faint); font-size: 12px; display: block; margin-top: 1px; }
+  .badge {
+    border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px;
+    font-size: 12px; font-weight: 500; color: var(--muted); background: var(--card); white-space: nowrap;
+    backdrop-filter: blur(12px);
+  }
+  .badge.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+  .badge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+  .badge.bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+
+  /* 底部标签栏（iOS）：固定、毛玻璃、图标 + 文字 */
+  nav {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 560px;
+    display: flex; justify-content: space-around; gap: 0; margin: 0; padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    border: none; border-top: 1px solid var(--line); border-radius: 0;
+    background: var(--glass); backdrop-filter: blur(22px) saturate(160%); z-index: 40;
+  }
+  nav button {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    border: none; background: none; border-radius: 12px; padding: 6px 4px;
+    font-size: 10.5px; font-weight: 500; color: var(--faint);
+  }
+  /* 图标是 HTML 内联 SVG（HTML5 不需要 xmlns，因此文件里不出现任何 URL） */
+  nav button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9;
+    stroke-linecap: round; stroke-linejoin: round; }
+  nav button.active { color: var(--accent); background: none; }
+  nav button.active::after { content: none; }
+
+  /* 分组卡片（iOS inset grouped）：24px 圆角、分隔线、无边框浮起 */
+  .grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+  .card {
+    border: 1px solid var(--line); border-radius: 24px; padding: 18px;
+    background: var(--card); box-shadow: var(--shadow);
+  }
+  .hero { padding: 20px; }
+  .hero-top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .hero-state { margin-right: auto; }
+  .hero-label { color: var(--faint); font-size: 12px; font-weight: 600; letter-spacing: .04em; }
+  .hero-value { font-size: 27px; font-weight: 700; letter-spacing: -.02em; }
+  .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  /* 主要动作：Instagram 渐变胶囊 + 光环 */
+  button {
+    font: inherit; font-weight: 500; padding: 10px 16px; border: 1px solid var(--line-2);
+    border-radius: 999px; background: var(--card-2); color: var(--fg); cursor: pointer;
+    transition: transform .12s ease, filter .12s ease;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.06); }
+  button:active:not(:disabled) { transform: scale(.97); }
+  button:disabled { opacity: .42; cursor: not-allowed; }
+  button.primary {
+    background-image: var(--ins); color: #fff; border: none; font-weight: 600;
+    padding: 13px 30px; font-size: 15.5px; letter-spacing: .01em;
+    box-shadow: 0 10px 26px rgba(220,39,67,.32);
+  }
+  button.primary:disabled { background-image: none; background: var(--card-3); color: var(--faint); box-shadow: none; }
+  input, select, textarea {
+    font: inherit; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px;
+    background: var(--card-2); color: inherit; width: 100%; appearance: none;
+  }
+  input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  /* 数据块：等宽、可滚、iOS 次级背景 */
+  pre {
+    margin: 0; overflow: auto; font-size: 12.5px; white-space: pre-wrap; word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--muted); background: var(--card-2); border: 1px solid var(--line);
+    border-radius: 16px; padding: 12px 14px; max-height: 340px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 6px; border-bottom: 1px solid var(--line); }
+  th { color: var(--faint); font-weight: 600; font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+
+  /* 分类胶囊 → iOS 分段控件 */
+  .chips {
+    display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; padding: 4px;
+    background: var(--card-2); border-radius: 12px;
+  }
+  .chips button {
+    padding: 7px 14px; font-size: 13px; border: none; border-radius: 9px; background: transparent; color: var(--muted);
+  }
+  .chips button.active { background: var(--card); color: var(--fg); box-shadow: var(--shadow); font-weight: 600; }
   .panel[hidden] { display: none; }
-  .blocked { border-left: 3px solid #9a6700; padding-left: 8px; }
+  .blocked {
+    border-left: none; border-radius: 16px; padding: 12px 14px;
+    background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--fg);
+  }
+  @media (max-width: 560px) {
+    body { padding: 16px 12px 104px; }
+    .hero-value { font-size: 24px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>Fairwind</h1>
+  <div class="brand">
+    <span class="brand-ring" aria-hidden="true"><span class="brand-mark">顺</span></span>
+    <div>
+      <h1>Fairwind</h1>
+      <span class="brand-sub">顺风 · 跨平台智能加速器</span>
+    </div>
+  </div>
   <span class="badge" id="version">version …</span>
   <span class="badge warn" id="core">core …</span>
   <span class="badge" id="state">state …</span>
+  <button id="theme-toggle" type="button" title="切换配色：方案 3 浅色 / 方案 2 深色">切换浅色</button>
 </header>
 
 <div class="card" id="auth-card" hidden>
@@ -54,24 +183,31 @@
 </div>
 
 <nav>
-  <button data-tab="home" class="active">主页</button>
-  <button data-tab="nodes">节点</button>
-  <button data-tab="subscriptions">订阅</button>
-  <button data-tab="games">游戏</button>
-  <button data-tab="settings">设置</button>
+  <button data-tab="home" class="active"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/></svg>主页</button>
+  <button data-tab="nodes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.6 2.5 13.4 0 16M12 4c-2.5 2.6-2.5 13.4 0 16"/></svg>节点</button>
+  <button data-tab="subscriptions"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M4 10h16"/></svg>订阅</button>
+  <button data-tab="games"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="5"/><path d="M8 12h3M9.5 10.5v3M15.5 11.5h.01M17.5 13.5h.01"/></svg>游戏</button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg>设置</button>
 </nav>
 
 <section class="panel" id="panel-home">
   <div class="grid">
-    <div class="card">
-      <h2>智能加速</h2>
-      <div class="row">
-        <button id="connect" disabled title="未接入代理核心：CORE_NOT_INTEGRATED">智能加速（连接）</button>
-        <button id="disconnect" disabled title="尚未连接">断开</button>
-        <button id="refresh">刷新状态</button>
+    <div class="card hero">
+      <div class="hero-top">
+        <div class="hero-state">
+          <div class="hero-label">智能加速</div>
+          <h2 style="margin:2px 0 0;font-size:15px;font-weight:500;color:var(--muted)">选一条最顺的路，其余交给它</h2>
+        </div>
+        <div class="hero-actions">
+          <button id="connect" disabled class="primary" title="未接入代理核心：CORE_NOT_INTEGRATED">智能加速</button>
+          <button id="disconnect" disabled title="尚未连接">断开</button>
+          <button id="refresh">刷新状态</button>
+        </div>
       </div>
-      <p class="muted blocked" id="connect-note">连接在接入获审代理核心前不可用，原因见「设置 → 能力声明」。本面板不会、也不能声称已连接。</p>
+      <p class="muted blocked" id="connect-note" style="margin-top:14px">连接在接入获审代理核心前不可用，原因见「设置 → 能力声明」。本面板不会、也不能声称已连接。</p>
       <pre id="connect-output" class="muted"></pre>
+    </div>
+    <div class="card">
       <h2>当前模式</h2>
       <div class="row">
         <select id="mode" disabled>
@@ -219,6 +355,32 @@
     </div>
   </div>
 </section>
+
+<script>
+  // 配色方案切换：方案 2（深色，默认）/ 方案 3（浅色）。只写 localStorage，不发任何请求。
+  (function () {
+    var KEY = "fairwind-theme";
+    var stored = null;
+    try { stored = localStorage.getItem(KEY); } catch (error) { stored = null; }
+    var theme = stored === "light" ? "light" : "dark";
+    var apply = function (value) {
+      document.documentElement.dataset.theme = value;
+      var button = document.getElementById("theme-toggle");
+      if (button) { button.textContent = value === "dark" ? "切换浅色" : "切换深色"; }
+    };
+    apply(theme);
+    document.addEventListener("DOMContentLoaded", function () {
+      apply(theme);
+      var button = document.getElementById("theme-toggle");
+      if (!button) { return; }
+      button.addEventListener("click", function () {
+        theme = theme === "dark" ? "light" : "dark";
+        try { localStorage.setItem(KEY, theme); } catch (error) { /* 隐私模式：仅本次生效 */ }
+        apply(theme);
+      });
+    });
+  })();
+</script>
 
 <script>
 const state = {
