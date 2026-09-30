@@ -109,7 +109,7 @@ class CoreHost(
             message = "SECRET_NOT_FOUND: no credential is stored for this node",
             details = linkedMapOf("secret_ref" to node.secretRef),
         )
-        val generator = ConfigGenerator(workingDir, TODO_DIALECT_RENDERER)
+        val generator = ConfigGenerator(workingDir, XRAY_RENDERER)
         val config = generator.generate(
             CoreConfigRequest(node = node, secret = secret, workingDir = workingDir.absolutePath),
         )
@@ -209,7 +209,7 @@ class CoreHost(
 
     /** Remove generated configs and the child log. Keeps the binary and the secret store. */
     fun cleanup() {
-        ConfigGenerator(workingDir, TODO_DIALECT_RENDERER).cleanup()
+        ConfigGenerator(workingDir, XRAY_RENDERER).cleanup()
         adapter.cleanup()
         recentStarts.clear()
     }
@@ -236,7 +236,11 @@ class CoreHost(
     }
 
     companion object {
-        /** `// TODO(Gate B)`: the real name comes from the approval record, per ABI. */
+        /**
+         * `// TODO(Gate B)`: the approved core is Xray-core, but its Android artefact is not
+         * bundled or pinned yet, so no real library name can be claimed. The desktop half of the
+         * same pin already exists (`scripts/fetch_core.py`).
+         */
         const val CORE_BINARY_PLACEHOLDER: String = "libaccelerator-core.so"
 
         private fun binaryName(): String = CORE_BINARY_PLACEHOLDER
@@ -247,18 +251,17 @@ class CoreHost(
         const val MAX_STARTS_PER_WINDOW: Int = 5
 
         /**
-         * The dialect renderer that refuses to guess.
+         * The approved core's config dialect.
          *
-         * `// TODO(Gate B)`: replace with the chosen core's renderer. Refusing is correct:
-         * a config in the wrong dialect looks plausible and fails at runtime, which is
-         * exactly the class of dishonesty this product forbids.
+         * The core is no longer unknown: `docs/CORE_APPROVAL.md` records the Gate A approval and
+         * `core/fairwind/core_pin.py` pins the exact version, commit and asset digests, so the
+         * dialect can be written down instead of guessed ([XrayConfigRenderer]).
+         *
+         * What is still missing is the Android half of the pin: the per-ABI artefact is neither
+         * bundled in `jniLibs/` nor hash-verified on device, which is why [binaryName] is still a
+         * placeholder and [prepare] refuses. Pinning that asset belongs to Gate B — see
+         * `apps/android/BUILD.md`.
          */
-        val TODO_DIALECT_RENDERER: CoreDialectRenderer = CoreDialectRenderer {
-            throw CoreException(
-                code = CoreErrorCode.CORE_NOT_AVAILABLE,
-                message = "no core config dialect is implemented: no core has been approved " +
-                    "(docs/CORE_APPROVAL.md)",
-            )
-        }
+        val XRAY_RENDERER: CoreDialectRenderer = XrayConfigRenderer()
     }
 }

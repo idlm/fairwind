@@ -18,6 +18,7 @@ navigationCompose = "2.8.0"
 datastore = "1.1.1"
 coroutines = "1.9.0"
 okhttp = "4.12.0"
+junit = "4.13.2"                   # JVM unit tests only (no instrumentation, no device)
 # compileSdk/targetSdk/minSdk are documented in app/build.gradle.kts. minSdk 26 is a
 # deliberate product decision (notification channels for the mandatory foreground
 # notification + VpnService on a modern API surface), not a default.
@@ -39,6 +40,8 @@ compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview"
 compose-material3 = { module = "androidx.compose.material3:material3" }
 # The tab bar needs real icons; material3 does not ship them (the BOM pins the version).
 compose-material-icons-core = { module = "androidx.compose.material:material-icons-core" }
+junit = { module = "junit:junit", version.ref = "junit" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

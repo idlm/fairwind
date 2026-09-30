@@ -112,8 +112,20 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.core)
+
+    // JVM unit tests (`testDebugUnitTest`) — host-side only, no device and no emulator.
+    // The logic under test is deliberately Android-free (config dialect, process supervisor,
+    // exit verifier, capability ledger), so these tests run on any CI runner, including the
+    // Linux jobs that never see an Android device.
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlin.test)
 }
 
-// NOTE on test dependencies: no test dependency is declared because no test exists.
-// Declaring a test framework now would suggest coverage that does not exist
-// (docs/ACCEPTANCE.md "Acceptance evidence recorded: Not started").
+tasks.withType<Test>().configureEach {
+    // A unit test that only passes on the developer's JVM is not a test: keep the output
+    // deterministic and make failures show their assertion.
+    testLogging {
+        events("failed", "skipped")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
+}

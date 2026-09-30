@@ -90,6 +90,14 @@ data class CoreConfigRequest(
     val directCidrs: List<String> = emptyList(),
     val gameProfilePorts: List<Int> = emptyList(),
     val socksPort: Int = 7890,
+    /**
+     * Port for the loopback-only statistics inbound.
+     *
+     * `null` means "no statistics API": the client then reports `measured = false` instead of
+     * inventing a number. When set, the core exposes `StatsService` on `127.0.0.1:statsPort`
+     * and nothing else changes — the tunnel is still the single proxy outbound.
+     */
+    val statsPort: Int? = null,
     val workingDir: String,
 )
 
