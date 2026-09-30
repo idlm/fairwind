@@ -14,7 +14,7 @@ import club.noclub.accelerator.vpn.VpnPhase
 import club.noclub.accelerator.vpn.VpnState
 
 /**
- * Offline, read-only diagnostics, mirroring `accelerator diagnose`
+ * Offline, read-only diagnostics, mirroring `fairwind diagnose`
  * (spec 66, 132, 138; docs/TROUBLESHOOTING.md, docs/ARCHITECTURE.md).
  *
  * Four properties are inherited from the Python runner and are non-negotiable here:

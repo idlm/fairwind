@@ -1,8 +1,8 @@
 # 排障
 
-先跑 `accelerator diagnose`（或面板「设置 → 诊断」，或 `GET /api/host/diagnostic`）：它只读本机状态、不联网、不含凭据，会用下面的固定错误码指出问题所在。`FAIL` 需要处理，`WARN` 表示可用但退化，`SKIP` 表示当前无法判断（例如没有密钥），**不会伪装成通过**。
+先跑 `fairwind diagnose`（或面板「设置 → 诊断」，或 `GET /api/host/diagnostic`）：它只读本机状态、不联网、不含凭据，会用下面的固定错误码指出问题所在。`FAIL` 需要处理，`WARN` 表示可用但退化，`SKIP` 表示当前无法判断（例如没有密钥），**不会伪装成通过**。
 
-- `SECRET_KEY_REQUIRED`：通过安全环境注入 ACCELERATOR_SECRET_KEY，必须是 32 字节 Base64；不要把密钥加入 issue。
+- `SECRET_KEY_REQUIRED`：通过安全环境注入 FAIRWIND_SECRET_KEY，必须是 32 字节 Base64；不要把密钥加入 issue。
 - `SECRET_KEY_MISMATCH` / `SECRET_CORRUPT`：恢复原有密钥或备份；不要删除数据库来掩盖问题。
 - `URL_REJECTED` / `NETWORK_FAILED`：确认是公网 HTTP(S)、证书有效、未重定向到私网；默认不允许本地或 LAN 源。
 - `DNS_FAILED`：当前网络解析不了配置的主机；不能通过关闭公网地址检查绕过。2026-09-28 复核显示指定 Master 的域名已注册、但其权威区没有发布 A/AAAA 记录（NOERROR-NODATA），不是本机 DNS 故障；可改用可解析的等价 Master，复核用 `scripts/dns_evidence.sh <master-host>`。
@@ -20,7 +20,7 @@
 - `UNSUPPORTED_SELECTOR`：当前平台能力不满足该游戏配置的 selector；不要删掉 selector 蒙混过关，改用平台支持的规则或补齐能力。
 - `SCHEMA_UNSUPPORTED`：游戏配置或数据库 schema 版本不受支持；不要就地改写版本号，按升级流程处理。
 - `BACKUP_TARGET_EXISTS` / `BACKUP_INVALID`：备份目标已存在，或备份文件不可用（非 SQLite、完整性检查失败）；不要覆盖现有备份，改用新路径或重新生成。
-- `RESTORE_NOT_CONFIRMED`：恢复必须显式加 `--yes`；恢复后旧库会保留为 `accelerator.sqlite3.previous` 以便回滚。
+- `RESTORE_NOT_CONFIRMED`：恢复必须显式加 `--yes`；恢复后旧库会保留为 `fairwind.sqlite3.previous` 以便回滚。
 - `SECRET_SNAPSHOT_INCOMPLETE`：备份引用的密文快照不完整（只备份了 SQLite，或密文已被 GC/删除）。不要强行恢复——这会让所有节点永久无法解密；请先用 `--secrets-from` 补回密文快照再恢复，或重新生成完整备份。
 - `CORE_UNSUPPORTED`：没有核心能力满足该节点（协议 / UDP / IPv6 / 平台）；不要静默丢弃节点或改写配置，应换用具备能力的核心或从候选中排除该节点。
 - `CONTROL_UNAUTHORIZED`：控制面请求缺少或带错 Bearer 令牌；从 `<data-dir>/control.token` 读取，**不要**把它贴到任何在线位置或工单里。
@@ -29,7 +29,7 @@
 - `SUBSCRIPTION_LIMIT`：本机订阅源已达 128 上限；先暂停或移除不需要的源。
 - `SUBSCRIPTION_STATE_INVALID`：本机用户意图记录（`settings.subscription_state`）形状损坏，或手动源的密文与句柄不一致；请从备份恢复，不要手改数据库掩盖。
 - `MASTER_STATE_UNKNOWN_WITHOUT_KEY`（note，不是错误码）：没有密钥或没有 Master 快照时无法判断被移除的源是否仍在 Master 列表；此时不要断言"永久移除"。
-- `PROFILE_PUBKEY_REQUIRED`：未注入 `ACCELERATOR_PROFILE_PUBKEY`（或公钥非法）；这是设计上的拒绝，不要为了“跑通”而绕过，也不要向仓库提交密钥。
+- `PROFILE_PUBKEY_REQUIRED`：未注入 `FAIRWIND_PROFILE_PUBKEY`（或公钥非法）；这是设计上的拒绝，不要为了“跑通”而绕过，也不要向仓库提交密钥。
 - `PROFILE_SIGNATURE_INVALID`：信封签名不匹配或文档被改动；更新会被拒绝且现有注册表保持不变。
 - `ROLLBACK_REJECTED`：远端 `version` 未严格大于本地版本；按发布流程重新签名递增版本，不要就地改版本号。
 - `NO_PREVIOUS_REGISTRY`：尚无 LKG 可回退（首次更新前或首次更新失败时属于正常状态）。

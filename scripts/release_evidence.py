@@ -24,7 +24,7 @@ import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
-from accelerator import __version__
+from fairwind import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
 GATE_COMMANDS = (
@@ -164,7 +164,7 @@ def main() -> int:
             "timestamp": datetime.now(UTC).isoformat(),
             "component": {
                 "type": "application",
-                "name": "smart-accelerator",
+                "name": "fairwind",
                 "version": __version__,
             },
             "properties": [

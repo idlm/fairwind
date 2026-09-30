@@ -6,12 +6,12 @@ import socket
 import pytest
 from aiohttp import web
 
-from accelerator.errors import SafeError
-from accelerator.network import FetchResult, HttpFetcher, PublicResolver
-from accelerator.security import SecretVault, public_ip, validate_url
-from accelerator.storage import Database, operation_lock
-from accelerator.subscription import SubscriptionEngine
 from conftest import FIXTURES, MASTER
+from fairwind.errors import SafeError
+from fairwind.network import FetchResult, HttpFetcher, PublicResolver
+from fairwind.security import SecretVault, public_ip, validate_url
+from fairwind.storage import Database, operation_lock
+from fairwind.subscription import SubscriptionEngine
 
 pytestmark = pytest.mark.security
 

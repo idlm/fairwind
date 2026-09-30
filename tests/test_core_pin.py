@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from accelerator import core_pin
-from accelerator.errors import SafeError
+from fairwind import core_pin
+from fairwind.errors import SafeError
 
 pytestmark = pytest.mark.unit
 

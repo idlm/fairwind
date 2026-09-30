@@ -8,10 +8,10 @@ import time
 from typing import Protocol
 from urllib.parse import urlsplit
 
-from accelerator.domain import ProbeResult, ProxyNode, TestState
-from accelerator.errors import SafeError
-from accelerator.security import public_ip, validate_url
-from accelerator.socks import (
+from fairwind.domain import ProbeResult, ProxyNode, TestState
+from fairwind.errors import SafeError
+from fairwind.security import public_ip, validate_url
+from fairwind.socks import (
     CONNECT,
     MAX_DATAGRAM,
     UDP_ASSOCIATE,
@@ -23,7 +23,7 @@ from accelerator.socks import (
     parse_datagram,
     wrap_datagram,
 )
-from accelerator.storage import Database
+from fairwind.storage import Database
 
 MAX_CONCURRENT_TESTS = 8
 HTTP_OK = 200

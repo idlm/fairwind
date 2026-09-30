@@ -6,13 +6,13 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from accelerator import __version__
-from accelerator.api import load_or_create_token, serve
-from accelerator.errors import SafeError
-from accelerator.host import DEFAULT_PROBE_TARGET, HostService
-from accelerator.probing import UDP_TARGET_DEFAULT
-from accelerator.security import SecretVault, canonical_host, public_ip
-from accelerator.socks import is_ip_literal
+from fairwind import __version__
+from fairwind.api import load_or_create_token, serve
+from fairwind.errors import SafeError
+from fairwind.host import DEFAULT_PROBE_TARGET, HostService
+from fairwind.probing import UDP_TARGET_DEFAULT
+from fairwind.security import SecretVault, canonical_host, public_ip
+from fairwind.socks import is_ip_literal
 
 
 class SafeArgumentParser(argparse.ArgumentParser):
@@ -27,11 +27,11 @@ def default_data_dir() -> Path:
         )
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "Accelerator"
-    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "accelerator"
+    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "fairwind"
 
 
 def make_parser() -> argparse.ArgumentParser:
-    parser = SafeArgumentParser(prog="accelerator")
+    parser = SafeArgumentParser(prog="fairwind")
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--data-dir", type=Path, default=default_data_dir())
     commands = parser.add_subparsers(dest="command", required=True, parser_class=SafeArgumentParser)
@@ -39,7 +39,7 @@ def make_parser() -> argparse.ArgumentParser:
         dest="action", required=True
     )
     update = subscriptions.add_parser("update")
-    update.add_argument("--master-url", default=os.environ.get("ACCELERATOR_MASTER_URL"))
+    update.add_argument("--master-url", default=os.environ.get("FAIRWIND_MASTER_URL"))
     update.add_argument("--force", action="store_true")
     update.add_argument("--interval", type=int, default=21600)
     subscriptions.add_parser("list")

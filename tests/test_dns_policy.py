@@ -2,15 +2,15 @@
 
 import pytest
 
-from accelerator.dns import (
+from fairwind.dns import (
     IPV6_BLOCK,
     IPV6_PROXY,
     DnsPolicy,
     DnsPolicyEngine,
     DnsRoute,
 )
-from accelerator.domain import Capabilities
-from accelerator.errors import SafeError
+from fairwind.domain import Capabilities
+from fairwind.errors import SafeError
 
 pytestmark = pytest.mark.unit
 

@@ -11,7 +11,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from accelerator.errors import SafeError
+from fairwind.errors import SafeError
 
 REFERENCE_PATTERN = re.compile(r"[a-f0-9]{64}")
 MAX_CIPHERTEXT_BYTES = 12 * 1024 * 1024
@@ -109,7 +109,7 @@ class SecretVault:
     @classmethod
     def from_environment(cls, root: Path) -> "SecretVault":
         try:
-            encoded = os.environ["ACCELERATOR_SECRET_KEY"]
+            encoded = os.environ["FAIRWIND_SECRET_KEY"]
             key = base64.b64decode(
                 encoded + "=" * (-len(encoded) % 4), altchars=b"-_", validate=True
             )

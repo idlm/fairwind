@@ -4,9 +4,9 @@ import hashlib
 import ipaddress
 from dataclasses import dataclass
 
-from accelerator.domain import Capabilities
-from accelerator.errors import SafeError
-from accelerator.profiles import SELECTOR_FIELDS, GameProfile, missing_capabilities
+from fairwind.domain import Capabilities
+from fairwind.errors import SafeError
+from fairwind.profiles import SELECTOR_FIELDS, GameProfile, missing_capabilities
 
 ACTION_DIRECT = "DIRECT"
 ACTION_PROXY = "PROXY"

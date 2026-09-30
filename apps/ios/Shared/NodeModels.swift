@@ -1,7 +1,7 @@
 import Foundation
 
 /// The node/policy data the client is allowed to look at, mirroring
-/// `core/accelerator/domain/models.py` and `apps/android/.../domain/NodeModels.kt`.
+/// `core/fairwind/domain/models.py` and `apps/android/.../domain/NodeModels.kt`.
 ///
 /// spec 53 (test states), 56-60 (scoring, eligibility, selection), 91, 134. The Python
 /// model is the reference: field names, the `toPublicDict()` key names and the "never

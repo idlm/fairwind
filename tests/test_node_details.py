@@ -6,11 +6,11 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from test_node_engine import FakeProbe
 
-from accelerator.errors import SafeError
-from accelerator.host import HISTORY_FIELDS, HostService
-from accelerator.probing import NodeTester
-from accelerator.subscription import SubscriptionEngine
 from conftest import MASTER, offline_core
+from fairwind.errors import SafeError
+from fairwind.host import HISTORY_FIELDS, HostService
+from fairwind.probing import NodeTester
+from fairwind.subscription import SubscriptionEngine
 
 pytestmark = pytest.mark.integration
 

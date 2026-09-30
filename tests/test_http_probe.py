@@ -4,9 +4,9 @@ import contextlib
 
 import pytest
 
-from accelerator import probing
-from accelerator.domain import TestState
-from accelerator.probing import ReferenceProbe
+from fairwind import probing
+from fairwind.domain import TestState
+from fairwind.probing import ReferenceProbe
 
 pytestmark = pytest.mark.integration
 

@@ -4,9 +4,9 @@ import time
 from dataclasses import dataclass
 from enum import StrEnum
 
-from accelerator.domain import Capabilities
-from accelerator.errors import SafeError
-from accelerator.security import canonical_host
+from fairwind.domain import Capabilities
+from fairwind.errors import SafeError
+from fairwind.security import canonical_host
 
 IPV6_BLOCK = "block"
 IPV6_PROXY = "proxy"

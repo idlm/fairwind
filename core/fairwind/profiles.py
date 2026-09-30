@@ -4,10 +4,10 @@ import ipaddress
 import re
 from dataclasses import dataclass
 
-from accelerator.domain import Capabilities
-from accelerator.errors import SafeError
-from accelerator.parser import safe_json
-from accelerator.security import canonical_host
+from fairwind.domain import Capabilities
+from fairwind.errors import SafeError
+from fairwind.parser import safe_json
+from fairwind.security import canonical_host
 
 SCHEMA_VERSION = 1
 MAX_PROFILE_BYTES = 1024 * 1024

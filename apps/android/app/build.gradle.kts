@@ -1,4 +1,4 @@
-// Application module: Smart Accelerator Android client (skeleton).
+// Application module: Fairwind Android client (skeleton).
 //
 // spec 88-90, 132; docs/PLATFORM_MATRIX.md "Android".
 //

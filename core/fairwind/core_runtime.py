@@ -19,8 +19,8 @@ import socket
 import time
 from pathlib import Path
 
-from accelerator import core_config
-from accelerator.errors import SafeError
+from fairwind import core_config
+from fairwind.errors import SafeError
 
 RUN_COMMAND = "run"
 CONFIG_FLAG = "-c"
@@ -377,6 +377,6 @@ def parse_stats(payload: str) -> dict[str, int]:
 
 def default_binary(data_directory: str = "third_party/core") -> Path:
     """固定清单里的二进制路径（仓库根相对）；缺失时由调用方明确失败。"""
-    from accelerator import core_pin
+    from fairwind import core_pin
 
     return Path(__file__).resolve().parents[2] / data_directory / core_pin.BINARY_NAME

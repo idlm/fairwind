@@ -4,7 +4,7 @@ import android.content.Context
 
 /**
  * The secret store contract, mirroring the `SecretStore` protocol in
- * `core/accelerator/security.py`.
+ * `core/fairwind/security.py`.
  *
  * spec 46/78/102; docs/SECURITY.md. On Android the backend is the **Android
  * Keystore** (Gate B). Three invariants hold regardless of backend:

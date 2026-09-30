@@ -1,6 +1,6 @@
 # 宿主契约（Host Contract）
 
-原生宿主（Windows Modern / Windows Legacy / Android / iOS）只允许通过**一个**业务入口访问能力：`HostService`（`core/accelerator/host.py`）。UI 不解析订阅、不直接调用代理核心、不直接读写 SQLite（`AGENTS.md`）。本文件是该入口的契约；参考实现以 Python 提供，用于离线测试并作为原生端的行为基准。
+原生宿主（Windows Modern / Windows Legacy / Android / iOS）只允许通过**一个**业务入口访问能力：`HostService`（`core/fairwind/host.py`）。UI 不解析订阅、不直接调用代理核心、不直接读写 SQLite（`AGENTS.md`）。本文件是该入口的契约；参考实现以 Python 提供，用于离线测试并作为原生端的行为基准。
 
 ## 为什么本阶段是"契约 + 参考实现"而不是原生代码
 
@@ -34,7 +34,7 @@
 
 ## 控制面（本机 API + 静态面板）
 
-形态对齐 `docs/REFERENCE_SOLUTIONS.md` 的成熟共识：`accelerator serve` 在 **127.0.0.1** 上启动控制面，并把静态面板挂在 `/ui/`（即 sing-box `external_ui` 的形态）。
+形态对齐 `docs/REFERENCE_SOLUTIONS.md` 的成熟共识：`fairwind serve` 在 **127.0.0.1** 上启动控制面，并把静态面板挂在 `/ui/`（即 sing-box `external_ui` 的形态）。
 
 - **认证**：除静态面板外所有请求都必须带 `Authorization: Bearer <token>`；token 由 `load_or_create_token()` 生成并写入 `<data-dir>/control.token`（0600），缺失或不匹配返回 401 `CONTROL_UNAUTHORIZED`。
 - **Clash 兼容子集**：`GET /version`、`/configs`、`/proxies`、`/connections`、`/traffic`。未接入核心时如实返回 `core: NOT_INTEGRATED`、端口 0、空连接与 0 流量，**不虚构** `DIRECT`/`REJECT` 等内置代理。

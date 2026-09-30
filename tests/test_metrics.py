@@ -5,10 +5,10 @@ import json
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
-from accelerator.api import build_app, load_or_create_token
-from accelerator.host import HostService
-from accelerator.metrics import NOTE, TRAFFIC_NOTE, UNMATCHED_ROUTE, Metrics
 from conftest import offline_core
+from fairwind.api import build_app, load_or_create_token
+from fairwind.host import HostService
+from fairwind.metrics import NOTE, TRAFFIC_NOTE, UNMATCHED_ROUTE, Metrics
 
 pytestmark = pytest.mark.integration
 

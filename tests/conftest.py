@@ -10,13 +10,13 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
-from accelerator import core_pin
-from accelerator.errors import SafeError
-from accelerator.network import FetchResult
-from accelerator.parser import SubscriptionParser
-from accelerator.security import SecretVault
-from accelerator.storage import Database
-from accelerator.xray_adapter import XrayCoreAdapter
+from fairwind import core_pin
+from fairwind.errors import SafeError
+from fairwind.network import FetchResult
+from fairwind.parser import SubscriptionParser
+from fairwind.security import SecretVault
+from fairwind.storage import Database
+from fairwind.xray_adapter import XrayCoreAdapter
 
 FIXTURES = Path(__file__).parent / "fixtures"
 ROOT = Path(__file__).resolve().parents[1]

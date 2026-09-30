@@ -2,7 +2,7 @@ package club.noclub.accelerator.core
 
 /**
  * The non-core fixed codes the mobile client can produce, mirroring the names already
- * fixed in `core/accelerator/errors.py` and used by the CLI and the control API
+ * fixed in `core/fairwind/errors.py` and used by the CLI and the control API
  * (spec 67, 65, 132).
  *
  * Separate from [CoreErrorCode] on purpose: "the core failed" and "the selection had

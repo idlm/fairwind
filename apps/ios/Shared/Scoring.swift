@@ -1,7 +1,7 @@
 import Foundation
 
 /// The one and only node scoring algorithm on iOS, mirroring
-/// `core/accelerator/domain/scoring.py` and the Android `domain/Scoring.kt`.
+/// `core/fairwind/domain/scoring.py` and the Android `domain/Scoring.kt`.
 ///
 /// spec 55-58, 134. The UI, the selector and `explainScore` all call `score` — there is no
 /// second implementation in the client. A component with no verified measurement scores 0

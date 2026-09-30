@@ -1,6 +1,6 @@
 """Game Profile 远程更新：ed25519 签名校验、防回滚、原子替换与 LKG。
 
-信任根由外部注入（`ACCELERATOR_PROFILE_PUBKEY`，Base64 编码的 ed25519 公钥）；没有公钥时
+信任根由外部注入（`FAIRWIND_PROFILE_PUBKEY`，Base64 编码的 ed25519 公钥）；没有公钥时
 拒绝一切远程规则，仓库不内置任何密钥。
 """
 
@@ -14,14 +14,14 @@ from pathlib import Path
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-from accelerator.domain import Capabilities
-from accelerator.errors import SafeError
-from accelerator.parser import safe_json
-from accelerator.profiles import MAX_PROFILE_BYTES, GameProfile, parse_profiles
-from accelerator.routing import RouteRule, generate_rules
-from accelerator.security import canonical_json, private_directory
+from fairwind.domain import Capabilities
+from fairwind.errors import SafeError
+from fairwind.parser import safe_json
+from fairwind.profiles import MAX_PROFILE_BYTES, GameProfile, parse_profiles
+from fairwind.routing import RouteRule, generate_rules
+from fairwind.security import canonical_json, private_directory
 
-PUBLIC_KEY_VARIABLE = "ACCELERATOR_PROFILE_PUBKEY"
+PUBLIC_KEY_VARIABLE = "FAIRWIND_PROFILE_PUBKEY"
 ENVELOPE_FIELDS = ("document", "signature")
 REGISTRY_NAME = "game_profiles.json"
 PREVIOUS_NAME = "game_profiles.previous.json"

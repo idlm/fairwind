@@ -1,4 +1,4 @@
-# R8 / ProGuard rules for the Smart Accelerator Android client (skeleton).
+# R8 / ProGuard rules for the Fairwind Android client (skeleton).
 #
 # Spec 88-90, 132. Keep this file deliberately small: no rule is added for a library
 # that has not actually been linked in a build, because an unused keep-rule is a lie

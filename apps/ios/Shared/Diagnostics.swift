@@ -1,6 +1,6 @@
 import Foundation
 
-/// Offline, read-only diagnostics, mirroring `accelerator diagnose`
+/// Offline, read-only diagnostics, mirroring `fairwind diagnose`
 /// (spec 66, 134, 138; docs/TROUBLESHOOTING.md, docs/ARCHITECTURE.md).
 ///
 /// Four properties are inherited from the Python runner and are non-negotiable here:

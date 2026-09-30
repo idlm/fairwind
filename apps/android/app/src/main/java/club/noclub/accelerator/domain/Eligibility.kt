@@ -2,7 +2,7 @@ package club.noclub.accelerator.domain
 
 /**
  * Node eligibility — one predicate, shared by the smart selector and its explainer,
- * mirroring `core/accelerator/domain/eligibility.py`.
+ * mirroring `core/fairwind/domain/eligibility.py`.
  *
  * spec 59, 65, 132. `explainEligibility` and [SmartSelector.select] call the *same*
  * function, so a decision and its explanation can never disagree.

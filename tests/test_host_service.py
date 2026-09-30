@@ -3,10 +3,10 @@
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from accelerator.errors import SafeError
-from accelerator.host import HostService
-from accelerator.storage import operation_lock
 from conftest import MASTER, offline_core
+from fairwind.errors import SafeError
+from fairwind.host import HostService
+from fairwind.storage import operation_lock
 
 pytestmark = pytest.mark.integration
 
@@ -69,7 +69,7 @@ def test_status_is_disconnected_and_sanitized(service):
 async def test_full_flow_shapes(tmp_path, vault, fetcher, monkeypatch):
     from test_node_engine import FakeProbe
 
-    from accelerator import host
+    from fairwind import host
 
     monkeypatch.setattr(host, "HttpFetcher", lambda: OfflineFetcher(fetcher))
     monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
@@ -145,7 +145,7 @@ def test_each_operation_takes_the_lock(tmp_path, vault):
 async def seeded_service(tmp_path, vault, fetcher, monkeypatch):
     from test_node_engine import FakeProbe
 
-    from accelerator import host
+    from fairwind import host
 
     class OfflineFetcher:
         async def __aenter__(self):

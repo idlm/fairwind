@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * `// TODO(Gate B)`: wire [refresh] to the real fetch/parse/store pipeline. The Python
  * implementation of that pipeline is the reference
- * (`core/accelerator/subscription.py`), and the Android client must reproduce
+ * (`core/fairwind/subscription.py`), and the Android client must reproduce
  * its outcomes rather than invent new ones. Until then [LocalCatalogue] reports an
  * honest `MASTER_NOT_PUBLISHED`: the production registry is documented as not live
  * (docs/ACCEPTANCE.md), so a successful fetch is not something this client can
@@ -44,7 +44,7 @@ enum class UpdatePhase(val wire: String) {
 /**
  * The update outcome codes the UI may show.
  *
- * The authoritative list is `core/accelerator/errors.py`; this enum mirrors the
+ * The authoritative list is `core/fairwind/errors.py`; this enum mirrors the
  * subset the mobile client can currently produce and must be kept in step with it
  * (`// TODO(Gate B)`: generate or assert this list against the Python source rather than
  * copying it by hand).

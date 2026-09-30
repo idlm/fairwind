@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 /// The secret store contract, mirroring `SecretStore` in
-/// `core/accelerator/security.py` and the Android counterpart.
+/// `core/fairwind/security.py` and the Android counterpart.
 ///
 /// spec 46, 78, 102; docs/SECURITY.md. On iOS the backend is the **Keychain** (Gate B
 /// milestone). Three invariants hold regardless of backend:

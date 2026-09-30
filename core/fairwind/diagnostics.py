@@ -9,13 +9,13 @@
 import os
 from pathlib import Path
 
-from accelerator import __version__
-from accelerator.errors import SafeError
-from accelerator.profile_update import ProfileRegistry, load_public_key
-from accelerator.scoring import SmartSelector
-from accelerator.security import SecretVault
-from accelerator.storage import SCHEMA_VERSION, Database, required_references
-from accelerator.subscription import BACKOFF
+from fairwind import __version__
+from fairwind.errors import SafeError
+from fairwind.profile_update import ProfileRegistry, load_public_key
+from fairwind.scoring import SmartSelector
+from fairwind.security import SecretVault
+from fairwind.storage import SCHEMA_VERSION, Database, required_references
+from fairwind.subscription import BACKOFF
 
 DIAGNOSTIC_NOTE = "NO_CREDENTIALS_OR_URLS_INCLUDED"
 NETWORK_NOTE = "NOT_CONTACTED"
@@ -71,7 +71,7 @@ def _integrity_check(database: Database) -> dict:
 def _secret_key_check(vault: SecretVault | None) -> dict:
     if vault is None:
         return _check(
-            "secret_key", "SKIP", "未提供 ACCELERATOR_SECRET_KEY：只读功能可用，密文检查跳过", None
+            "secret_key", "SKIP", "未提供 FAIRWIND_SECRET_KEY：只读功能可用，密文检查跳过", None
         )
     return _check("secret_key", "PASS", "已加载密钥（内容不回显）", None)
 
@@ -210,7 +210,7 @@ def diagnose(
     """运行全部离线检查；不联网、不修改状态、输出里不含凭据或订阅 URL。"""
     checks = [
         _permission_check("data_directory", data_dir, "数据目录"),
-        _permission_check("database_file", data_dir / "accelerator.sqlite3", "数据库文件"),
+        _permission_check("database_file", data_dir / "fairwind.sqlite3", "数据库文件"),
         _permission_check("secrets_directory", data_dir / "secrets", "密文目录"),
         _permission_check("control_token", data_dir / "control.token", "控制面令牌文件"),
         _schema_check(database),

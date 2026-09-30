@@ -10,37 +10,37 @@ from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from accelerator import __version__, core_config, core_runtime
-from accelerator.connection import ConnectionController
-from accelerator.diagnostics import diagnose
-from accelerator.dns import DnsPolicy, DnsPolicyEngine
-from accelerator.domain import Capabilities, ConnectionState
-from accelerator.errors import SafeError
-from accelerator.network import HttpFetcher
-from accelerator.probing import (
+from fairwind import __version__, core_config, core_runtime
+from fairwind.connection import ConnectionController
+from fairwind.diagnostics import diagnose
+from fairwind.dns import DnsPolicy, DnsPolicyEngine
+from fairwind.domain import Capabilities, ConnectionState
+from fairwind.errors import SafeError
+from fairwind.network import HttpFetcher
+from fairwind.probing import (
     DEFAULT_PROBE_TARGET,
     UDP_TARGET_DEFAULT,
     NodeTester,
     ReferenceProbe,
 )
-from accelerator.profile_update import ProfileRegistry, load_public_key
-from accelerator.routing import (
+from fairwind.profile_update import ProfileRegistry, load_public_key
+from fairwind.routing import (
     RouteRule,
     generate_rules,
 )
-from accelerator.routing import (
+from fairwind.routing import (
     explain_route as explain_route_rules,
 )
-from accelerator.scoring import (
+from fairwind.scoring import (
     SmartSelector,
     explain_eligibility,
     explain_score,
     score_history,
 )
-from accelerator.security import SecretVault, canonical_host, private_directory
-from accelerator.storage import Database, operation_lock
-from accelerator.subscription import SubscriptionEngine
-from accelerator.xray_adapter import XrayCoreAdapter
+from fairwind.security import SecretVault, canonical_host, private_directory
+from fairwind.storage import Database, operation_lock
+from fairwind.subscription import SubscriptionEngine
+from fairwind.xray_adapter import XrayCoreAdapter
 
 CACHE_DIRECTORIES = ("master", "subscriptions", "nodes", "geo")
 DISCONNECTED = ConnectionState.DISCONNECTED.value

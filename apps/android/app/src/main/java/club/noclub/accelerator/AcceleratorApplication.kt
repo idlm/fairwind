@@ -20,7 +20,7 @@ import club.noclub.accelerator.vpn.VpnController
  * The app's **single composition root** (spec 71, 88, 132).
  *
  * The Python control plane has exactly one place where the object graph is built —
- * `accelerator/runtime.py::build_runtime` — and one `MasterRegistry`, one
+ * `fairwind/runtime.py::build_runtime` — and one `MasterRegistry`, one
  * `UpdateService` and one `CoreService` per process. This application class is the same
  * idea for Android: one graph, built once, with every collaborator injected so a future
  * test can substitute it without touching a screen.

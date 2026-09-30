@@ -17,11 +17,18 @@
 - 接入模型：进程隔离 sidecar（ADR-0001 由"提议"转为**已批准**）；UI / CLI / API / Domain Layer 禁止直接调用核心
 - 本机 loopback 真实链路已验证：客户端 SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标取回标记内容（标签 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`，**不是**公网节点验收）
 
+### 改名：Smart Accelerator → Fairwind（顺风，2026-10-01）
+
+- 仓库名、产品名、Python 发行包与导入包（`core/accelerator/` → `core/fairwind/`）、CLI 命令（`accelerator` → `fairwind`）、脚本、CI 与文档统一改为 **Fairwind**；改写由一次性脚本完成（规则：路径 `core/accelerator`→`core/fairwind`、`from/import accelerator`→`fairwind`、`accelerator.cli`→`fairwind.cli`、`ACCELERATOR_*`→`FAIRWIND_*`、显示名 `Smart Accelerator`→`Fairwind`），脚本本身不留在版本库
+- 环境变量同步改名：`ACCELERATOR_SECRET_KEY` → `FAIRWIND_SECRET_KEY`、`ACCELERATOR_MASTER_URL` → `FAIRWIND_MASTER_URL`、`ACCELERATOR_PROFILE_PUBKEY` → `FAIRWIND_PROFILE_PUBKEY`；旧名**不再读取**（参考 CLI 无已发布使用者，属一次性改名）
+- **有意不改写**：已发布产物的历史记录——`v0.1.0-reference` / `v0.2.0-control-plane` 的 tag、Release URL、wheel/sdist 与证据包文件名在文档中保持原文（历史不可重写；GitHub 对旧仓库 URL 自动重定向）
+- **本轮不动**：Android `applicationId` / Kotlin 包名（`club.noclub.accelerator`）与 iOS bundle id。改成"改完没重建"的未验证状态没有意义，等原生端第一次重建（并具备签名）时与 app 标识一并更名
+
 ### 数据面接入：真实核心 sidecar（Gate A 收口，2026-09-29）
 
-- `core/accelerator/core_config.py`：新增可选**只回环统计入站**（`dokodemo-door` + `StatsService` + 统计开关 + 仅指向该入站的路由规则）；出站仍然只有一个代理，`validate()` 同步收紧
-- `core/accelerator/core_runtime.py`（新）：sidecar 生命周期——0600 原子配置、停止即删除、`create_subprocess_exec` 无 shell 启动、最小环境变量、就绪探测、**启动期退出读退出码**、有界重启与熔断（`CORE_CRASH_LOOP`）、结构化安全事件（**不转发核心原始日志**，核心输出只用于分类）
-- `core/accelerator/xray_adapter.py`（新）：`CORE_ADAPTER_SPEC.md` 的九个方法全部实现；能力声明如实（UDP / IPv6 / TUN / 进程规则未验证即不声明）；`test_node` 为每个节点起隔离实例做真实握手，`verify_exit` 用真实出口证明连通
+- `core/fairwind/core_config.py`：新增可选**只回环统计入站**（`dokodemo-door` + `StatsService` + 统计开关 + 仅指向该入站的路由规则）；出站仍然只有一个代理，`validate()` 同步收紧
+- `core/fairwind/core_runtime.py`（新）：sidecar 生命周期——0600 原子配置、停止即删除、`create_subprocess_exec` 无 shell 启动、最小环境变量、就绪探测、**启动期退出读退出码**、有界重启与熔断（`CORE_CRASH_LOOP`）、结构化安全事件（**不转发核心原始日志**，核心输出只用于分类）
+- `core/fairwind/xray_adapter.py`（新）：`CORE_ADAPTER_SPEC.md` 的九个方法全部实现；能力声明如实（UDP / IPv6 / TUN / 进程规则未验证即不声明）；`test_node` 为每个节点起隔离实例做真实握手，`verify_exit` 用真实出口证明连通
 - 宿主 / CLI / HTTP API：`connect`（智能选择 → 回环配置 → 起核心 → **出口验证**，未通过即故障转移）、`disconnect`、`traffic`；`/traffic` 与 `/connections` 未测量时返回 `null` 而不是 0；`capabilities()` / `status()` / `/version` 等不再硬编码 `NOT_INTEGRATED`
 - `nodes test`：核心就位时改用真实握手后端（每节点一个隔离实例，并发收紧到 2），并如实标注后端
 - 面板：智能加速按钮只在核心接入后可用，接上 `POST /api/host/connect|disconnect`，实时显示真实流量或"未测量"
@@ -55,7 +62,7 @@
 
 ### CoreConfigGenerator（2026-09-29）
 
-- `core/accelerator/core_config.py`：`ProxyNode → 核心配置`（`vless` / `vmess` / `trojan` / `ss→shadowsocks` 映射集中在 `PROTOCOL_MAP`）
+- `core/fairwind/core_config.py`：`ProxyNode → 核心配置`（`vless` / `vmess` / `trojan` / `ss→shadowsocks` 映射集中在 `PROTOCOL_MAP`）
 - 入站**只监听 127.0.0.1**，SOCKS `udp:false`（UDP 未实现就不开），`log.access=none`
 - 拒绝而不猜：未知协议 / 非 tcp·ws 传输 / 声明了 `reality` 等未建模安全类型 → `CORE_CONFIG_UNSUPPORTED`；缺凭据 → `CORE_CONFIG_INVALID`；**声明了不支持的安全类型时不允许被 `tls=true` 静默降级**
 - 凭据边界：配置文件强制 0600 + 原子替换、停止后删除；`redact()` 只替换真正的密值（uuid/password），`alterId`、vmess `security`、ss `method` 是公开参数必须保留
@@ -69,14 +76,14 @@
 
 ### Implemented
 
-- **节点详情**：`HostService.node_detail()` / `GET /api/host/nodes/{id}` / `accelerator nodes explain NODE_ID` — 地区、协议、传输、TLS、标签、状态、延迟/抖动/丢包、成功率/失败率、最近测试时间、评分与质量、来源订阅显示名、最近 10 条探测历史；**绝不含** password、UUID、私钥、完整订阅 URL、token 或 `secret_ref`
+- **节点详情**：`HostService.node_detail()` / `GET /api/host/nodes/{id}` / `fairwind nodes explain NODE_ID` — 地区、协议、传输、TLS、标签、状态、延迟/抖动/丢包、成功率/失败率、最近测试时间、评分与质量、来源订阅显示名、最近 10 条探测历史；**绝不含** password、UUID、私钥、完整订阅 URL、token 或 `secret_ref`
 - **节点 id 前缀查询**：4–64 位十六进制，唯一命中；歧义 / 不存在 / 非法分别返回 `NODE_ID_AMBIGUOUS` / `NODE_NOT_FOUND` / `NODE_ID_INVALID`（前缀受字符集校验，不引入 `LIKE` 通配符）
 - **分数解释**：`scoring.explain_score()` 给出分项实际值/上限（latency ≤25、stability ≤25、packet_loss ≤30、recent_success ≤15、protocol 5）、**真实公式与输入**、未测量输入清单、质量档位判定理由；分项与总分直接取自 `score_history()` 同一实现
 - **资格解释**：`scoring.explain_eligibility()` 与 Smart Selector 共享同一判定函数，逐条列出窗口 / 最新状态 / 样本数 / 可用率阈值与实测值，并明确"资格排除不是扣分"
 - **选择解释**：`scoring.explain_selection()` 输出真实 `rank = score + 国家偏好 2 分`、并列按 id 升序，以及被排除节点及其失败项
-- **路由解释**：`routing.match_route()` / `routing.explain_route()` / `accelerator route explain HOST` / `GET /api/host/route?host=` — 按 `ROUTING_SPEC` 优先级做首个命中匹配，返回动作、命中规则（id/selector/value/priority/source）与判定理由；未命中为 `DEFAULT`
+- **路由解释**：`routing.match_route()` / `routing.explain_route()` / `fairwind route explain HOST` / `GET /api/host/route?host=` — 按 `ROUTING_SPEC` 优先级做首个命中匹配，返回动作、命中规则（id/selector/value/priority/source）与判定理由；未命中为 `DEFAULT`
 - **订阅管理（本地）**：`subscriptions list|add|pause|resume|remove` + `POST /api/host/subscriptions[/{handle}]` + 面板「管理订阅源」——句柄是 URL 摘要的 12 位前缀（不可逆），URL 只以密文保存且任何输出都不回显；手动源不会被 Master 漂移禁用；暂停只停止刷新（保留 LKG，样本随时间退出 6h 候选窗口）；恢复清空退避、下一轮即刷新；移除是本地操作且如实标注 Master 是否会让它回来
-- **离线自检诊断**：`accelerator diagnose` + `GET /api/host/diagnostic` + 面板「设置 → 诊断」——15 项检查（权限/schema/完整性/密钥匹配/密文覆盖/Master/订阅调度/节点与候选/路由规则/Profile 信任根/核心状态），每项给出 `PASS` / `WARN` / `FAIL` / `SKIP` 与固定错误码；不联网（`network: NOT_CONTACTED`）、不修改状态、不含凭据或 URL，缺密钥的检查标 `SKIP` 而非"通过"；有 `FAIL` 时 CLI 退出 2
+- **离线自检诊断**：`fairwind diagnose` + `GET /api/host/diagnostic` + 面板「设置 → 诊断」——15 项检查（权限/schema/完整性/密钥匹配/密文覆盖/Master/订阅调度/节点与候选/路由规则/Profile 信任根/核心状态），每项给出 `PASS` / `WARN` / `FAIL` / `SKIP` 与固定错误码；不联网（`network: NOT_CONTACTED`）、不修改状态、不含凭据或 URL，缺密钥的检查标 `SKIP` 而非"通过"；有 `FAIL` 时 CLI 退出 2
 - **进程内可观测性**：`GET /api/host/metrics` + 面板「设置 → 进程内指标」——按**路由模板**统计请求数、状态码分类与固定错误码，附运行时长与最慢请求耗时；明确 `PROCESS_LOCAL_RESETS_ON_RESTART`（重启即清零，不做持久化）与 `traffic.measured=false`（未接入核心前不给出任何流量数字）。不提供一次性 CLI 命令：单次进程没有可观测的累计状态。
 - 面板新增「解释节点」与「路由解释」两处只读入口（调用与 CLI 相同的两个 API，不绕过 Domain Layer）
 - 修复潜在崩溃：最新探测状态为成功但样本全部未 `verified` 时，Smart Selector 曾因 `None < 0.8` 抛 `TypeError`；现按"可用率 0"判为不合格并给出原因

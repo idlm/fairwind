@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]
-name = "smart-accelerator"
+name = "fairwind"
 version = "0.2.0"
 description = "Privacy-first subscription and node engine reference CLI"
 requires-python = ">=3.11"
@@ -15,10 +15,10 @@ dependencies = ["aiohttp>=3.12.15,<4", "PyYAML>=6.0.2,<7", "cryptography>=45.0.6
 dev = ["pytest>=8.3,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1"]
 
 [project.scripts]
-accelerator = "accelerator.cli:main"
+fairwind = "fairwind.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["core/accelerator"]
+packages = ["core/fairwind"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -39,4 +39,4 @@ target-version = "py311"
 select = ["E", "F", "I", "UP", "B", "ASYNC"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["accelerator", "conftest"]
+known-first-party = ["fairwind", "conftest"]

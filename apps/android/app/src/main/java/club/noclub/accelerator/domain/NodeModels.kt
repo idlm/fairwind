@@ -2,7 +2,7 @@ package club.noclub.accelerator.domain
 
 /**
  * The node/policy data the client is allowed to look at, mirroring
- * `core/accelerator/domain/models.py`.
+ * `core/fairwind/domain/models.py`.
  *
  * spec 53 (test states), spec 56-60 (scoring, eligibility, selection), spec 132.
  * The Python model is the reference: field names, the `to_public_dict()` key names and

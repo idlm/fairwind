@@ -2,11 +2,11 @@ import asyncio
 
 import pytest
 
-from accelerator.errors import SafeError
-from accelerator.network import FetchResult
-from accelerator.storage import Database
-from accelerator.subscription import SubscriptionEngine, load_master
 from conftest import FIXTURES, MASTER, SOURCE_A, SOURCE_B, FakeFetcher
+from fairwind.errors import SafeError
+from fairwind.network import FetchResult
+from fairwind.storage import Database
+from fairwind.subscription import SubscriptionEngine, load_master
 
 pytestmark = pytest.mark.integration
 
@@ -142,7 +142,7 @@ async def test_restart_and_secret_separation(database, vault, fetcher, tmp_path)
         assert node.secret.server
     finally:
         reopened.close()
-    data = b"".join(path.read_bytes() for path in tmp_path.glob("accelerator.sqlite3*"))
+    data = b"".join(path.read_bytes() for path in tmp_path.glob("fairwind.sqlite3*"))
     for secret in (
         b"synthetic-password",
         b"synthetic-source-token",
@@ -203,7 +203,7 @@ async def test_cancel_before_commit_preserves_snapshot(database, vault, fetcher,
 
 
 async def test_aggregate_budget_keeps_previous(database, vault, fetcher, monkeypatch):
-    from accelerator import subscription
+    from fairwind import subscription
 
     service = engine(database, vault, fetcher)
     await service.update(MASTER)
@@ -214,7 +214,7 @@ async def test_aggregate_budget_keeps_previous(database, vault, fetcher, monkeyp
 
 
 async def test_aggregate_node_budget(database, vault, fetcher, monkeypatch):
-    from accelerator import subscription
+    from fairwind import subscription
 
     monkeypatch.setattr(subscription, "MAX_UPDATE_NODES", 1)
     result = await engine(database, vault, fetcher).update(MASTER)

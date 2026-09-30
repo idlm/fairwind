@@ -7,16 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from accelerator.errors import SafeError
-from accelerator.security import SecretVault
-from accelerator.storage import (
+from conftest import MASTER
+from fairwind.errors import SafeError
+from fairwind.security import SecretVault
+from fairwind.storage import (
     SCHEMA_VERSION,
     Database,
     file_digest,
     restore_database,
 )
-from accelerator.subscription import SubscriptionEngine
-from conftest import MASTER
+from fairwind.subscription import SubscriptionEngine
 
 pytestmark = pytest.mark.integration
 
@@ -99,7 +99,7 @@ def test_restore_rejects_key_mismatch(tmp_path):
 def test_database_rejects_unsupported_schema(tmp_path):
     root = tmp_path / "future"
     root.mkdir()
-    connection = sqlite3.connect(root / "accelerator.sqlite3")
+    connection = sqlite3.connect(root / "fairwind.sqlite3")
     connection.execute(f"PRAGMA user_version={SCHEMA_VERSION + 8}")
     connection.commit()
     connection.close()

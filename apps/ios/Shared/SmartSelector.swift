@@ -1,7 +1,7 @@
 import Foundation
 
 /// Smart selection — the **Auto** mode behind the 智能加速 button, mirroring
-/// `core/accelerator/domain/selection.py`.
+/// `core/fairwind/domain/selection.py`.
 ///
 /// spec 60, 65, 91, 134. The pipeline is exactly the Python one, in this order:
 ///

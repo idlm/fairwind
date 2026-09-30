@@ -1,6 +1,6 @@
 import Foundation
 
-/// The fixed error codes, copied from `core/accelerator/errors.py` so the iOS client
+/// The fixed error codes, copied from `core/fairwind/errors.py` so the iOS client
 /// reports the same vocabulary as the Python control plane (spec 78-82, 134;
 /// docs/CORE_ADAPTER_SPEC.md).
 ///
@@ -36,7 +36,7 @@ public enum CoreErrorCode: String, Sendable {
 }
 
 /// The non-core fixed codes this client can produce, mirroring the names already fixed in
-/// `core/accelerator/errors.py` (spec 67, 65, 134).
+/// `core/fairwind/errors.py` (spec 67, 65, 134).
 ///
 /// Kept separate from `CoreErrorCode` because "the core failed" and "the selection had
 /// nothing eligible" are different failures with different user actions.

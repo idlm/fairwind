@@ -6,12 +6,12 @@ import os
 import pytest
 from test_subscription_management import seeded_service
 
-from accelerator.diagnostics import DIAGNOSTIC_NOTE, diagnose
-from accelerator.errors import SafeError
-from accelerator.host import HostService
-from accelerator.security import SecretVault
-from accelerator.storage import SCHEMA_VERSION, Database
 from conftest import MASTER, offline_core
+from fairwind.diagnostics import DIAGNOSTIC_NOTE, diagnose
+from fairwind.errors import SafeError
+from fairwind.host import HostService
+from fairwind.security import SecretVault
+from fairwind.storage import SCHEMA_VERSION, Database
 
 pytestmark = pytest.mark.integration
 
@@ -116,7 +116,7 @@ def test_missing_ciphertext_and_wrong_key_are_failures(tmp_path):
 @pytest.mark.skipif(os.name == "nt", reason="POSIX 权限位检查只在类 Unix 生效")
 def test_loose_permissions_are_reported(database, vault, tmp_path):
     # Database 打开时会把库文件收回到 0600；这里在连接存活期间放宽权限，模拟外部改动
-    os.chmod(tmp_path / "accelerator.sqlite3", 0o644)
+    os.chmod(tmp_path / "fairwind.sqlite3", 0o644)
     report = diagnose(tmp_path, database, vault)
     entry = check_of(report, "database_file")
     assert entry["status"] == "FAIL" and entry["error_code"] == "UNSAFE_STORAGE_PATH"

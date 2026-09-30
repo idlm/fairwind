@@ -1,4 +1,8 @@
-# Smart Accelerator
+# Fairwind（顺风）
+
+**跨平台智能加速器**：把「订阅 → 节点 → 评分选路 → 真实代理隧道」做成一条可审计的链路，目标是让用户不必理解 VLESS / VMess / Trojan / Shadowsocks、TUN、DNS 与路由规则，点一次「智能加速」就能用。
+
+名字取自航海：**顺风（fair wind）** 是帆船借以跨洋的动力——本项目要做的，就是替用户的流量找到那条最顺的路。平台优先级：Windows 10/11 → Android → Windows 7 Legacy → iOS；各平台真实状态见下方能力矩阵与 `PROGRESS.md`。当前已接入固定代理核心，真实握手、出口验证与流量字节在本机回环验证通过；**公网节点与平台层尚未验收**。
 
 先实现可审计、可离线测试的「Master → Subscription → Node → SQLite → CLI」核心，再接入原生 VPN 和 UI。本仓库是 V1 的分阶段实现，不是已经可连接的全平台客户端。
 
@@ -12,22 +16,22 @@ Python 3.11+ CLI 是现代平台的业务参考实现与测试工具，不作为
 
 ```bash
 uv sync --locked --extra dev
-uv run accelerator --help
-uv run accelerator status
-uv run accelerator serve            # 本机控制面 + 静态面板（仅 127.0.0.1，令牌见输出）
+uv run fairwind --help
+uv run fairwind status
+uv run fairwind serve            # 本机控制面 + 静态面板（仅 127.0.0.1，令牌见输出）
 ```
 
-敏感内容单独使用 AES-256-GCM 加密。CLI 参考实现要求设置 `ACCELERATOR_SECRET_KEY`（32 字节随机值的 URL-safe Base64 编码），不生成或保存明文密钥。可用 `uv run python -c "import secrets; print(secrets.token_urlsafe(32))"` 在本机生成，保存到密码管理器并通过安全环境注入。不要提交密钥或终端输出；丢失密钥将无法解密本地数据。生产客户端必须接入 DPAPI / Android Keystore / iOS Keychain。
+敏感内容单独使用 AES-256-GCM 加密。CLI 参考实现要求设置 `FAIRWIND_SECRET_KEY`（32 字节随机值的 URL-safe Base64 编码），不生成或保存明文密钥。可用 `uv run python -c "import secrets; print(secrets.token_urlsafe(32))"` 在本机生成，保存到密码管理器并通过安全环境注入。不要提交密钥或终端输出；丢失密钥将无法解密本地数据。生产客户端必须接入 DPAPI / Android Keystore / iOS Keychain。
 
 ```bash
-uv run accelerator subscriptions update --master-url 'https://your-master.example/master.txt'
-uv run accelerator nodes list
-uv run accelerator nodes test
-uv run accelerator nodes best
-uv run accelerator status
+uv run fairwind subscriptions update --master-url 'https://your-master.example/master.txt'
+uv run fairwind nodes list
+uv run fairwind nodes test
+uv run fairwind nodes best
+uv run fairwind status
 ```
 
-真实 Master 入口不提交到 Git。配置时优先通过 `ACCELERATOR_MASTER_URL` 环境变量传入，避免 shell history。上面 URL 仅是占位示例。默认数据目录为平台用户数据目录；可用 `--data-dir` 覆盖。离线 CI 不访问任何真实订阅。
+真实 Master 入口不提交到 Git。配置时优先通过 `FAIRWIND_MASTER_URL` 环境变量传入，避免 shell history。上面 URL 仅是占位示例。默认数据目录为平台用户数据目录；可用 `--data-dir` 覆盖。离线 CI 不访问任何真实订阅。
 
 `nodes test` 区分 TCP 可达与代理出口验证。当前 HTTP CONNECT 探测可验证 HTTPS 出口，其他协议等待获审核心的 `CoreAdapter.test_node`；TCP 可达本身不会使节点进入推荐。CLI 不改变系统代理、DNS、路由或启动 VPN。
 
@@ -64,7 +68,7 @@ uv build
 
 **订阅管理原则**：源的身份是 URL 摘要的 12 位句柄（不可逆），完整 URL 只以密文保存且任何输出都不回显；用户在本机添加的源不会被 Master 漂移禁用；暂停只停止刷新（保留 LKG，样本按既有 6h 窗口自然退出候选）；移除是本地操作，仍在 Master 列表里的源会回来——输出用 `present_in_master` 如实标注。
 
-**排障入口**：`accelerator diagnose`（或面板「设置 → 诊断」，或 `GET /api/host/diagnostic`）做 15 项离线自检，每项给出 `PASS` / `WARN` / `FAIL` / `SKIP` 与固定错误码；不联网、不修改状态、不含凭据，缺密钥的检查标 `SKIP` 而不是"通过"。
+**排障入口**：`fairwind diagnose`（或面板「设置 → 诊断」，或 `GET /api/host/diagnostic`）做 15 项离线自检，每项给出 `PASS` / `WARN` / `FAIL` / `SKIP` 与固定错误码；不联网、不修改状态、不含凭据，缺密钥的检查标 `SKIP` 而不是"通过"。
 
 **可观测性**：`GET /api/host/metrics`（面板「设置 → 进程内指标」）按路由模板统计本进程真实发生的请求、状态码分类与固定错误码。它明确标注"重启即清零、不做持久化"，且 `traffic.measured=false`——未接入核心前不给任何流量数字。
 
@@ -82,7 +86,7 @@ uv run python scripts/backup.py --status                    # schema 版本、�
 uv run python scripts/backup.py --destination FILE --with-secrets
                                                         # 一致性备份：SQLite + 密文快照（缺一不可）
 uv run python scripts/backup.py --restore-from FILE --yes --secrets-from FILE.secrets
-                                                        # 受验证恢复（旧库保留为 accelerator.sqlite3.previous）
+                                                        # 受验证恢复（旧库保留为 fairwind.sqlite3.previous）
 uv run python scripts/vault_gc.py                           # 引用感知密文 GC，只删除已无引用的密文
 uv run python scripts/game_profiles.py REGISTRY --write     # Game Profile 校验与路由规则生成
 uv run python scripts/profile_update.py --file ENVELOPE.json --tun --process-rules

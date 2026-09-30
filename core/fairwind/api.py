@@ -18,11 +18,11 @@ from pathlib import Path
 
 from aiohttp import web
 
-from accelerator import __version__
-from accelerator.errors import SafeError
-from accelerator.host import SUBSCRIPTION_ACTIONS, HostService
-from accelerator.metrics import UNMATCHED_ROUTE, Metrics
-from accelerator.security import private_directory
+from fairwind import __version__
+from fairwind.errors import SafeError
+from fairwind.host import SUBSCRIPTION_ACTIONS, HostService
+from fairwind.metrics import UNMATCHED_ROUTE, Metrics
+from fairwind.security import private_directory
 
 TOKEN_NAME = "control.token"
 MAX_BODY_BYTES = 64 * 1024

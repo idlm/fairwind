@@ -23,7 +23,7 @@ Related: [PRODUCT_SPEC.md](../PRODUCT_SPEC.md) · [CORE_ADAPTER_SPEC.md](../CORE
 
 ## 1. How the clients relate to the control plane
 
-The Python control plane (`core/accelerator/`) is the reference implementation of the product's
+The Python control plane (`core/fairwind/`) is the reference implementation of the product's
 behaviour: the master registry, the subscription engine, node identity, scoring, eligibility,
 selection, routing, DNS planning, diagnostics. **It is not a runtime dependency of either
 mobile client.** On a phone there is no Python process; the client does the work itself.

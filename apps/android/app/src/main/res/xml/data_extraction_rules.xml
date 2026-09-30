@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Backup / device-transfer rules for the Smart Accelerator Android client (skeleton).
+  Backup / device-transfer rules for the Fairwind Android client (skeleton).
 
   Spec 88-90, 132; docs/SECURITY.md §5 (secret handling) and docs/PRIVACY.md.
 

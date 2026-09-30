@@ -1,6 +1,6 @@
 """校验 dist/ 内的 wheel 与 sdist：禁止敏感文件、核对控制台入口、比对模块集合。
 
-模块集合必须与 `core/accelerator/*.py` 完全一致——新增模块漏打包或误打包都会失败，
+模块集合必须与 `core/fairwind/*.py` 完全一致——新增模块漏打包或误打包都会失败，
 因为这是"构建产物能否代表源码"的唯一门禁。
 """
 
@@ -11,11 +11,11 @@ import zipfile
 from pathlib import Path
 
 DIST = Path(__file__).resolve().parents[1] / "dist"
-SOURCE_PACKAGE = Path(__file__).resolve().parents[1] / "core" / "accelerator"
-ENTRY_POINT = "accelerator = accelerator.cli:main"
-WHEEL_PACKAGE = "accelerator/"
+SOURCE_PACKAGE = Path(__file__).resolve().parents[1] / "core" / "fairwind"
+ENTRY_POINT = "fairwind = fairwind.cli:main"
+WHEEL_PACKAGE = "fairwind/"
 WHEEL_NON_PACKAGE_PREFIXES = ("tests/", "scripts/", "profiles/")
-REQUIRED_WHEEL_MEMBERS = ("accelerator/ui/index.html",)
+REQUIRED_WHEEL_MEMBERS = ("fairwind/ui/index.html",)
 REQUIRED_WHEEL_SUFFIXES = (".dist-info/licenses/LICENSE",)
 FORBIDDEN = (
     re.compile(r"\.secret$"),

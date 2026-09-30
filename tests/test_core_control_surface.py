@@ -11,14 +11,14 @@ import pytest
 from aiohttp.test_utils import TestClient, TestServer
 from test_host_connect_unit import FakeAdapter
 
-from accelerator.api import build_app, load_or_create_token
-from accelerator.cli import execute, make_parser
-from accelerator.domain import Capabilities
-from accelerator.errors import SafeError
-from accelerator.host import HostService
-from accelerator.probing import NodeTester
-from accelerator.subscription import SubscriptionEngine
 from conftest import MASTER, offline_core
+from fairwind.api import build_app, load_or_create_token
+from fairwind.cli import execute, make_parser
+from fairwind.domain import Capabilities
+from fairwind.errors import SafeError
+from fairwind.host import HostService
+from fairwind.probing import NodeTester
+from fairwind.subscription import SubscriptionEngine
 
 pytestmark = pytest.mark.integration
 
@@ -62,7 +62,7 @@ async def run_cli(tmp_path, capsys, command):
 
 
 async def test_cli_connect_disconnect_and_traffic(tmp_path, vault, fetcher, monkeypatch, capsys):
-    monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
+    monkeypatch.setenv("FAIRWIND_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
     _install_fake_core(monkeypatch, fetcher)
     await run_cli(tmp_path, capsys, ["subscriptions", "update", "--master-url", MASTER])
     await run_cli(tmp_path, capsys, ["nodes", "test", "--samples", "3"])
@@ -85,7 +85,7 @@ async def test_cli_connect_disconnect_and_traffic(tmp_path, vault, fetcher, monk
 
 
 async def test_cli_connect_refuses_without_a_core(tmp_path, vault, fetcher, monkeypatch, capsys):
-    monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
+    monkeypatch.setenv("FAIRWIND_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
     host = _host_module()
     monkeypatch.setattr(host, "HttpFetcher", lambda: OfflineFetcher(fetcher))
     monkeypatch.setattr(host, "XrayCoreAdapter", lambda data_dir, *a, **k: offline_core(data_dir))
@@ -147,7 +147,7 @@ async def test_api_metrics_report_the_real_core_state(client):
 
 def test_real_adapter_capabilities_match_the_spec():
     """适配器声明的能力必须与 `CORE_ADAPTER_SPEC.md` 的边界一致：UDP/IPv6 未验证就不声明。"""
-    from accelerator.xray_adapter import XrayCoreAdapter
+    from fairwind.xray_adapter import XrayCoreAdapter
 
     declared = XrayCoreAdapter.__dict__["capabilities"]
     assert isinstance(declared, Capabilities)
@@ -157,7 +157,7 @@ def test_real_adapter_capabilities_match_the_spec():
 
 
 def _host_module():
-    from accelerator import host
+    from fairwind import host
 
     return host
 

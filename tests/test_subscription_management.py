@@ -5,13 +5,13 @@ import json
 import pytest
 from test_node_engine import FakeProbe
 
-from accelerator.errors import SafeError
-from accelerator.host import HostService
-from accelerator.network import FetchResult
-from accelerator.scoring import explain_eligibility
-from accelerator.storage import SUBSCRIPTION_STATE_KEY
-from accelerator.subscription import SubscriptionEngine
 from conftest import MASTER, SOURCE_A, offline_core
+from fairwind.errors import SafeError
+from fairwind.host import HostService
+from fairwind.network import FetchResult
+from fairwind.scoring import explain_eligibility
+from fairwind.storage import SUBSCRIPTION_STATE_KEY
+from fairwind.subscription import SubscriptionEngine
 
 pytestmark = pytest.mark.integration
 
@@ -62,7 +62,7 @@ def test_add_subscription_encrypts_url_and_rejects_duplicates(database, vault, t
         with pytest.raises(SafeError, match="URL_REJECTED"):
             database.add_subscription(invalid)
     database.close()
-    raw = b"".join(path.read_bytes() for path in tmp_path.glob("accelerator.sqlite3*"))
+    raw = b"".join(path.read_bytes() for path in tmp_path.glob("fairwind.sqlite3*"))
     for secret in MANUAL_SECRETS:
         assert secret.encode() not in raw
 
@@ -118,7 +118,7 @@ def test_next_display_number_avoids_existing_names(database):
 async def seeded_service(monkeypatch, fetcher, tmp_path, vault):
     from test_host_service import OfflineFetcher
 
-    from accelerator import host as host_module
+    from fairwind import host as host_module
 
     monkeypatch.setattr(host_module, "HttpFetcher", lambda: OfflineFetcher(fetcher))
     monkeypatch.setattr(host_module, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())

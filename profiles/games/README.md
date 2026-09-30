@@ -6,10 +6,10 @@
 
 空注册表（`"profiles": []`）是合法状态：表示尚无经过验证的游戏规则。
 
-远程更新契约（已实现，见 `core/accelerator/profile_update.py` 与 `scripts/profile_update.py`）：
+远程更新契约（已实现，见 `core/fairwind/profile_update.py` 与 `scripts/profile_update.py`）：
 
 - 信封格式 `{"document": {…}, "signature": "<Base64 ed25519>"}`，签名覆盖文档的规范 JSON（排序键、紧凑分隔）。
-- 信任根由环境变量 `ACCELERATOR_PROFILE_PUBKEY` 注入（Base64 编码的 ed25519 公钥）；**没有公钥时拒绝一切远程规则**，仓库不内置任何密钥。
+- 信任根由环境变量 `FAIRWIND_PROFILE_PUBKEY` 注入（Base64 编码的 ed25519 公钥）；**没有公钥时拒绝一切远程规则**，仓库不内置任何密钥。
 - 防回滚：`version` 必须严格大于当前版本，否则 `ROLLBACK_REJECTED`。
 - 限额：信封不超过 1 MiB（`UPDATE_LIMIT`）。
 - 原子替换并保留 LKG：`profiles/game_profiles.json` 为当前注册表，`profiles/game_profiles.previous.json` 为上一个有效版本；`--restore-previous` 可互换回退。

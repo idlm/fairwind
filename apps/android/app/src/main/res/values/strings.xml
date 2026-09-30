@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  User-facing strings for the Smart Accelerator Android client (skeleton).
+  User-facing strings for the Fairwind Android client (skeleton).
 
   Spec 88-90, 132; docs/PRODUCT_SPEC.md §3.4 and §4 for the naming rules:
   an upstream is a "source" (订阅源), a node is identified by its node_id, and a

@@ -1,6 +1,6 @@
 import re
 
-from accelerator.domain import ProxyNode
+from fairwind.domain import ProxyNode
 
 COUNTRIES = (
     ("HK", "中国香港", "", r"香港|hong[ -]?kong|🇭🇰|\bhk\b"),

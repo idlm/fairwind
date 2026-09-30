@@ -2,7 +2,7 @@ package club.noclub.accelerator.domain
 
 /**
  * The one and only node scoring algorithm on Android, mirroring
- * `core/accelerator/domain/scoring.py`.
+ * `core/fairwind/domain/scoring.py`.
  *
  * spec 55-58. The UI, the selector and `explainScore` all call [score] — there is no
  * second implementation anywhere in the client. A component with no verified

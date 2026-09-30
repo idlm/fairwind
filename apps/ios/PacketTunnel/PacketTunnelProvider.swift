@@ -267,7 +267,7 @@ public final class PacketTunnelProvider: NEPacketTunnelProvider {
             domain: "club.noclub.accelerator.packet-tunnel",
             code: numericCode,
             userInfo: [
-                NSLocalizedDescriptionKey: "Smart Accelerator could not start the tunnel",
+                NSLocalizedDescriptionKey: "Fairwind could not start the tunnel",
                 NSLocalizedFailureReasonErrorKey: "\(code.rawValue): \(detail)",
             ]
         )

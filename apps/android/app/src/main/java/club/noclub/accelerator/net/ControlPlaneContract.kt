@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * The loopback JSON API contract, shared with the desktop control plane
- * (`core/accelerator/apps/api/routes.py`).
+ * (`core/fairwind/apps/api/routes.py`).
  *
  * spec 69-70, 132. The mobile client does **not** invent a second protocol. Where a
  * surface exists on both sides, the route path, the HTTP verb and the JSON key names are

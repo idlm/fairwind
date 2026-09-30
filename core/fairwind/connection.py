@@ -2,9 +2,9 @@ import asyncio
 import time
 from dataclasses import dataclass
 
-from accelerator.adapters import CoreAdapter
-from accelerator.domain import ConnectionState
-from accelerator.errors import SafeError
+from fairwind.adapters import CoreAdapter
+from fairwind.domain import ConnectionState
+from fairwind.errors import SafeError
 
 
 @dataclass

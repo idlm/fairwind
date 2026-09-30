@@ -117,7 +117,7 @@ data class CoreValidation(
  *
  * This is not a placeholder for laziness — it is the honest implementation of a
  * product with no approved core (docs/CORE_APPROVAL.md, docs/CORE_ADAPTER_SPEC.md).
- * The desktop control plane does the same thing today: `accelerator connect` exits 1
+ * The desktop control plane does the same thing today: `fairwind connect` exits 1
  * with `CORE_NOT_AVAILABLE`.
  *
  * `// TODO(Gate B)`: replace with one adapter per chosen core once

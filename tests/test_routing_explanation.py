@@ -2,9 +2,9 @@
 
 import pytest
 
-from accelerator.domain import Capabilities
-from accelerator.profiles import GameProfile
-from accelerator.routing import (
+from fairwind.domain import Capabilities
+from fairwind.profiles import GameProfile
+from fairwind.routing import (
     ACTION_DIRECT,
     ACTION_PROXY,
     DEFAULT_DECISION,

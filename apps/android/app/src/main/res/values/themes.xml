@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  App theme for the Smart Accelerator Android client (skeleton).
+  App theme for the Fairwind Android client (skeleton).
 
   Spec 88-90, 132. Deliberately a framework parent (`android:Theme.Material.*`) so the
   skeleton needs no XML-material-components dependency: the entire UI is Jetpack

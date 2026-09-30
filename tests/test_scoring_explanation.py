@@ -3,7 +3,7 @@
 import pytest
 from test_node_engine import histories
 
-from accelerator.scoring import (
+from fairwind.scoring import (
     COMPONENT_MAXIMUM,
     EXPLANATION_NOTE,
     MIN_AVAILABILITY,

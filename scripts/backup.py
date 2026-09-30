@@ -15,10 +15,10 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from accelerator.cli import default_data_dir
-from accelerator.errors import SafeError
-from accelerator.security import SecretVault
-from accelerator.storage import Database, operation_lock, restore_database
+from fairwind.cli import default_data_dir
+from fairwind.errors import SafeError
+from fairwind.security import SecretVault
+from fairwind.storage import Database, operation_lock, restore_database
 
 
 def load_vault(root: Path):

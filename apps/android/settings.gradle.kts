@@ -1,4 +1,4 @@
-// Smart Accelerator - Android client (skeleton).
+// Fairwind - Android client (skeleton).
 //
 // spec 88-90, 132; docs/PLATFORM_MATRIX.md "Android".
 //
@@ -23,5 +23,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "accelerator-android"
+rootProject.name = "fairwind-android"
 include(":app")

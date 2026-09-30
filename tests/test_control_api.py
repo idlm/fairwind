@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
-from accelerator.api import build_app, load_or_create_token, serve
-from accelerator.errors import SafeError
-from accelerator.host import HostService
 from conftest import MASTER, offline_core, requires_symlinks
+from fairwind.api import build_app, load_or_create_token, serve
+from fairwind.errors import SafeError
+from fairwind.host import HostService
 
 pytestmark = pytest.mark.integration
 
@@ -111,7 +111,7 @@ async def test_security_headers_and_body_validation(control):
     panel = await client.get("/ui/")
     body = await panel.text()
     assert panel.status == 200
-    assert "<title>Smart Accelerator 控制面板</title>" in body
+    assert "<title>Fairwind 控制面板</title>" in body
     assert 'data-tab="home"' in body and 'id="panel-settings"' in body
     assert panel.headers["X-Frame-Options"] == "DENY"
     assert "default-src 'self'" in panel.headers["Content-Security-Policy"]
@@ -143,7 +143,7 @@ async def test_panel_cannot_escape_ui_root(control):
 
 
 async def test_host_endpoints_return_sanitized_nodes(tmp_path, vault, fetcher, monkeypatch):
-    from accelerator import host
+    from fairwind import host
 
     class OfflineFetcher:
         async def __aenter__(self):
@@ -248,7 +248,7 @@ async def test_extended_host_endpoints(control):
 
 
 def test_panel_assets_are_self_contained():
-    panel = Path(__file__).resolve().parents[1] / "core" / "accelerator" / "ui" / "index.html"
+    panel = Path(__file__).resolve().parents[1] / "core" / "fairwind" / "ui" / "index.html"
     text = panel.read_text(encoding="utf-8")
     assert "https://" not in text
     assert "http://" not in text.replace("http://127.0.0.1", "")
@@ -257,7 +257,7 @@ def test_panel_assets_are_self_contained():
 
 def test_panel_matches_spec_information_architecture():
     """规格 §22 的五页信息架构必须都在面板里；不可用的能力要显式标注原因。"""
-    panel = Path(__file__).resolve().parents[1] / "core" / "accelerator" / "ui" / "index.html"
+    panel = Path(__file__).resolve().parents[1] / "core" / "fairwind" / "ui" / "index.html"
     text = panel.read_text(encoding="utf-8")
     for tab in ("home", "nodes", "subscriptions", "games", "settings"):
         assert f'data-tab="{tab}"' in text, tab
@@ -346,7 +346,7 @@ async def test_subscription_management_endpoints_validate_input(control):
 async def test_subscription_management_round_trip_never_echoes_url(
     tmp_path, vault, fetcher, monkeypatch
 ):
-    from accelerator import host
+    from fairwind import host
 
     class OfflineFetcher:
         async def __aenter__(self):
@@ -405,7 +405,7 @@ async def test_subscription_management_round_trip_never_echoes_url(
 async def test_node_detail_endpoint_is_sanitized(tmp_path, vault, fetcher, monkeypatch):
     from test_node_engine import FakeProbe
 
-    from accelerator import host
+    from fairwind import host
 
     class OfflineFetcher:
         async def __aenter__(self):

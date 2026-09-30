@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from accelerator import core_config
-from accelerator.domain import NodeSecret, ProxyNode
-from accelerator.errors import SafeError
 from conftest import requires_symlinks
+from fairwind import core_config
+from fairwind.domain import NodeSecret, ProxyNode
+from fairwind.errors import SafeError
 
 pytestmark = pytest.mark.unit
 

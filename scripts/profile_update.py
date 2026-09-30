@@ -1,6 +1,6 @@
 """Game Profile 远程更新入口：签名校验 → 防回滚 → 能力校验 → 原子替换（保留 LKG）。
 
-公钥由 `ACCELERATOR_PROFILE_PUBKEY` 注入，缺失即拒绝全部远程规则。用法：
+公钥由 `FAIRWIND_PROFILE_PUBKEY` 注入，缺失即拒绝全部远程规则。用法：
 
 ```bash
 uv run python scripts/profile_update.py --file ENVELOPE.json [--platform windows]
@@ -16,13 +16,13 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from accelerator.cli import default_data_dir
-from accelerator.domain import Capabilities
-from accelerator.errors import SafeError
-from accelerator.network import HttpFetcher
-from accelerator.profile_update import ProfileRegistry, load_public_key
-from accelerator.profiles import MAX_PROFILE_BYTES
-from accelerator.storage import operation_lock
+from fairwind.cli import default_data_dir
+from fairwind.domain import Capabilities
+from fairwind.errors import SafeError
+from fairwind.network import HttpFetcher
+from fairwind.profile_update import ProfileRegistry, load_public_key
+from fairwind.profiles import MAX_PROFILE_BYTES
+from fairwind.storage import operation_lock
 
 
 async def fetch(url: str) -> bytes:

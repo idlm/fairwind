@@ -30,17 +30,17 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
-from accelerator import core_config, core_pin
-from accelerator.core_runtime import (
+from conftest import CORE_BINARY, requires_core
+from fairwind import core_config, core_pin
+from fairwind.core_runtime import (
     EVENT_CONFIG_REMOVED,
     STOPPED,
     CoreRuntime,
     free_loopback_port,
 )
-from accelerator.domain import NodeSecret, ProxyNode, TestState
-from accelerator.errors import SafeError
-from accelerator.xray_adapter import XrayCoreAdapter
-from conftest import CORE_BINARY, requires_core
+from fairwind.domain import NodeSecret, ProxyNode, TestState
+from fairwind.errors import SafeError
+from fairwind.xray_adapter import XrayCoreAdapter
 
 pytestmark = pytest.mark.integration
 

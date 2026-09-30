@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Smart Accelerator 控制面板</title>
+<title>Fairwind 控制面板</title>
 <style>
   :root { color-scheme: light dark; --line: #d0d7de; --muted: #6a737d; --bg: #ffffff; --fg: #1f2328; --accent: #0969da; }
   @media (prefers-color-scheme: dark) {
@@ -38,7 +38,7 @@
 </head>
 <body>
 <header>
-  <h1>Smart Accelerator</h1>
+  <h1>Fairwind</h1>
   <span class="badge" id="version">version …</span>
   <span class="badge warn" id="core">core …</span>
   <span class="badge" id="state">state …</span>
@@ -222,7 +222,7 @@
 
 <script>
 const state = {
-  token: sessionStorage.getItem("accelerator.token") || "",
+  token: sessionStorage.getItem("fairwind.token") || "",
   country: "",
   tab: "home",
   connected: false,
@@ -444,7 +444,7 @@ document.getElementById("apply-profiles").addEventListener("click", async () => 
 });
 document.getElementById("token-save").addEventListener("click", () => {
   state.token = document.getElementById("token-input").value.trim();
-  sessionStorage.setItem("accelerator.token", state.token);
+  sessionStorage.setItem("fairwind.token", state.token);
   loadStatus();
 });
 document.getElementById("connect").addEventListener("click", async () => {
@@ -534,7 +534,7 @@ document.getElementById("explain-route").addEventListener("click", async () => {
   } catch (error) { fail("explain-route-output", error); }
 });
 document.getElementById("forget-token").addEventListener("click", () => {
-  sessionStorage.removeItem("accelerator.token");
+  sessionStorage.removeItem("fairwind.token");
   state.token = "";
   showAuth(true);
 });
@@ -544,7 +544,7 @@ document.getElementById("forget-token").addEventListener("click", () => {
   const match = /(?:^|[#&])token=([^&]+)/.exec(location.hash || "");
   if (match) {
     state.token = decodeURIComponent(match[1]);
-    sessionStorage.setItem("accelerator.token", state.token);
+    sessionStorage.setItem("fairwind.token", state.token);
     history.replaceState(null, "", location.pathname + location.search);
   }
   if (!state.token) { showAuth(true); return; }

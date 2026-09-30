@@ -4,8 +4,8 @@ import asyncio
 import socket
 import struct
 
-from accelerator.domain import ProxyNode
-from accelerator.errors import SafeError
+from fairwind.domain import ProxyNode
+from fairwind.errors import SafeError
 
 VERSION = 5
 NO_AUTH = 0

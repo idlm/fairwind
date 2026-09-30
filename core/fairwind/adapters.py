@@ -1,7 +1,7 @@
 from typing import Protocol
 
-from accelerator.domain import Capabilities, ProbeResult, ProxyNode
-from accelerator.errors import SafeError
+from fairwind.domain import Capabilities, ProbeResult, ProxyNode
+from fairwind.errors import SafeError
 
 
 class CoreAdapter(Protocol):

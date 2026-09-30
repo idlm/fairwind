@@ -1,6 +1,6 @@
 """引用感知的密文垃圾回收维护入口（只删除无引用密文，需显式执行）。
 
-用法: ACCELERATOR_SECRET_KEY=<32 字节 Base64> uv run python scripts/vault_gc.py [--data-dir PATH]
+用法: FAIRWIND_SECRET_KEY=<32 字节 Base64> uv run python scripts/vault_gc.py [--data-dir PATH]
 """
 
 import argparse
@@ -8,10 +8,10 @@ import json
 import sqlite3
 from pathlib import Path
 
-from accelerator.cli import default_data_dir
-from accelerator.errors import SafeError
-from accelerator.security import SecretVault
-from accelerator.storage import Database, operation_lock
+from fairwind.cli import default_data_dir
+from fairwind.errors import SafeError
+from fairwind.security import SecretVault
+from fairwind.storage import Database, operation_lock
 
 
 def main() -> int:

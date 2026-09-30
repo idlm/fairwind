@@ -8,10 +8,10 @@ from urllib.parse import parse_qsl, unquote, urlsplit
 
 import yaml
 
-from accelerator.classifier import classify
-from accelerator.domain import NodeSecret, ParseResult, ProxyNode
-from accelerator.errors import SafeError
-from accelerator.security import canonical_host, canonical_json
+from fairwind.classifier import classify
+from fairwind.domain import NodeSecret, ParseResult, ProxyNode
+from fairwind.errors import SafeError
+from fairwind.security import canonical_host, canonical_json
 
 MAX_SUBSCRIPTION_BYTES = 10 * 1024 * 1024
 MAX_NODES = 10_000

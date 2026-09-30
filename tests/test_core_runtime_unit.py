@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from accelerator import core_config, core_runtime
-from accelerator.core_runtime import (
+from fairwind import core_config, core_runtime
+from fairwind.core_runtime import (
     CIRCUIT_OPEN,
     CRASHED,
     EVENT_CONFIG_REMOVED,
@@ -23,8 +23,8 @@ from accelerator.core_runtime import (
     free_loopback_port,
     parse_stats,
 )
-from accelerator.domain import NodeSecret, ProxyNode
-from accelerator.errors import SafeError
+from fairwind.domain import NodeSecret, ProxyNode
+from fairwind.errors import SafeError
 
 pytestmark = pytest.mark.unit
 
@@ -222,7 +222,7 @@ async def test_apply_config_swaps_ports_and_keeps_only_one_process(tmp_path):
 
 
 def test_default_binary_points_at_the_pinned_manifest():
-    from accelerator import core_pin
+    from fairwind import core_pin
 
     path = core_runtime.default_binary()
     assert path.name == core_pin.BINARY_NAME

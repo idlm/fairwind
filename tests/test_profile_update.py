@@ -6,16 +6,16 @@ import json
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from accelerator.domain import Capabilities
-from accelerator.errors import SafeError
-from accelerator.profile_update import (
+from fairwind.domain import Capabilities
+from fairwind.errors import SafeError
+from fairwind.profile_update import (
     PUBLIC_KEY_VARIABLE,
     ProfileRegistry,
     load_public_key,
     verify_envelope,
 )
-from accelerator.profiles import MAX_PROFILE_BYTES
-from accelerator.security import canonical_json
+from fairwind.profiles import MAX_PROFILE_BYTES
+from fairwind.security import canonical_json
 
 pytestmark = pytest.mark.security
 

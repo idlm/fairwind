@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from accelerator import core_config, core_pin
-from accelerator.domain import NodeSecret, ProxyNode
+from fairwind import core_config, core_pin
+from fairwind.domain import NodeSecret, ProxyNode
 
 pytestmark = pytest.mark.integration
 

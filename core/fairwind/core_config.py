@@ -13,8 +13,8 @@ import json
 import os
 from pathlib import Path
 
-from accelerator.domain import ProxyNode
-from accelerator.errors import SafeError
+from fairwind.domain import ProxyNode
+from fairwind.errors import SafeError
 
 LOOPBACK = "127.0.0.1"
 CONFIG_NAME = "core-config.json"

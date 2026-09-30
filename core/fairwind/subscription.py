@@ -4,12 +4,12 @@ import time
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from accelerator.domain import ParseResult
-from accelerator.errors import SafeError
-from accelerator.network import FetchResult
-from accelerator.parser import MAX_SUBSCRIPTION_BYTES, SubscriptionParser
-from accelerator.security import SecretVault, validate_url
-from accelerator.storage import MAX_SUBSCRIPTIONS, Database
+from fairwind.domain import ParseResult
+from fairwind.errors import SafeError
+from fairwind.network import FetchResult
+from fairwind.parser import MAX_SUBSCRIPTION_BYTES, SubscriptionParser
+from fairwind.security import SecretVault, validate_url
+from fairwind.storage import MAX_SUBSCRIPTIONS, Database
 
 MAX_MASTER_BYTES = 1024 * 1024
 # 上限只定义一次（storage.MAX_SUBSCRIPTIONS），Master 列表与手动添加共用。

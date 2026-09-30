@@ -16,7 +16,7 @@ import Foundation
 /// **never** empties its node list on a failed refresh.
 ///
 /// `// TODO(Gate B)`: wire `refresh` to the real fetch/parse/store pipeline. The Python
-/// implementation is the reference (`core/accelerator/subscription.py`), and the
+/// implementation is the reference (`core/fairwind/subscription.py`), and the
 /// iOS client must reproduce its outcomes rather than invent new ones — including the
 /// snapshot lifecycle (docs/DATA_MODEL.md).
 public enum UpdatePhase: String, Sendable {
@@ -33,7 +33,7 @@ public enum UpdatePhase: String, Sendable {
 
 /// The update outcome codes the UI may show.
 ///
-/// The authoritative list is `core/accelerator/errors.py`; this enum mirrors the
+/// The authoritative list is `core/fairwind/errors.py`; this enum mirrors the
 /// subset the client can currently produce and must be kept in step with it.
 public enum UpdateCode: String, Sendable {
     case masterNotPublished = "MASTER_NOT_PUBLISHED"

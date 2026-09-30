@@ -4,7 +4,7 @@
 - 批准范围：**第一阶段唯一实现核心 = Xray-core**，固定版本见下表
 - 取代：`docs/CORE_INTEGRATION_ADR.md` 的"提议"状态（该 ADR 的接入模型在本记录中正式生效）
 - 相关：`docs/CORE_INTEGRATION_ADR.md`、`CORE_ADAPTER_SPEC.md`、`LICENSE_MATRIX.md`、`THIRD_PARTY_LICENSES.md`、`docs/CORE_REVIEW_CHECKLIST.md`
-- 机读清单（唯一接入依据）：`core/accelerator/core_pin.py`；获取/校验脚本：`scripts/fetch_core.py`
+- 机读清单（唯一接入依据）：`core/fairwind/core_pin.py`；获取/校验脚本：`scripts/fetch_core.py`
 
 ## 固定的核心身份
 

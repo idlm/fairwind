@@ -13,7 +13,7 @@ import os
 import platform
 import sys
 
-from accelerator.errors import SafeError
+from fairwind.errors import SafeError
 
 CORE_NAME = "Xray-core"
 REPOSITORY = "XTLS/Xray-core"

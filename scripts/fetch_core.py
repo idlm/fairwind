@@ -1,6 +1,6 @@
 """按固定清单获取并校验核心二进制（Gate A）。
 
-- 只从 `accelerator.core_pin` 里写死的 release 资产下载；**不接受**任意 URL、不接受 latest。
+- 只从 `fairwind.core_pin` 里写死的 release 资产下载；**不接受**任意 URL、不接受 latest。
 - 下载后校验 SHA-256；不一致立即删除并 `CORE_DIGEST_MISMATCH`，绝不解压、绝不运行。
 - 解压到 `third_party/core/`（已 gitignore），并打印可复核的 JSON 摘要。
 - `--check` 只校验本地已有二进制（存在性 + 版本串里的 commit），供离线环境与诊断使用。
@@ -23,8 +23,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
 
-from accelerator import core_pin  # noqa: E402
-from accelerator.errors import SafeError  # noqa: E402
+from fairwind import core_pin  # noqa: E402
+from fairwind.errors import SafeError  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 HEADERS = {"User-Agent": "SmartAccelerator/0.1"}

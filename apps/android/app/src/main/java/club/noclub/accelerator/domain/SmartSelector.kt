@@ -2,7 +2,7 @@ package club.noclub.accelerator.domain
 
 /**
  * Smart selection — the **Auto** mode behind the 智能加速 button, mirroring
- * `core/accelerator/domain/selection.py`.
+ * `core/fairwind/domain/selection.py`.
  *
  * spec 60, 65, 132. The pipeline is exactly the Python one and in this order:
  *

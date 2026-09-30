@@ -2,13 +2,13 @@ import asyncio
 
 import pytest
 
-from accelerator.connection import ConnectionController
-from accelerator.domain import ConnectionState, ProbeResult, TestState
-from accelerator.errors import SafeError
-from accelerator.probing import NodeTester, ReferenceProbe
-from accelerator.scoring import SmartSelector, score_history
-from accelerator.subscription import SubscriptionEngine
 from conftest import MASTER
+from fairwind.connection import ConnectionController
+from fairwind.domain import ConnectionState, ProbeResult, TestState
+from fairwind.errors import SafeError
+from fairwind.probing import NodeTester, ReferenceProbe
+from fairwind.scoring import SmartSelector, score_history
+from fairwind.subscription import SubscriptionEngine
 
 pytestmark = pytest.mark.unit
 
@@ -98,8 +98,8 @@ async def test_probes_rolling_history_and_best(database, vault, fetcher):
 
 
 async def test_probe_large_batch_max_8(database, vault, fetcher):
-    from accelerator.network import FetchResult
     from conftest import FIXTURES, SOURCE_A
+    from fairwind.network import FetchResult
 
     fetcher.responses[SOURCE_A] = FetchResult(200, (FIXTURES / "huge.txt").read_bytes())
     await SubscriptionEngine(database, vault, fetcher).update(MASTER)

@@ -4,25 +4,25 @@
 
 | 命令 | 行为 |
 |---|---|
-| accelerator subscriptions update | 读取加密配置或 ACCELERATOR_MASTER_URL；只刷新到期源 |
-| accelerator subscriptions update --force | 显式忽略调度与暂停状态，仍使用条件 HTTP 请求 |
-| accelerator subscriptions list | 本机订阅视图：匿名显示名、12 位摘要句柄、来源（MASTER/MANUAL）、用户状态（ACTIVE/PAUSED）、节点数与调度状态；不需要密钥 |
-| accelerator subscriptions add URL | 手动加入订阅源：URL 立即校验并以密文保存，输出**永不回显** URL；重复添加返回 `SUBSCRIPTION_DUPLICATE` |
-| accelerator subscriptions pause HANDLE / resume HANDLE | 暂停 / 恢复刷新（句柄见 `subscriptions list`）；暂停不删节点，恢复后下一轮即刷新（无需 `--force`） |
-| accelerator subscriptions remove HANDLE | 移除该来源与其独占节点；仍在 Master 列表里的源会在下次刷新时回来（输出用 `present_in_master` / `note` 标注） |
-| accelerator nodes list [--country JP] | 本机节点、分类、状态与解释性分项；不输出名称/服务器/凭据 |
-| accelerator nodes test [--samples 3] [--concurrency 8] [--udp-target HOST:PORT] [--no-udp] | 有限工作队列；历史最多 10 条；SOCKS5 经 UDP ASSOCIATE 实测丢包，其余保持 null |
-| accelerator nodes best [--country JP] | 至少 3 个最近有效测试样本、成功率 ≥80%、当前可用；地理偏好仅轻量加权 |
-| accelerator nodes explain NODE_ID | 节点详情 + 分数解释 + 资格解释；NODE_ID 为列表中的 12 位前缀（4–64 位十六进制均可，唯一命中）。**不含**凭据/订阅 URL |
-| accelerator connect [--node-id ID] [--country JP] | 智能选择 → 回环单节点配置 → 起核心 → **真实出口验证**；只有探针目标经该节点返回预期状态码才算连上。需要密钥（要解密节点凭据）；未接入核心即 `CORE_NOT_INTEGRATED` |
-| accelerator disconnect | 停止核心进程并删除临时配置；未接入核心即 `CORE_NOT_INTEGRATED` |
-| accelerator traffic | 真实流量字节（核心统计 API）；未测量时 `measured=false` 且 `uplink/downlink` 为 `null`。计数是**进程内**的：CLI 每条命令一个新进程，因此重启即清零 |
-| accelerator status | 持久化节点、订阅与真实连接状态（来自连接控制器），并给出核心接入与核心进程状态 |
-| accelerator diagnose | 离线自检：schema/完整性/权限/密钥匹配/密文覆盖/Master/订阅与调度/节点/Profile 信任根/核心状态；不联网、不需要密钥（缺密钥的检查标 SKIP）；`FAILED` 退出 2 |
-| accelerator route explain HOST [--port P] [--protocol tcp\|udp] [--process NAME] | 按已落库规则给出生效动作（PROXY / DIRECT / DEFAULT）与命中的规则；未命中即 `DEFAULT`，不会声称已连接 |
-| accelerator serve [--port 8765] | 在 127.0.0.1 启动控制面与静态面板；token 写入 `<data-dir>/control.token`（0600），面板地址用 URL 片段携带 token |
+| fairwind subscriptions update | 读取加密配置或 FAIRWIND_MASTER_URL；只刷新到期源 |
+| fairwind subscriptions update --force | 显式忽略调度与暂停状态，仍使用条件 HTTP 请求 |
+| fairwind subscriptions list | 本机订阅视图：匿名显示名、12 位摘要句柄、来源（MASTER/MANUAL）、用户状态（ACTIVE/PAUSED）、节点数与调度状态；不需要密钥 |
+| fairwind subscriptions add URL | 手动加入订阅源：URL 立即校验并以密文保存，输出**永不回显** URL；重复添加返回 `SUBSCRIPTION_DUPLICATE` |
+| fairwind subscriptions pause HANDLE / resume HANDLE | 暂停 / 恢复刷新（句柄见 `subscriptions list`）；暂停不删节点，恢复后下一轮即刷新（无需 `--force`） |
+| fairwind subscriptions remove HANDLE | 移除该来源与其独占节点；仍在 Master 列表里的源会在下次刷新时回来（输出用 `present_in_master` / `note` 标注） |
+| fairwind nodes list [--country JP] | 本机节点、分类、状态与解释性分项；不输出名称/服务器/凭据 |
+| fairwind nodes test [--samples 3] [--concurrency 8] [--udp-target HOST:PORT] [--no-udp] | 有限工作队列；历史最多 10 条；SOCKS5 经 UDP ASSOCIATE 实测丢包，其余保持 null |
+| fairwind nodes best [--country JP] | 至少 3 个最近有效测试样本、成功率 ≥80%、当前可用；地理偏好仅轻量加权 |
+| fairwind nodes explain NODE_ID | 节点详情 + 分数解释 + 资格解释；NODE_ID 为列表中的 12 位前缀（4–64 位十六进制均可，唯一命中）。**不含**凭据/订阅 URL |
+| fairwind connect [--node-id ID] [--country JP] | 智能选择 → 回环单节点配置 → 起核心 → **真实出口验证**；只有探针目标经该节点返回预期状态码才算连上。需要密钥（要解密节点凭据）；未接入核心即 `CORE_NOT_INTEGRATED` |
+| fairwind disconnect | 停止核心进程并删除临时配置；未接入核心即 `CORE_NOT_INTEGRATED` |
+| fairwind traffic | 真实流量字节（核心统计 API）；未测量时 `measured=false` 且 `uplink/downlink` 为 `null`。计数是**进程内**的：CLI 每条命令一个新进程，因此重启即清零 |
+| fairwind status | 持久化节点、订阅与真实连接状态（来自连接控制器），并给出核心接入与核心进程状态 |
+| fairwind diagnose | 离线自检：schema/完整性/权限/密钥匹配/密文覆盖/Master/订阅与调度/节点/Profile 信任根/核心状态；不联网、不需要密钥（缺密钥的检查标 SKIP）；`FAILED` 退出 2 |
+| fairwind route explain HOST [--port P] [--protocol tcp\|udp] [--process NAME] | 按已落库规则给出生效动作（PROXY / DIRECT / DEFAULT）与命中的规则；未命中即 `DEFAULT`，不会声称已连接 |
+| fairwind serve [--port 8765] | 在 127.0.0.1 启动控制面与静态面板；token 写入 `<data-dir>/control.token`（0600），面板地址用 URL 片段携带 token |
 
-全局 `--data-dir PATH` 必须放在子命令前。只读命令不要求密钥；更新和测速要求 ACCELERATOR_SECRET_KEY。CLI 默认不显示高级脱敏 URL，不提供原始日志导出。
+全局 `--data-dir PATH` 必须放在子命令前。只读命令不要求密钥；更新和测速要求 FAIRWIND_SECRET_KEY。CLI 默认不显示高级脱敏 URL，不提供原始日志导出。
 
 探测只覆盖可离线验证的代理类型：HTTP CONNECT 与 SOCKS5（RFC 1928 + RFC 1929，支持无认证与用户名/密码）。其余协议由**已接入的固定核心**验证：`nodes test` 在核心就位时为每个节点单独起一个回环实例做真实协议握手并访问探针目标，只有目标返回预期状态码才记 `AVAILABLE`（`backend=INTEGRATED`、`note=VERIFIED_THROUGH_THE_PINNED_CORE`）；核心缺失时退回 TCP/HTTP CONNECT 探测，`note=TCP_ONLY_IS_NOT_PROXY_AVAILABILITY`。探测通过代理请求配置的 HTTPS 204 测试地址，证书验证开启，不接受重定向。
 
@@ -50,7 +50,7 @@ UDP 丢包只在 SOCKS5 且出口已验证可用时测量：通过 UDP ASSOCIATE
 
 ## 诊断（Diagnose）
 
-`accelerator diagnose` / `GET /api/host/diagnostic` / 面板「设置 → 诊断」输出同一份报告：
+`fairwind diagnose` / `GET /api/host/diagnostic` / 面板「设置 → 诊断」输出同一份报告：
 
 - `status`：`OK` / `DEGRADED`（有 `WARN`）/ `FAILED`（有 `FAIL`，CLI 退出 2）；
 - `counts`：四种状态的计数；`checks[]`：每项含 `name` / `status` / `detail` / `error_code`（固定错误码，可直接对照 `TROUBLESHOOTING.md`）；
@@ -64,14 +64,14 @@ UDP 丢包只在 SOCKS5 且出口已验证可用时测量：通过 UDP ASSOCIATE
 - 只统计**已经结束**的请求：查看指标这一次请求本身要等响应返回后才计入。
 - 字段 `note: PROCESS_LOCAL_RESETS_ON_RESTART`：控制面每次启动都是新进程，指标从零开始；本周期不做持久化。
 - 字段 `traffic: {measured: false, ...}`：未接入核心前不给出任何上下行数字，**不用 0 冒充测量值**。
-- 不提供一次性 CLI 命令（如 `accelerator metrics`）——单次进程没有可观测的累计状态，返回空表只会误导。
+- 不提供一次性 CLI 命令（如 `fairwind metrics`）——单次进程没有可观测的累计状态，返回空表只会误导。
 - 隐私：指标只存在于控制面进程内存中，不落盘、不外发；路径中的用户输入（节点前缀、句柄等）不进入指标。
 
 ## 解释命令（Explain Mode）
 
 `nodes explain` 与 `route explain` 是**只读解释器**：它们不新增评分、权重或路由理由，只把既有 Domain Logic 的实际计算过程与判定条件原样输出。
 
-`accelerator nodes explain NODE_ID` 返回：
+`fairwind nodes explain NODE_ID` 返回：
 
 - `node`：短 id、协议、传输、TLS、地区/区域/城市、标签、创建时间；`state` 与 `last_tested_at` 取自最近一次探测
 - `latency_ms` / `jitter_ms` / `packet_loss` / `success_rate` / `failure_rate` / `score` / `quality`
@@ -83,6 +83,6 @@ UDP 丢包只在 SOCKS5 且出口已验证可用时测量：通过 UDP ASSOCIATE
 
 该算法**没有独立负分项**，因此输出里不存在 `penalty` 之类的字段：分数未拿满用"实际值/上限 + 公式 + 输入"表达，资格排除用 `eligibility` 表达，两者不混为一谈。
 
-`accelerator route explain HOST` 返回 `decision`（`PROXY` / `DIRECT` / `DEFAULT`）、`matched_rule`（`id`/`selector`/`value`/`priority`/`source`）、`reason`、`considered`（按优先级被评估的规则及每条未命中原因）、`query` 与 `semantics`。规则语义与 `ROUTING_SPEC.md` 一致：优先级数值越大越优先（用户 3000 > 游戏 2000 > 默认 1000），首个命中即决定；查询未提供的维度（进程/端口/协议）不算命中；域名规则是**精确匹配**（数据模型没有通配符语义）；CIDR 规则要求主机是 IP 字面量。
+`fairwind route explain HOST` 返回 `decision`（`PROXY` / `DIRECT` / `DEFAULT`）、`matched_rule`（`id`/`selector`/`value`/`priority`/`source`）、`reason`、`considered`（按优先级被评估的规则及每条未命中原因）、`query` 与 `semantics`。规则语义与 `ROUTING_SPEC.md` 一致：优先级数值越大越优先（用户 3000 > 游戏 2000 > 默认 1000），首个命中即决定；查询未提供的维度（进程/端口/协议）不算命中；域名规则是**精确匹配**（数据模型没有通配符语义）；CIDR 规则要求主机是 IP 字面量。
 
 固定错误码：`NODE_ID_INVALID`（前缀不是 4–64 位十六进制）、`NODE_NOT_FOUND`（不存在或来源订阅已禁用）、`NODE_ID_AMBIGUOUS`（前缀命中多个节点）、`ARGUMENT_INVALID`（端口越界、协议非 tcp/udp、端口非数字）、`HOST_REJECTED`（主机名为空/非法）。

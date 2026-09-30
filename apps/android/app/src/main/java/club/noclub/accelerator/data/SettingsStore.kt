@@ -64,7 +64,7 @@ data class AcceleratorSettings(
     )
 }
 
-private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "accelerator-settings")
+private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "fairwind-settings")
 
 /**
  * The settings handle. One instance per process is enough; `DataStore` itself is

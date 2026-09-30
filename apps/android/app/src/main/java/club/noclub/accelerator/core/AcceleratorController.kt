@@ -31,7 +31,7 @@ import kotlinx.coroutines.withTimeout
  * (spec 71-82, 88, 132; docs/CORE_ADAPTER_SPEC.md and).
  *
  * This is the **only** entry point the UI is allowed to call for connection state. The
- * layering rule the Python package states in `core/accelerator/__init__.py` holds here too:
+ * layering rule the Python package states in `core/fairwind/__init__.py` holds here too:
  *
  * ```text
  * ui/  (Compose screens)

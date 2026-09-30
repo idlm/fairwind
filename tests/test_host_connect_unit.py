@@ -8,12 +8,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from accelerator.domain import Capabilities, ProbeResult, TestState
-from accelerator.errors import SafeError
-from accelerator.host import HostService
-from accelerator.probing import NodeTester
-from accelerator.subscription import SubscriptionEngine
 from conftest import MASTER, offline_core
+from fairwind.domain import Capabilities, ProbeResult, TestState
+from fairwind.errors import SafeError
+from fairwind.host import HostService
+from fairwind.probing import NodeTester
+from fairwind.subscription import SubscriptionEngine
 
 pytestmark = pytest.mark.integration
 

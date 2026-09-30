@@ -2,9 +2,9 @@
 
 import pytest
 
-from accelerator.adapters import missing_capabilities, select_adapter
-from accelerator.domain import Capabilities, ConnectionState
-from accelerator.errors import SafeError
+from fairwind.adapters import missing_capabilities, select_adapter
+from fairwind.domain import Capabilities, ConnectionState
+from fairwind.errors import SafeError
 
 pytestmark = pytest.mark.unit
 

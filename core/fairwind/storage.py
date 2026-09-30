@@ -9,10 +9,10 @@ from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from accelerator.domain import NodeSecret, ProbeResult, ProxyNode
-from accelerator.errors import SafeError
-from accelerator.routing import RouteRule, rule_payload
-from accelerator.security import (
+from fairwind.domain import NodeSecret, ProbeResult, ProxyNode
+from fairwind.errors import SafeError
+from fairwind.routing import RouteRule, rule_payload
+from fairwind.security import (
     REFERENCE_PATTERN,
     SecretVault,
     canonical_json,
@@ -147,7 +147,7 @@ def restore_database(root: Path, source: Path, vault: SecretVault | None = None)
     （`SECRET_SNAPSHOT_INCOMPLETE`）；请连同 `secrets/` 快照一起恢复。
     """
     private_directory(root)
-    target = root / "accelerator.sqlite3"
+    target = root / "fairwind.sqlite3"
     if source.is_symlink() or not source.is_file():
         raise SafeError("BACKUP_INVALID")
     probe = sqlite3.connect(f"file:{source}?mode=ro", uri=True)
@@ -169,7 +169,7 @@ def restore_database(root: Path, source: Path, vault: SecretVault | None = None)
         probe.close()
     for suffix in ("-wal", "-shm"):
         Path(str(target) + suffix).unlink(missing_ok=True)
-    previous = root / "accelerator.sqlite3.previous"
+    previous = root / "fairwind.sqlite3.previous"
     if target.exists():
         previous.unlink(missing_ok=True)
         os.replace(target, previous)
@@ -183,7 +183,7 @@ class Database:
     def __init__(self, root: Path, vault: SecretVault | None = None):
         private_directory(root)
         self.vault = vault
-        path = root / "accelerator.sqlite3"
+        path = root / "fairwind.sqlite3"
         if path.is_symlink():
             raise SafeError("UNSAFE_STORAGE_PATH")
         descriptor = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)

@@ -75,7 +75,7 @@ Two properties fall out of that shape and are worth checking on any change:
 The client is a **second view of one product model**, not a second product. Where a
 Python module defines a contract, the Kotlin file below mirrors its names and rules.
 
-| Python (`core/accelerator/`) | Android (`app/src/main/java/club/noclub/accelerator/`) | What is mirrored |
+| Python (`core/fairwind/`) | Android (`app/src/main/java/club/noclub/accelerator/`) | What is mirrored |
 |---|---|---|
 | `domain/models.py` | `domain/NodeModels.kt` | `NodeStatus` values and the `PROXY_OK`-only rule, `TestMethod`, `ScoreComponent`, `NodeScore.toPublicMap()` keys |
 | `domain/scoring.py` | `domain/Scoring.kt` | the one algorithm: 25/25/30/15/5, window 10, measure window 5, `MIN_VERIFIED_SAMPLES` 3, the same linear curves |

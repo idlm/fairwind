@@ -10,12 +10,12 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from accelerator.cli import default_data_dir
-from accelerator.domain import Capabilities
-from accelerator.errors import SafeError
-from accelerator.profiles import parse_profiles
-from accelerator.routing import generate_rules, rule_payload
-from accelerator.storage import Database, operation_lock
+from fairwind.cli import default_data_dir
+from fairwind.domain import Capabilities
+from fairwind.errors import SafeError
+from fairwind.profiles import parse_profiles
+from fairwind.routing import generate_rules, rule_payload
+from fairwind.storage import Database, operation_lock
 
 DEFAULT_REGISTRY = Path(__file__).resolve().parents[1] / "profiles" / "games" / "game_profiles.json"
 

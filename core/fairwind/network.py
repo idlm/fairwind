@@ -5,8 +5,8 @@ from urllib.parse import urljoin
 
 import aiohttp
 
-from accelerator.errors import SafeError
-from accelerator.security import public_ip, validate_url
+from fairwind.errors import SafeError
+from fairwind.security import public_ip, validate_url
 
 
 @dataclass(repr=False)

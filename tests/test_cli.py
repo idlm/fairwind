@@ -8,13 +8,13 @@ import sys
 
 import pytest
 
-from accelerator.cli import execute, make_parser, optional_vault, udp_target
-from accelerator.errors import SafeError
-from accelerator.network import FetchResult
-from accelerator.probing import UDP_TARGET_DEFAULT
-from accelerator.storage import Database
-from accelerator.subscription import SubscriptionEngine
 from conftest import MASTER, offline_core
+from fairwind.cli import execute, make_parser, optional_vault, udp_target
+from fairwind.errors import SafeError
+from fairwind.network import FetchResult
+from fairwind.probing import UDP_TARGET_DEFAULT
+from fairwind.storage import Database
+from fairwind.subscription import SubscriptionEngine
 
 pytestmark = pytest.mark.e2e
 
@@ -36,11 +36,9 @@ SUBSCRIPTION_SECRETS = (
     ],
 )
 def test_cli_read_commands_without_key(tmp_path, command):
-    environment = {
-        key: value for key, value in os.environ.items() if key != "ACCELERATOR_SECRET_KEY"
-    }
+    environment = {key: value for key, value in os.environ.items() if key != "FAIRWIND_SECRET_KEY"}
     result = subprocess.run(
-        [sys.executable, "-m", "accelerator.cli", "--data-dir", str(tmp_path), *command],
+        [sys.executable, "-m", "fairwind.cli", "--data-dir", str(tmp_path), *command],
         env=environment,
         capture_output=True,
         text=True,
@@ -61,7 +59,7 @@ def test_cli_json_output_survives_a_non_utf8_console(tmp_path, command):
     """
     environment = {**os.environ, "PYTHONIOENCODING": "cp1252"}
     result = subprocess.run(
-        [sys.executable, "-m", "accelerator.cli", "--data-dir", str(tmp_path), *command],
+        [sys.executable, "-m", "fairwind.cli", "--data-dir", str(tmp_path), *command],
         env=environment,
         capture_output=True,
         text=True,
@@ -75,14 +73,12 @@ def test_cli_json_output_survives_a_non_utf8_console(tmp_path, command):
 
 
 def test_cli_sensitive_command_missing_key(tmp_path):
-    environment = {
-        key: value for key, value in os.environ.items() if key != "ACCELERATOR_SECRET_KEY"
-    }
+    environment = {key: value for key, value in os.environ.items() if key != "FAIRWIND_SECRET_KEY"}
     result = subprocess.run(
         [
             sys.executable,
             "-m",
-            "accelerator.cli",
+            "fairwind.cli",
             "--data-dir",
             str(tmp_path),
             "subscriptions",
@@ -119,11 +115,11 @@ def test_udp_target_parsing():
 
 
 def test_optional_vault_keeps_serve_startable(tmp_path, monkeypatch):
-    from accelerator.security import SecretVault
+    from fairwind.security import SecretVault
 
-    monkeypatch.delenv("ACCELERATOR_SECRET_KEY", raising=False)
+    monkeypatch.delenv("FAIRWIND_SECRET_KEY", raising=False)
     assert optional_vault(tmp_path) is None
-    monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
+    monkeypatch.setenv("FAIRWIND_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
     assert isinstance(optional_vault(tmp_path), SecretVault)
 
 
@@ -132,11 +128,9 @@ def test_cli_diagnose_on_unsupported_schema(tmp_path, vault):
     with database.connection:
         database.connection.execute("PRAGMA user_version=99")
     database.close()
-    environment = {
-        key: value for key, value in os.environ.items() if key != "ACCELERATOR_SECRET_KEY"
-    }
+    environment = {key: value for key, value in os.environ.items() if key != "FAIRWIND_SECRET_KEY"}
     result = subprocess.run(
-        [sys.executable, "-m", "accelerator.cli", "--data-dir", str(tmp_path), "diagnose"],
+        [sys.executable, "-m", "fairwind.cli", "--data-dir", str(tmp_path), "diagnose"],
         env=environment,
         capture_output=True,
         text=True,
@@ -152,7 +146,7 @@ def test_invalid_cli_argument_not_echoed(tmp_path):
         [
             sys.executable,
             "-m",
-            "accelerator.cli",
+            "fairwind.cli",
             "--data-dir",
             str(tmp_path),
             "nodes",
@@ -191,7 +185,7 @@ async def test_cli_output_redaction(database, vault, fetcher, tmp_path, capsys):
 async def test_all_five_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
     from test_node_engine import FakeProbe
 
-    from accelerator import host
+    from fairwind import host
 
     class OfflineFetcher:
         async def __aenter__(self):
@@ -200,7 +194,7 @@ async def test_all_five_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
         async def __aexit__(self, *args):
             return None
 
-    monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
+    monkeypatch.setenv("FAIRWIND_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
     monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
     monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
     # 核心二进制缺失的适配器：CLI 内部构造 HostService，这里让"未接入核心"这条路可测（见 conftest）
@@ -227,7 +221,7 @@ async def test_all_five_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
 async def test_explain_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
     from test_node_engine import FakeProbe
 
-    from accelerator import host
+    from fairwind import host
 
     class OfflineFetcher:
         async def __aenter__(self):
@@ -236,7 +230,7 @@ async def test_explain_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
         async def __aexit__(self, *args):
             return None
 
-    monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
+    monkeypatch.setenv("FAIRWIND_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
     monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
     monkeypatch.setattr(host, "ReferenceProbe", lambda target, udp_target=None: FakeProbe())
     # 核心二进制缺失的适配器：CLI 内部构造 HostService，这里让"未接入核心"这条路可测（见 conftest）
@@ -287,7 +281,7 @@ async def test_explain_cli_commands(tmp_path, monkeypatch, fetcher, capsys):
 
 
 async def test_subscription_management_cli(tmp_path, monkeypatch, fetcher, capsys):
-    from accelerator import host
+    from fairwind import host
 
     class OfflineFetcher:
         async def __aenter__(self):
@@ -296,7 +290,7 @@ async def test_subscription_management_cli(tmp_path, monkeypatch, fetcher, capsy
         async def __aexit__(self, *args):
             return None
 
-    monkeypatch.setenv("ACCELERATOR_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
+    monkeypatch.setenv("FAIRWIND_SECRET_KEY", base64.urlsafe_b64encode(b"a" * 32).decode())
     monkeypatch.setattr(host, "HttpFetcher", OfflineFetcher)
     manual = "https://source-c.example/sub?token=synthetic-managed-token"
     fetcher.responses[manual] = FetchResult(

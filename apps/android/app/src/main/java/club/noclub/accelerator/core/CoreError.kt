@@ -1,7 +1,7 @@
 package club.noclub.accelerator.core
 
 /**
- * The fixed core error codes, copied from `core/accelerator/errors.py` so the
+ * The fixed core error codes, copied from `core/fairwind/errors.py` so the
  * Android client reports the same `ErrorCode` vocabulary as the Python control plane
  * (spec 71-82, 132; docs/CORE_ADAPTER_SPEC.md).
  *

@@ -123,7 +123,7 @@ verified on a device; the DNS engine only *plans* today —
 
 The client is a **second view of one product model**, not a second product.
 
-| Python (`core/accelerator/`) | iOS (`apps/ios/Shared/`) | What is mirrored |
+| Python (`core/fairwind/`) | iOS (`apps/ios/Shared/`) | What is mirrored |
 |---|---|---|
 | `domain/models.py` | `NodeModels.swift` | `NodeStatus` values and the `PROXY_OK`-only rule, `TestMethod`, `ScoreComponent`, `toPublicDict()` keys |
 | `domain/scoring.py` | `Scoring.swift` | the one algorithm: 25/25/30/15/5, window 10, measure window 5, min samples 3, the same linear curves |

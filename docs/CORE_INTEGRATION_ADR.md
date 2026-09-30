@@ -59,7 +59,7 @@ Mihomo 的根 LICENSE 是 MIT，但全树未审。
 ## 待决项（需项目所有者）
 
 1. ~~是否接受"进程隔离 sidecar + 第一阶段 Xray"作为接入模型。~~ → **已批准**（`docs/CORE_APPROVAL.md`）。
-2. ~~选定具体发布版本与 commit。~~ → **已固定** `v26.3.27` / `d2758a02…`（`core/accelerator/core_pin.py`）。
+2. ~~选定具体发布版本与 commit。~~ → **已固定** `v26.3.27` / `d2758a02…`（`core/fairwind/core_pin.py`）。
 3. 分发物形态（随包内嵌 / 首启下载 / 独立安装包）与签名密钥归属 —— 属 Release Gate（Gate C），不阻塞平台无关的 Core Integration；当前开发期由 `scripts/fetch_core.py` 按固定摘要获取到 gitignore 的 `third_party/`。
 4. sing-box 附加名称条款的法务结论——是否保留为候选（当前 `AWAITING_LEGAL_REVIEW`，不进入 v0.3.0）。
 5. 官方 SBOM / NOTICE 的生成与发布责任方 —— 每个平台产物单独出，Release 时执行。

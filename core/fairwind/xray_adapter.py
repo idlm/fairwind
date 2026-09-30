@@ -17,13 +17,13 @@ import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from accelerator import core_config, core_pin, core_runtime
-from accelerator.core_runtime import CoreRuntime
-from accelerator.domain import Capabilities, NodeSecret, ProbeResult, ProxyNode, TestState
-from accelerator.errors import SafeError
-from accelerator.probing import DEFAULT_PROBE_TARGET, client_ssl_context
-from accelerator.security import validate_url
-from accelerator.socks import CONNECT, command, handshake
+from fairwind import core_config, core_pin, core_runtime
+from fairwind.core_runtime import CoreRuntime
+from fairwind.domain import Capabilities, NodeSecret, ProbeResult, ProxyNode, TestState
+from fairwind.errors import SafeError
+from fairwind.probing import DEFAULT_PROBE_TARGET, client_ssl_context
+from fairwind.security import validate_url
+from fairwind.socks import CONNECT, command, handshake
 
 PROTOCOLS = frozenset({"vless", "vmess", "trojan", "ss"})
 HTTP_NO_CONTENT = 204

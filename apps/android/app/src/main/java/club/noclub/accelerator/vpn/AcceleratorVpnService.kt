@@ -296,7 +296,7 @@ class AcceleratorVpnService : VpnService() {
         const val ACTION_STOP: String = "club.noclub.accelerator.action.STOP"
         const val EXTRA_REQUEST: String = "club.noclub.accelerator.extra.REQUEST"
 
-        private const val CHANNEL_ID = "accelerator-tunnel"
+        private const val CHANNEL_ID = "fairwind-tunnel"
         private const val NOTIFICATION_ID = 1001
 
         private val _state = MutableStateFlow(VpnState.STOPPED)

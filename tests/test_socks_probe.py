@@ -9,9 +9,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from accelerator import probing, socks
-from accelerator.domain import TestState
-from accelerator.probing import ReferenceProbe
+from fairwind import probing, socks
+from fairwind.domain import TestState
+from fairwind.probing import ReferenceProbe
 
 pytestmark = pytest.mark.integration
 

@@ -4,9 +4,9 @@ import random
 
 import pytest
 
-from accelerator.errors import SafeError
-from accelerator.parser import MAX_SUBSCRIPTION_BYTES, safe_json, safe_yaml
 from conftest import FIXTURES
+from fairwind.errors import SafeError
+from fairwind.parser import MAX_SUBSCRIPTION_BYTES, safe_json, safe_yaml
 
 pytestmark = pytest.mark.unit
 

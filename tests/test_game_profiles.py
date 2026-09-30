@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from accelerator.domain import Capabilities
-from accelerator.errors import SafeError
-from accelerator.profiles import GameProfile, load_profiles, missing_capabilities, parse_profiles
-from accelerator.routing import (
+from fairwind.domain import Capabilities
+from fairwind.errors import SafeError
+from fairwind.profiles import GameProfile, load_profiles, missing_capabilities, parse_profiles
+from fairwind.routing import (
     ACTION_DIRECT,
     ACTION_PROXY,
     PRIORITY_DEFAULT,

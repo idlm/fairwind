@@ -1,7 +1,7 @@
 import Foundation
 
 /// The loopback JSON API contract, shared with the desktop control plane
-/// (`core/accelerator/apps/api/routes.py`).
+/// (`core/fairwind/apps/api/routes.py`).
 ///
 /// spec 69-70, 134. The iOS client does **not** invent a second protocol. Where a surface
 /// exists on both sides, the route path, the verb and the JSON key names are the same
