@@ -43,6 +43,14 @@ ASSETS = {
         "bytes": 20912410,
         "sha256": "02a4798854975435981a5c6fb4aaf7059f58d22d73d2762363cd56788d92d758",
     },
+    # Android：上游**只提供 arm64-v8a 与 amd64（模拟器）**，没有 android-arm32-v7a 构建。
+    # 因此 Android 端的 ABI 过滤只能是 arm64-v8a（见 apps/android/app/build.gradle.kts），
+    # 想支持 32 位设备需要先换核心或自行构建——不能靠"列上 armeabi-v7a"假装支持。
+    "android-arm64": {
+        "name": "Xray-android-arm64-v8a.zip",
+        "bytes": 19883196,
+        "sha256": "57149ffd48b629c07bf76938e73ab2729fde5910091497eab3e93d1c190f4c1b",
+    },
 }
 BINARY_NAME = "xray.exe" if os.name == "nt" else "xray"
 # 策略常量：写死在这里，避免实现层"顺手"放宽。
@@ -55,7 +63,21 @@ PLATFORMS = {
     ("linux", "x86_64"): "linux-amd64",
     ("win32", "amd64"): "windows-amd64",
     ("win32", "x86_64"): "windows-amd64",
+    ("android", "arm64-v8a"): "android-arm64",
+    ("android", "aarch64"): "android-arm64",
 }
+# Android 侧核心作为 native library 随包分发（`jniLibs/arm64-v8a/libxray.so`）：
+# 名字必须以 lib 开头、以 .so 结尾，否则 API 29+ 无法从 nativeLibraryDir 执行。
+# 设备端能校验的只有**二进制本身**（APK 里就是解出来的那个文件，没有归档可比对），
+# 因此为它单独固定摘要：来源是对"已通过与上游 .dgst 校验的归档"解包后的 `xray`。
+ANDROID_BINARY_SHA256 = "19101a8191d6d606da975f719c8cdb80b8710b87ab17edc00ef74b9e39588714"
+ANDROID_BINARY_BYTES = 36516696
+# 不随包分发 geoip/geosite：我们生成的出站/路由只用 CIDR 与 outboundTag，不引用 geo 数据，
+# 带上它们只会给 APK 增加约 30 MB。若将来引入 geo 规则，必须同时把数据文件纳入固定清单。
+ANDROID_SHIPS_GEO_DATA = False
+ANDROID_LIBRARY_NAME = "libxray.so"
+ANDROID_ABI = "arm64-v8a"
+ANDROID_JNI_DIRECTORY = "apps/android/app/src/main/jniLibs"
 MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
 
 

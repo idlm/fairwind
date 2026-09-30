@@ -37,13 +37,18 @@ android {
         // marks the artefact as built from sources with no device verification behind it.
         versionName = "0.3.0-android-source"
 
-        // ABI list for the bundled proxy core. The core is NOT chosen yet
-        // (docs/CORE_APPROVAL.md), so this is a plan: one core binary per ABI shipped
-        // as a native library (jniLibs/<abi>/lib<core>.so) so the OS extracts it into
-        // nativeLibraryDir, the only location Android allows exec() from on API 29+
-        // (W^X / app-data exec is blocked). See ARCHITECTURE.md.
+        // ABI list for the bundled proxy core. The core **is** chosen now (Xray-core v26.3.27,
+        // docs/CORE_APPROVAL.md; pin in core/fairwind/core_pin.py) and upstream publishes only
+        // `Xray-android-arm64-v8a.zip` — there is no Android arm32 build. Listing armeabi-v7a
+        // would promise 32-bit devices a core that does not exist, so this stays arm64-v8a only
+        // (32-bit support would mean a different core or building one ourselves).
+        //
+        // The library is shipped as jniLibs/arm64-v8a/libxray.so — the only location Android
+        // allows exec() from on API 29+ (W^X blocks app-data exec) — and it is **fetched, not
+        // committed**: `python scripts/fetch_core.py --android` verifies the archive SHA-256 and
+        // the extracted binary's SHA-256 (see CorePin.kt), and .gitignore keeps it out of Git.
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            abiFilters += listOf("arm64-v8a")
         }
     }
 

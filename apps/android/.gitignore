@@ -35,6 +35,7 @@ captures/
 .DS_Store
 
 # The bundled proxy core binaries are third-party artefacts with a pinned hash
-# (docs/CORE_APPROVAL.md). They are NOT committed here: no core has been chosen or
+# (docs/CORE_APPROVAL.md). The core IS chosen (Xray-core v26.3.27) and the Android library is
+# fetched on demand — `python scripts/fetch_core.py --android` — and verified against the pin
 # approved, so there is nothing legitimate to commit.
 app/src/main/jniLibs/*/*.so

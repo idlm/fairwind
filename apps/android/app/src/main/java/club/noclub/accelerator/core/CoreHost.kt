@@ -76,13 +76,37 @@ class CoreHost(
     }
 
     /**
-     * Ensure the core can run: adapter [CoreAdapter.prepare], binary present, working
-     * dir ready. Idempotent.
+     * Ensure the core can run: adapter [CoreAdapter.prepare], binary present **and matching the
+     * pin**, working dir ready. Idempotent.
+     *
+     * The digest check is not ceremony: the client executes this file. "We bundled a core once"
+     * is not the same claim as "we know which bytes we are running" (docs/CORE_APPROVAL.md).
      *
      * @throws CoreException `CORE_NOT_AVAILABLE` when the binary is missing,
+     *   `CORE_HASH_MISMATCH` when it is not the pinned build,
      *   `CORE_PLATFORM_UNSUPPORTED` when this ABI cannot run it.
      */
     fun prepare(): CoreStatus {
+        val binary = binaryFile() ?: throw CoreException(
+            code = CoreErrorCode.CORE_NOT_AVAILABLE,
+            message = "no pinned core library is bundled for this ABI",
+            details = linkedMapOf("abi" to CorePin.ABI, "library" to CorePin.LIBRARY_NAME),
+        )
+        CorePin.verdict(binary)?.let { code ->
+            throw CoreException(
+                code = code,
+                message = when (code) {
+                    CoreErrorCode.CORE_HASH_MISMATCH ->
+                        "the bundled core library does not match the pinned digest"
+                    else -> "the bundled core library could not be read"
+                },
+                details = linkedMapOf(
+                    "library" to CorePin.LIBRARY_NAME,
+                    "expected_sha256" to CorePin.LIBRARY_SHA256,
+                    "observed_sha256" to (CorePin.digestOf(binary) ?: "unreadable"),
+                ),
+            )
+        }
         val prepared = adapter.prepare()
         _status.value = prepared
         return prepared
@@ -237,13 +261,13 @@ class CoreHost(
 
     companion object {
         /**
-         * `// TODO(Gate B)`: the approved core is Xray-core, but its Android artefact is not
-         * bundled or pinned yet, so no real library name can be claimed. The desktop half of the
-         * same pin already exists (`scripts/fetch_core.py`).
+         * The pinned core library name. Both halves of the pin now exist: `core_pin.py` fixes the
+         * release asset and its digest, `scripts/fetch_core.py --android` installs it into
+         * `jniLibs/arm64-v8a/`, and [CorePin] pins the extracted binary for on-device checking.
          */
-        const val CORE_BINARY_PLACEHOLDER: String = "libaccelerator-core.so"
+        const val CORE_BINARY_PLACEHOLDER: String = CorePin.LIBRARY_NAME
 
-        private fun binaryName(): String = CORE_BINARY_PLACEHOLDER
+        private fun binaryName(): String = CorePin.LIBRARY_NAME
 
         const val READINESS_TIMEOUT_MILLIS: Long = 5_000
         const val STOP_TIMEOUT_MILLIS: Long = 5_000

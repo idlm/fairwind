@@ -116,11 +116,93 @@ def inspect(binary: Path) -> dict:
     }
 
 
+def android_main(arguments) -> int:
+    pinned = core_pin.ASSETS["android-arm64"]
+    pinned = {"key": "android-arm64", **pinned}
+    report = {
+        "core": core_pin.CORE_NAME,
+        "tag": core_pin.TAG,
+        "commit": core_pin.COMMIT,
+        "platform": pinned["key"],
+        "asset": pinned["name"],
+        "expected_sha256": pinned["sha256"],
+        "expected_binary_sha256": core_pin.ANDROID_BINARY_SHA256,
+        "abi": core_pin.ANDROID_ABI,
+        "downloaded": False,
+    }
+    library = android_library()
+    try:
+        if arguments.check:
+            if not library.is_file():
+                report["status"] = "CORE_NOT_INSTALLED"
+            else:
+                report["android_library"] = str(library.relative_to(ROOT))
+                report["android_library_sha256"] = digest(library)
+                report["android_library_bytes"] = library.stat().st_size
+                report["status"] = (
+                    "CORE_READY"
+                    if report["android_library_sha256"] == core_pin.ANDROID_BINARY_SHA256
+                    else "CORE_HASH_MISMATCH"
+                )
+        else:
+            directory = core_directory(arguments.directory)
+            report["directory"] = str(directory)
+            install_android(directory, pinned, report)
+            report["downloaded"] = True
+            report["status"] = "CORE_READY"
+    except SafeError as error:
+        report["status"] = error.code
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 2
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0 if report["status"] == "CORE_READY" else 1
+
+
+def android_library(root: Path | None = None) -> Path:
+    """Android 端核心的落地路径：`jniLibs/<abi>/lib<core>.so`（gitignored）。"""
+    base = root or ROOT / core_pin.ANDROID_JNI_DIRECTORY
+    return base / core_pin.ANDROID_ABI / core_pin.ANDROID_LIBRARY_NAME
+
+
+def install_android(directory: Path, pinned: dict, report: dict) -> None:
+    """把 Android 资产解出的 `xray` 装成 native library，并按二进制摘要自校验。
+
+    名字必须是 `lib*.so`：API 29+ 只允许从 `nativeLibraryDir` 执行，而该目录里的文件由
+    APK 的 `jniLibs/<abi>/` 决定。geo 数据不随包（见 core_pin.ANDROID_SHIPS_GEO_DATA）。
+    """
+    archive = directory / pinned["name"]
+    report["bytes"] = download(core_pin.asset_url(pinned["key"]), archive)
+    report["sha256"] = verify_archive(archive, pinned["sha256"])
+    with zipfile.ZipFile(archive) as bundle:
+        names = bundle.namelist()
+        if "xray" not in names:
+            raise SafeError("CORE_ARCHIVE_INVALID")
+        payload = bundle.read("xray")
+    observed = hashlib.sha256(payload).hexdigest()
+    if observed != core_pin.ANDROID_BINARY_SHA256:
+        archive.unlink(missing_ok=True)
+        raise SafeError("CORE_HASH_MISMATCH")
+    library = android_library()
+    library.parent.mkdir(parents=True, exist_ok=True)
+    library.write_bytes(payload)
+    library.chmod(0o755)
+    archive.unlink(missing_ok=True)
+    report["android_library"] = str(library.relative_to(ROOT))
+    report["android_library_sha256"] = observed
+    report["android_library_bytes"] = len(payload)
+    report["geo_data_shipped"] = core_pin.ANDROID_SHIPS_GEO_DATA
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="按固定清单获取并校验核心二进制")
     parser.add_argument("--check", action="store_true", help="只校验本地核心，不下载")
+    parser.add_argument(
+        "--android", action="store_true", help="获取 Android 资产并装成 native library"
+    )
     parser.add_argument("--directory", type=Path, default=None)
     arguments = parser.parse_args()
+    if arguments.android:
+        return android_main(arguments)
     directory = core_directory(arguments.directory)
     binary = directory / core_pin.BINARY_NAME
     pinned = core_pin.asset()

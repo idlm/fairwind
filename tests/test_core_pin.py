@@ -140,3 +140,50 @@ def test_core_directory_defaults_to_ignored_third_party():
     directory = fetch_core.core_directory()
     assert directory.name == "core"
     assert directory.parent.name == "third_party"
+
+
+def test_android_pin_matches_the_kotlin_copy():
+    """Android 端的 pin 是 core_pin.py 的**镜像**：不一致就是两个客户端跑的核不同。
+
+    这里读 Kotlin 源文件逐项比对（tag / commit / ABI / 库名 / 二进制摘要），
+    比"两处都记得改"可靠得多。
+    """
+    kotlin = (
+        Path(__file__).resolve().parents[1]
+        / "apps"
+        / "android"
+        / "app"
+        / "src"
+        / "main"
+        / "java"
+        / "club"
+        / "noclub"
+        / "accelerator"
+        / "core"
+        / "CorePin.kt"
+    ).read_text(encoding="utf-8")
+
+    assert f'const val TAG = "{core_pin.TAG}"' in kotlin
+    assert f'const val COMMIT = "{core_pin.COMMIT}"' in kotlin
+    assert f'const val ABI = "{core_pin.ANDROID_ABI}"' in kotlin
+    assert f'const val LIBRARY_NAME = "{core_pin.ANDROID_LIBRARY_NAME}"' in kotlin
+    assert f'const val LIBRARY_SHA256 = "{core_pin.ANDROID_BINARY_SHA256}"' in kotlin
+    assert f"const val LIBRARY_BYTES = {core_pin.ANDROID_BINARY_BYTES}L" in kotlin
+
+
+def test_android_asset_is_pinned_with_a_real_digest():
+    pinned = core_pin.ASSETS["android-arm64"]
+    assert pinned["name"] == "Xray-android-arm64-v8a.zip"
+    assert len(pinned["sha256"]) == 64
+    assert pinned["bytes"] > 0
+    assert core_pin.PLATFORMS[("android", "arm64-v8a")] == "android-arm64"
+    # 明确记录：上游没有 Android arm32 构建，因此不能列 armeabi-v7a
+    assert core_pin.PLATFORMS.get(("android", "armeabi-v7a")) is None
+
+
+def test_android_library_path_is_where_the_apk_expects_it():
+    library = fetch_core.android_library()
+    assert library.name == core_pin.ANDROID_LIBRARY_NAME
+    assert library.parent.name == core_pin.ANDROID_ABI
+    assert "jniLibs" in str(library)
+    assert core_pin.ANDROID_SHIPS_GEO_DATA is False
