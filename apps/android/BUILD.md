@@ -1,7 +1,8 @@
 # Building the Android client
 
-**Status: the sources compile and a signed debug APK is produced.** Verified on this
-machine on 2026-09-29. Nothing has been installed or run — see *What is not verified*.
+**Status: the sources compile, the JVM unit tests pass, and a signed debug APK is produced.**
+Re-verified on this machine on 2026-10-01 (the date the core adapter landed). Nothing has been
+installed or run on a device — see *What is not verified*.
 
 The hash below is one real build's; **the APK is not bit-for-bit reproducible** (zip entry
 timestamps plus the auto-generated debug key), so a rebuild gives the same size and the same
@@ -9,15 +10,20 @@ verification results with a different hash.
 
 ```
 APK        apps/android/app/build/outputs/apk/debug/app-debug.apk
-size       10,299,095 bytes
-sha256     7c27e49b04e85f49d58de1c9d6952e945d6e41bbda961cf9baa68b891c3df83e
+size       10,331,863 bytes
+sha256     0e1670df436442f898a8265b4eb3a36bfcd6070f32175eb6eed47a6974ef541d
 package    club.noclub.accelerator.debug   (versionName 0.3.0-android-source)
 sdk        compileSdk 35 / targetSdk 35 / minSdk 26
-contents   165 entries, 15 dex files
+contents   165 entries, 15 dex files; the core adapter classes are in the dex
+           (XrayConfigRenderer, XrayConfigValidator, CoreSupervisor, Socks5ExitVerifier, JsonText)
 signature  APK Signature Scheme v2, verified, signer "C=US, O=Android, CN=Android Debug"
 alignment  zipalign -c 4 → OK
-kotlin     38 source files, 0 errors, 0 warnings (forced full recompile)
+kotlin     42 main source files + 5 test source files, 0 errors (full compile of both source sets)
+tests      39 JVM unit tests, all passing — `bash scripts/android_test.sh`
 ```
+
+The 2026-09-29 build (10,299,095 bytes, sha256 `7c27e49b…`) predates the core adapter and is
+kept only as a historical data point; it is not the current artefact.
 
 ## Toolchain
 
@@ -115,6 +121,25 @@ A `VpnService.protect` fact worth keeping: **Android exposes no way to ask wheth
 is already protected**, and `protect` returns `false` for one that is. The class therefore
 has `protectAndReport`, not a fictional `isProtected` check.
 
+## Unit tests
+
+`bash scripts/android_test.sh` compiles both source sets and runs the JVM tests (no device, no
+emulator). Two passes, same memory reasoning as the build — compiling Kotlin *and* running tests
+in one 4 GB JVM dies the same way:
+
+| Pass | Task | Heap |
+|---|---|---|
+| 1 | `:app:compileDebugKotlin` + `:app:compileDebugUnitTestKotlin` | 1500m |
+| 2 | `:app:testDebugUnitTest` | 1200m |
+
+They can run off-device because everything under test is deliberately `android.*`-free:
+`JsonText`/`JsonReader` (dependency-free JSON, byte-stable because its digest is the config pin),
+`XrayConfigRenderer` + `XrayConfigValidator` (dialect, one-proxy-outbound and loopback-only
+invariants, rejections), `CoreSupervisor` (lifecycle state machine with an injected process
+factory, clock, port probe and sleeper) and `Socks5ExitVerifier` (a **real SOCKS5 dialogue
+against a loopback server implemented inside the test** — real bytes, local peer).
+`AndroidCapabilitiesTest` pins the honesty rule: nothing may be `SUPPORTED` before a device run.
+
 ## What is not verified
 
 * **No device run.** `adb devices` lists nothing: no phone, no emulator (a 4 GB host cannot
@@ -123,10 +148,14 @@ has `protectAndReport`, not a fictional `isProtected` check.
 * **No release artefact.** There is no signing keystore, so `assembleRelease` cannot be
   signed and none was attempted (`PLATFORM_MATRIX.md`). The APK above is
   **debug-signed with the auto-generated debug key** and is not distributable.
-* **No connection.** No proxy core is approved yet (`docs/CORE_APPROVAL.md`), so the client
-  refuses with `CORE_NOT_AVAILABLE` and no tunnel is created.
-* **No tests.** The Android module declares no test dependency and has no test — the build
-  would report "no tests" rather than coverage. What the debug APK proves is that the
-  sources compile and package.
+* **No connection.** The config dialect is implemented and the lifecycle is unit-tested, but
+  **the core binary is not bundled**: nothing ships in `jniLibs/<abi>/`, so `prepare()` refuses
+  with `CORE_NOT_AVAILABLE` and no tunnel is created. Pinning the Android artefact's hash is
+  part of Gate B.
+* **No on-device tunnel.** `VpnService` is still skeleton code — it has never been started, so
+  TUN, per-app routing, DNS and IPv6 remain unverified and unclaimed (`AndroidCapabilities`).
+* **The unit tests prove logic, not the device.** They cover the adapter's decisions with a fake
+  process and a local peer. They say nothing about Android's `exec()` restrictions on API 29+,
+  the VPN consent dialog, battery behaviour, or whether the core binary runs on a real ABI.
 * **Not verified on the minimum API level.** `minSdk 26` is honoured by the manifest, but
   nothing has been run on an API 26 device.

@@ -17,6 +17,28 @@
 - 接入模型：进程隔离 sidecar（ADR-0001 由"提议"转为**已批准**）；UI / CLI / API / Domain Layer 禁止直接调用核心
 - 本机 loopback 真实链路已验证：客户端 SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标取回标记内容（标签 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`，**不是**公网节点验收）
 
+### Android 客户端接入真实核心（Gate B · Android，2026-10-01）
+
+- `apps/android/.../core/XrayDialect.kt`（新）：按**已批准的固定核心**（Xray-core `v26.3.27`，
+  `docs/CORE_APPROVAL.md`）的方言生成配置——四协议（VLESS / VMess / Trojan / Shadowsocks），
+  **恰好一个代理出站**、**所有入站只监听 `127.0.0.1`**、可选只回环统计入站；协议或字段没有显式
+  映射时拒绝（`CORE_CONFIG_INVALID`），绝不猜一个"看起来对"的配置
+- `XrayConfigValidator`：解析**真正要交给核心的文本**并断言上述不变式——两个代理出站、监听
+  `0.0.0.0` 的入站、没有指向隧道的路由、统计 API 与入站不匹配，都会被抓出来
+- `core/CoreSupervisor.kt`（新）：进程生命周期状态机，进程工厂/时钟/端口探测/休眠全部可注入，
+  **不含任何 `android.*` 依赖**，因此能在普通 JVM 上单测；启动期退出读退出码并按
+  `CORE_EXIT_DURING_START` 记录、端口始终不开按超时处理并删除配置、窗口内失败过多开熔断
+  （`CORE_CRASH_LOOP`）、`stop()` 幂等且**不会把失败洗成 STOPPED**
+- `core/ExitVerifier.kt`（新）：经回环 SOCKS5（RFC 1928）做**真实出口验证**，https 目标保持证书与
+  主机名校验；没有核心时固定 `CORE_NOT_AVAILABLE`，**绝不返回 verified**。这与"进程活着/端口可连"
+  是两件事，后者不算连上
+- `CoreConfigRequest.statsPort`：没有它就没有统计 API，流量按 `measured = false` 上报，不给 0 冒充
+- **新增 JVM 单元测试**（`app/src/test/`，此前刻意没有测试源集）：39 项通过——配置生成与结构校验、
+  生命周期状态机（假进程区分"端口不开"与"进程退出"）、出口验证（**测试内实现真实回环 SOCKS5
+  服务端**，字节全真）、能力账本；`scripts/android_test.sh` 是两 pass 的内存受限配方
+- 能力边界不变：TUN / 按应用分流 / DNS / IPv6 / UDP **仍未验证，一条都不声明**；签名仍
+  `BLOCKED_EXTERNAL_REQUIREMENT`（无 keystore）
+
 ### Windows 10/11 系统代理（Gate B 起步，2026-10-01）
 
 - `core/fairwind/system_proxy.py`（新）：当前用户系统代理的**快照 → 接管 → 还原 → 异常退出恢复**

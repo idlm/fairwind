@@ -91,7 +91,21 @@ Done:
 - 对外表面：`fairwind platform`（能力声明 + 当前状态）、`diagnose` 新增第 16 项 `system_proxy`（**只读**，有未还原记录时 `WARN` + `SYSTEM_PROXY_RECOVERY_PENDING`，不自动覆盖）。
 - **Windows 7 Legacy 能力账本**（`core/fairwind/win7.py`）：全部 `UNVERIFIED`，`fairwind platform` 可见；只有真实 Win7 SP1 验证过的项才允许改成 `VERIFIED`。
 
+Android（Gate B · Android）:
+- **核心适配层**（`apps/android/.../core/`）：`XrayDialect.kt` 按已批准核心的方言生成配置（四协议、
+  恰好一个代理出站、入站只监听 127.0.0.1、可选只回环统计入站），`XrayConfigValidator` 解析真正要交给
+  核心的文本并断言这些不变式；`CoreSupervisor.kt` 是纯 Kotlin 的生命周期状态机（依赖全注入：进程工厂/
+  时钟/端口探测/休眠），启动期退出读退出码、端口不开按超时清理、窗口内失败开熔断、`stop()` 不洗掉失败；
+  `ExitVerifier.kt` 经回环 SOCKS5 做真实出口验证（https 保持证书校验）。
+- **JVM 单元测试**（新增测试源集）：39 项通过，含"测试内实现的真实回环 SOCKS5 服务端"这条真链路；
+  `bash scripts/android_test.sh` 是本机/CI 可复现的两 pass 配方。
+- 全量编译与打包：main + test 源集从零编译 0 错误；`assembleDebug` 产出 debug APK（哈希见 BUILD.md）。
+- **仍未验证**：真机安装与隧道（VpnService）、按应用 VPN、DNS 与 IPv6、核心二进制的按 ABI 打包与哈希
+  固定、签名（`BLOCKED_EXTERNAL_REQUIREMENT`）。
+
 Remaining:
+- Android 真机：安装、VPN 授权、隧道实跑与按应用验证（需要设备）。
+- Android 核心二进制：按 ABI 打包 `jniLibs/<abi>/libXray.so` 并在设备上校验哈希（Gate B）。
 - TUN、按进程分流、游戏规则分流、安装包与签名（Gate B `PLATFORM_READY` / Gate C）。
 - DPAPI 凭据存储、提权边界与 ACL。
 - Android / iOS / Win7 的原生客户端与真机验收。
