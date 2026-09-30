@@ -157,10 +157,13 @@ def generate(
     http_port: int | None = None,
     api_port: int | None = None,
     log_level: str = "warning",
+    udp: bool = False,
 ) -> dict:
     """生成只监听本机回环的单节点代理配置。
 
-    入站只允许 127.0.0.1；SOCKS 的 `udp` 恒为 false（UDP 转发尚未实现，就不开）。
+    入站只允许 127.0.0.1；SOCKS 的 `udp` 默认 **false**——只有显式 `udp=True` 才打开
+    （UDP 转发已在 `tests/test_real_core_udp_ipv6.py` 用本机回环真实验证；连接态默认不开，
+    因为 TUN/游戏分流尚未接入，开了也没有用户路径）。
 
     `api_port` 打开统计 API（只回环）：没有它就没有真实流量字节，`traffic.measured` 只能是 false。
     打开时额外出现一个 `dokodemo-door` 入站与一条只把该入站交给 API handler 的路由规则——
@@ -182,7 +185,7 @@ def generate(
             "listen": LOOPBACK,
             "port": socks_port,
             "protocol": "socks",
-            "settings": {"auth": "noauth", "udp": False},
+            "settings": {"auth": "noauth", "udp": bool(udp)},
             "sniffing": {"enabled": False},
         }
     ]
@@ -321,7 +324,7 @@ def validate(config: dict) -> None:
             continue
         if protocol not in ("socks", "http"):
             raise SafeError("CORE_CONFIG_INVALID")
-        if protocol == "socks" and inbound["settings"].get("udp") is not False:
+        if protocol == "socks" and not isinstance(inbound["settings"].get("udp"), bool):
             raise SafeError("CORE_CONFIG_INVALID")
     if api_inbounds > 1:
         raise SafeError("CORE_CONFIG_INVALID")

@@ -66,17 +66,26 @@ def test_generate_per_protocol_and_validate(protocol, uses_users):
         assert settings["vnext"][0]["users"][0]["encryption"] == "none"
 
 
-def test_inbounds_are_loopback_only_and_udp_disabled():
+def test_inbounds_are_loopback_only_and_udp_off_unless_asked_for():
+    """入站只监听回环；UDP **默认关闭**，只有显式要求才开。
+
+    UDP 转发本身已在 `tests/test_real_core_udp_ipv6.py` 用真实核心回环验证；连接态默认不开，
+    因为 TUN/游戏分流尚未接入，开了也没有用户路径。
+    """
     config = core_config.generate(node(), 10809, http_port=10810)
     socks, http = config["inbounds"]
     assert socks["listen"] == http["listen"] == core_config.LOOPBACK
     assert socks["port"] == 10809 and http["port"] == 10810
     assert socks["settings"] == {"auth": "noauth", "udp": False}
     assert config["log"]["access"] == "none"
-    broken = json.loads(json.dumps(config))
-    broken["inbounds"][0]["settings"]["udp"] = True
+
+    # 显式要求时可以打开——但必须是布尔值，不能是别的类型
+    assert core_config.generate(node(), 10809, udp=True)["inbounds"][0]["settings"]["udp"] is True
+    wrong_type = json.loads(json.dumps(config))
+    wrong_type["inbounds"][0]["settings"]["udp"] = "yes"
     with pytest.raises(SafeError, match="CORE_CONFIG_INVALID"):
-        core_config.validate(broken)
+        core_config.validate(wrong_type)
+
     widened = json.loads(json.dumps(config))
     widened["inbounds"][0]["listen"] = "0.0.0.0"
     with pytest.raises(SafeError, match="CORE_CONFIG_INVALID"):
