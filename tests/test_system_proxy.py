@@ -108,6 +108,8 @@ class _FakeWinreg:
 def test_registry_write_uses_dword_for_ints_and_sz_for_strings(monkeypatch):
     fake = _FakeWinreg()
     monkeypatch.setitem(sys.modules, "winreg", fake)
+    # 平台只是构造时的闸门：测试里注入它，这条不变量在 Linux CI 上同样被测到（不是跳过）。
+    monkeypatch.setattr(system_proxy, "platform_supported", lambda: True)
     backend = system_proxy.RegistryProxyBackend()
 
     backend.write({"ProxyEnable": 1, "ProxyServer": "127.0.0.1:1080", "ProxyOverride": None})

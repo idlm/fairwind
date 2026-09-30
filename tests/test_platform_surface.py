@@ -52,6 +52,7 @@ def test_platform_command_reports_modern_and_legacy_without_false_claims(tmp_pat
 
 
 def test_diagnose_reports_system_proxy_and_stays_read_only(tmp_path, monkeypatch):
+    monkeypatch.setattr(system_proxy, "platform_supported", lambda: True)
     control, backend = memory_controller(tmp_path, {"ProxyEnable": 0, "ProxyServer": None})
     monkeypatch.setattr(system_proxy, "SystemProxyController", lambda *a, **k: control)
     monkeypatch.setenv("FAIRWIND_SECRET_KEY", "x")
@@ -70,6 +71,7 @@ def test_diagnose_reports_system_proxy_and_stays_read_only(tmp_path, monkeypatch
 
 
 def test_diagnose_never_prints_the_proxy_address(tmp_path, monkeypatch):
+    monkeypatch.setattr(system_proxy, "platform_supported", lambda: True)
     control, _ = memory_controller(
         tmp_path, {"ProxyEnable": 1, "ProxyServer": "corp-proxy.internal:8080"}
     )
@@ -89,6 +91,8 @@ def test_diagnose_never_prints_the_proxy_address(tmp_path, monkeypatch):
 
 
 def test_pending_recovery_is_a_warning_not_a_silent_overwrite(tmp_path, monkeypatch):
+    # 诊断先看平台是否支持系统代理；注入它，这条判定在任何平台的 CI 上都被测到。
+    monkeypatch.setattr(system_proxy, "platform_supported", lambda: True)
     control, backend = memory_controller(tmp_path)
     control.enable("127.0.0.1:1080")
     backend.values = {"ProxyEnable": 0, "ProxyServer": None, "ProxyOverride": None}
