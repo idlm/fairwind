@@ -32,6 +32,7 @@ CHECK_NAMES = (
     "nodes",
     "routing_rules",
     "profiles",
+    "system_proxy",
     "core",
 )
 

@@ -9,7 +9,7 @@
 import os
 from pathlib import Path
 
-from fairwind import __version__
+from fairwind import __version__, system_proxy
 from fairwind.errors import SafeError
 from fairwind.profile_update import ProfileRegistry, load_public_key
 from fairwind.scoring import SmartSelector
@@ -201,6 +201,35 @@ def _core_check(integrated: bool = False) -> dict:
     return _check("core", "SKIP", "CORE_NOT_INTEGRATED：未接入任何核心，连接类操作固定拒绝", None)
 
 
+def _system_proxy_check(data_dir: Path) -> dict:
+    """系统代理检查（只读）：有接管记录未还原时给 WARN，非 Windows 给 SKIP。
+
+    本项**只读**：诊断不允许修改用户的系统设置，所以这里只报告状态与固定错误码。
+    """
+    if not system_proxy.platform_supported():
+        return _check("system_proxy", "SKIP", "当前平台未实现系统代理（不宣称）", None)
+    current = system_proxy.SystemProxyController(data_dir).current()
+    if not current.get("supported"):
+        return _check("system_proxy", "WARN", "无法读取系统代理设置", current.get("error") or None)
+    if current["recovery_pending"]:
+        return _check(
+            "system_proxy",
+            "WARN",
+            "存在未还原的接管记录，且当前设置已被改动（不会自动覆盖，交由用户决定）",
+            "SYSTEM_PROXY_RECOVERY_PENDING",
+        )
+    if current["owned_by_fairwind"]:
+        return _check("system_proxy", "PASS", "系统代理由本程序接管中", None)
+    if current["enabled"]:
+        return _check(
+            "system_proxy",
+            "PASS",
+            "系统代理由其它软件设置（本程序不会覆盖）",
+            None,
+        )
+    return _check("system_proxy", "PASS", "系统代理当前未启用", None)
+
+
 def diagnose(
     data_dir: Path,
     database: Database,
@@ -223,6 +252,7 @@ def diagnose(
         _nodes_check(database),
         _routing_rules_check(database),
         _profiles_check(data_dir),
+        _system_proxy_check(data_dir),
         _core_check(core_available),
     ]
     counts = {

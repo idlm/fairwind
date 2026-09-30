@@ -6,7 +6,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from fairwind import __version__
+from fairwind import __version__, system_proxy, win7
 from fairwind.api import load_or_create_token, serve
 from fairwind.errors import SafeError
 from fairwind.host import DEFAULT_PROBE_TARGET, HostService
@@ -22,11 +22,9 @@ class SafeArgumentParser(argparse.ArgumentParser):
 
 def default_data_dir() -> Path:
     if os.name == "nt":
-        return (
-            Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "Accelerator"
-        )
+        return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "Fairwind"
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "Accelerator"
+        return Path.home() / "Library" / "Application Support" / "Fairwind"
     return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "fairwind"
 
 
@@ -72,6 +70,7 @@ def make_parser() -> argparse.ArgumentParser:
     connecting.add_argument("--country")
     commands.add_parser("disconnect")
     commands.add_parser("traffic")
+    commands.add_parser("platform")
     commands.add_parser("diagnose")
     commands.add_parser("status")
     serving = commands.add_parser("serve")
@@ -182,6 +181,14 @@ async def execute(args: argparse.Namespace) -> int:
         summary = await service.update_subscriptions(args.master_url, args.force, args.interval)
         emit(summary)
         return 2 if summary["partial_failure"] else 0
+    if args.command == "platform":
+        emit(
+            {
+                "modern": system_proxy.capability_report(args.data_dir),
+                "legacy": win7.legacy_report(),
+            }
+        )
+        return 0
     if args.command == "diagnose":
         report = service.diagnostic()
         emit(report)
