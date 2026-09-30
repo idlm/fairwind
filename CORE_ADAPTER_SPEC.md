@@ -21,4 +21,8 @@ CLI 自带 HTTP CONNECT 测试后端仅验证 HTTP 代理的 HTTPS 出口，不�
 - **`test_node(node)` 用真实握手证明可用**：为该节点单独起一个回环实例，经它的 SOCKS 入站访问探针目标（HTTPS 204），只有目标真的回了预期状态码才 `verified=true`；探测结束即停止并删除配置。TCP 可达、进程存活都不算可用。
 - **`connect` 的门槛是 `verify_exit()`**：`ConnectionController` 在 `health_check` 之后还会调用它，未通过就按候选顺序故障转移；全部候选失败返回 `NO_ELIGIBLE_NODE`，绝不写 `CONNECTED`。
 
-尚未验证（因此不声明）：真实公网节点（`BLOCKED_TEST_FIXTURE`：本环境无节点凭据）、UDP 转发、IPv6 出口、TUN/系统代理、进程规则。
+**Reality 已建模**（`_stream_settings`）：`security=reality` 生成 `realitySettings`（`serverName` / `fingerprint` / `publicKey` / `shortId` / `spiderX`），与 `tlsSettings` 互斥，缺 `publicKey` 直接 `CORE_CONFIG_UNSUPPORTED`。同时修掉一处静默降级：显式声明的 `security` 现在优先于 `tls` 标志——否则 `security=reality` 的节点会被生成成普通 TLS（能连，但更慢、更易被识别）。
+
+已用真实公网节点验证（项目所有者临时提供，凭据不入库）：3 个 VLESS + Reality + `xtls-rprx-vision` 节点，**3/3 真实握手成功、出口验证通过、字节计数为真实值**。
+
+尚未验证（因此不声明）：公网 VMess / Trojan / Shadowsocks 节点（仅本机回环）、公网节点的长期稳定性与吞吐、UDP 转发、IPv6 出口、TUN/系统代理、进程规则。

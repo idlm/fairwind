@@ -53,8 +53,8 @@ uv build
 | 控制面 | 受限探测（HTTP CONNECT / SOCKS5 / UDP 丢包实测）、滚动历史、可解释评分、Smart Select、节点详情与三层解释 | 已实现 | 同上 |
 | 控制面 | Game Profile 校验、路由规则生成与解释、签名远程更新 + LKG | 已实现（**规则尚未作用于真实流量**） | 同上 |
 | 控制面 | 本地订阅管理、离线自检诊断、进程内指标、CLI / 本机 API / 五页静态面板 | 已实现 | 同上 |
-| **数据面** | **CoreAdapter → 已批准核心 → 配置生成 → 进程生命周期 → 本地 SOCKS5 → 真实协议握手 → 真实流量** | **已实现并在本机回环验证**；公网节点仍未验收 | Gate A ✓ / 公网节点 `BLOCKED_TEST_FIXTURE` |
-| 数据面 | 真实代理出口验证（VLESS / VMess / Trojan / Shadowsocks） | **已实现**：四协议在本机回环完成真实握手并经出口验证（`tests/test_real_core_loopback.py`）；公网节点保持 `BLOCKED_TEST_FIXTURE` | Gate A ✓ |
+| **数据面** | **CoreAdapter → 已批准核心 → 配置生成 → 进程生命周期 → 本地 SOCKS5 → 真实协议握手 → 真实流量** | **已实现**：本机回环四协议验证；**公网节点已用 3 个真实 VLESS+Reality 节点实测通过**（真实握手 + 出口验证 + 字节统计） | Gate A ✓ |
+| 数据面 | 真实代理出口验证（VLESS / VMess / Trojan / Shadowsocks） | **已实现**：本机回环四协议（`tests/test_real_core_loopback.py`）；公网 VLESS + Reality 三个真实节点实测 3/3 通过 | Gate A ✓ |
 | 数据面 | 真实流量字节统计 | **已实现**：只回环统计 API（`xray api statsquery`），`traffic.measured=true` 时给出真实字节；未连接时为 `null` | Gate A ✓ |
 | 平台 | Windows 10/11：System Proxy（快照/接管/还原/异常退出恢复） | **已实现**（Windows 11 真机验证，`reg.exe` 逐字段核对；外来代理不覆盖） | `core/fairwind/system_proxy.py`、`scripts/system_proxy_smoke.py` |
 | 平台 | Windows 10/11：TUN → 游戏规则分流 → 安装包 | 未实现 | Gate B `PLATFORM_READY` |
@@ -74,7 +74,7 @@ uv build
 **可观测性**：`GET /api/host/metrics`（面板「设置 → 进程内指标」）按路由模板统计本进程真实发生的请求、状态码分类与固定错误码。它明确标注"重启即清零、不做持久化"，且 `traffic.measured=false`——未接入核心前不给任何流量数字。
 
 **已实现（本机可验证）**：固定代理核心的接入（sidecar 进程、配置生成、生命周期、熔断）、真实协议握手与出口验证、真实流量字节（只回环统计 API）、`connect`/`disconnect`/`traffic`（CLI/API/面板）、Windows 10/11 系统代理（快照/接管/还原/异常退出恢复，Windows 11 真机验证）。
-**尚未实现（不依赖它们做任何宣称）**：真实公网节点验收（`BLOCKED_TEST_FIXTURE`）、UDP 转发与 IPv6 出口（未验证即不声明）、Windows TUN/按进程分流/安装包、Android VpnService、iOS NetworkExtension、代码签名、Apple entitlement、真机验证。
+**尚未实现（不依赖它们做任何宣称）**：公网 VMess/Trojan/Shadowsocks 节点（本机回环已验证、公网无节点可测）、公网节点的长期稳定性与吞吐、UDP 转发与 IPv6 出口（未验证即不声明）、Windows TUN/按进程分流/安装包、Android VpnService、iOS NetworkExtension、代码签名、Apple entitlement、真机验证。
 
 能力边界与版本历史见 `CHANGELOG.md`；验证证据见 `docs/VALIDATION_REPORT.md`（人读）与对应 Release 的机器证据资产。
 

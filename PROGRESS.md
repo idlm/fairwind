@@ -114,7 +114,7 @@ Remaining:
 - Android / iOS / Win7 的原生客户端与真机验收。
 
 Milestone 3 · Core Integration（v0.3.0，数据面）
-████████░░ 80%（本机回环已真实验证；公网节点与平台层未做）
+█████████░ 90%（本机回环 + 公网 VLESS/Reality 节点均已真实验证；平台层与 UDP/IPv6 未做）
 
 Done:
 - Gate A `CORE_APPROVED`：Xray-core 固定 `v26.3.27` / `d2758a02…`、MPL-2.0、资产 SHA-256 三方一致、许可证哈希两来源一致、二进制不进 Git（`docs/CORE_APPROVAL.md`）。
@@ -132,7 +132,9 @@ Tests:
 - 既有断言按"未测量不给数字 / 未接入不声称"收紧（例如 `/traffic` 与 `/connections` 未测量时是 `null` 而不是 0）。
 
 Remaining:
-- 真实公网远程节点验收：`BLOCKED_TEST_FIXTURE`（本环境无真实节点凭据）；UDP 转发、IPv6 出口未验证。
+- 真实公网节点验收（VLESS + Reality + `xtls-rprx-vision`）：**已通过**——3 个真实节点 3/3 完成真实握手、出口验证与真实字节统计（`traffic.measured=true`）。凭据由项目所有者临时提供，只以密文存在于本机数据目录，**不入库**。
+- Reality 建模：`core_config` 生成 `realitySettings`（缺 `publicKey` 拒绝），并修正"显式 `security` 必须优先于 `tls` 标志"——此前会静默降级成普通 TLS。
+- 仍剩余：公网 VMess/Trojan/Shadowsocks（本机回环已验证）、长期稳定性与吞吐、UDP 转发、IPv6 出口、平台层。
 - 平台层（Windows 系统代理/TUN、Android VpnService、iOS NetworkExtension）仍属 Gate B。
 
 Milestone 3–6、8

@@ -17,6 +17,27 @@
 - 接入模型：进程隔离 sidecar（ADR-0001 由"提议"转为**已批准**）；UI / CLI / API / Domain Layer 禁止直接调用核心
 - 本机 loopback 真实链路已验证：客户端 SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标取回标记内容（标签 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`，**不是**公网节点验收）
 
+### Reality 支持与首个公网节点实测（2026-10-01）
+
+- `core/fairwind/core_config.py`：`SECURITIES` 纳入 `reality`，生成 `realitySettings`
+  （`serverName` / `fingerprint` / `publicKey` / `shortId` / `spiderX`），与 `tlsSettings` 互斥；缺
+  `publicKey` 一律 `CORE_CONFIG_UNSUPPORTED`（不猜一份"看起来对"的 Reality 配置）
+- **修掉一处静默降级**：`security = "tls" if node.tls else (declared or "none")` 会让
+  `security=reality` 且 `tls=true` 的节点被生成成普通 TLS——能连，但更慢、更易被识别。现在**订阅里显式
+  声明的 `security` 优先**于 `tls` 标志。此缺陷在原代码中被"reality 不在支持集合"这条拒绝挡住，
+  一旦接入 Reality 就会变成真实的降级路径
+- **修掉 `flow` 丢失**：URI 订阅把 `?flow=` 放在 `options`，而生成器只读 `credentials`，
+  于是 `xtls-rprx-vision` 被丢掉（同样是"能连但降级"）。现在两处都读
+- `validate()` 增加纵深防御：`security` 必须在支持集合内、`realitySettings` 必须有 `publicKey` 且不得
+  与 `tlsSettings` 同时出现
+- 测试：`tests/test_core_config.py` 新增 4 项（Reality 生成与默认值、URI flow 落到 user、缺 `publicKey`
+  被校验器拒绝），并保留"缺公开参数的 reality 必须被拒"这条既有断言
+
+**首个真实公网节点验收结果**（节点凭据由项目所有者临时提供，只以密文存在于本机数据目录，**不入库**）：
+3 个 VLESS + Reality + `xtls-rprx-vision` 节点，经固定核心 `v26.3.27`：
+**3/3 真实握手成功、出口验证 `verified=true`、字节计数为真实值**（上行 5.7–6.4 KB / 下行 10–12.9 KB 量级，
+来自只回环统计 API）。范围与边界：单次会话、本机网络；**未**做长期稳定性、吞吐与公网 VMess/Trojan/SS 验证。
+
 ### Android 客户端接入真实核心（Gate B · Android，2026-10-01）
 
 - `apps/android/.../core/XrayDialect.kt`（新）：按**已批准的固定核心**（Xray-core `v26.3.27`，
