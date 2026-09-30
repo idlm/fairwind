@@ -18,7 +18,8 @@
 | fairwind disconnect | 停止核心进程并删除临时配置；未接入核心即 `CORE_NOT_INTEGRATED` |
 | fairwind traffic | 真实流量字节（核心统计 API）；未测量时 `measured=false` 且 `uplink/downlink` 为 `null`。计数是**进程内**的：CLI 每条命令一个新进程，因此重启即清零 |
 | fairwind status | 持久化节点、订阅与真实连接状态（来自连接控制器），并给出核心接入与核心进程状态 |
-| fairwind diagnose | 离线自检：schema/完整性/权限/密钥匹配/密文覆盖/Master/订阅与调度/节点/Profile 信任根/核心状态；不联网、不需要密钥（缺密钥的检查标 SKIP）；`FAILED` 退出 2 |
+| fairwind platform | **只读**平台能力声明：现代平台已实现/未实现的能力位、当前系统代理状态（是否由本程序接管、是否有未还原的接管记录）；附 Windows 7 Legacy 能力账本（默认全部 `UNVERIFIED`，即不宣称） |
+| fairwind diagnose | 离线自检（16 项）：schema/完整性/权限/密钥匹配/密文覆盖/Master/订阅与调度/节点/Profile 信任根/**系统代理（只读）**/核心状态；不联网、不需要密钥（缺密钥的检查标 SKIP）、**不修改任何状态**；`FAILED` 退出 2 |
 | fairwind route explain HOST [--port P] [--protocol tcp\|udp] [--process NAME] | 按已落库规则给出生效动作（PROXY / DIRECT / DEFAULT）与命中的规则；未命中即 `DEFAULT`，不会声称已连接 |
 | fairwind serve [--port 8765] | 在 127.0.0.1 启动控制面与静态面板；token 写入 `<data-dir>/control.token`（0600），面板地址用 URL 片段携带 token |
 
@@ -54,7 +55,7 @@ UDP 丢包只在 SOCKS5 且出口已验证可用时测量：通过 UDP ASSOCIATE
 
 - `status`：`OK` / `DEGRADED`（有 `WARN`）/ `FAILED`（有 `FAIL`，CLI 退出 2）；
 - `counts`：四种状态的计数；`checks[]`：每项含 `name` / `status` / `detail` / `error_code`（固定错误码，可直接对照 `TROUBLESHOOTING.md`）；
-- 检查项固定 15 项：数据目录/数据库/密文目录/控制面令牌权限、schema `user_version`、`integrity_check`、密钥是否加载、`key_check` 是否匹配、被引用密文是否齐全、Master 快照与失败计数、订阅（数量/手动/暂停/达到失败上限）、可见节点与合格候选数、路由规则数、Profile 注册表与信任根、核心接入状态。
+- 检查项固定 16 项：数据目录/数据库/密文目录/控制面令牌权限、schema `user_version`、`integrity_check`、密钥是否加载、`key_check` 是否匹配、被引用密文是否齐全、Master 快照与失败计数、订阅（数量/手动/暂停/达到失败上限）、可见节点与合格候选数、路由规则数、Profile 注册表与信任根、系统代理（只读：是否由本程序接管、是否有未还原的接管记录）、核心接入状态。
 - 语义边界：**不联网**（`network: NOT_CONTACTED`）、**不修改任何状态**、**不含凭据或订阅 URL**（`note: NO_CREDENTIALS_OR_URLS_INCLUDED`）；权限项只报固定名称，不回显数据目录名。没有密钥时密文相关项标 `SKIP` 而不是"通过"。
 
 ## 指标（Metrics）

@@ -17,6 +17,25 @@
 - 接入模型：进程隔离 sidecar（ADR-0001 由"提议"转为**已批准**）；UI / CLI / API / Domain Layer 禁止直接调用核心
 - 本机 loopback 真实链路已验证：客户端 SOCKS5 → VLESS 握手 → 服务端 inbound → freedom → 受控 HTTP 目标取回标记内容（标签 `LOCAL_LOOPBACK_NOT_REMOTE_NODE`，**不是**公网节点验收）
 
+### Windows 10/11 系统代理（Gate B 起步，2026-10-01）
+
+- `core/fairwind/system_proxy.py`（新）：当前用户系统代理的**快照 → 接管 → 还原 → 异常退出恢复**
+  - 后端可注入：单元测试全部走内存后端，**绝不触碰真实注册表**；`winreg` 惰性导入（非 Windows 上导入无副作用）
+  - **外来代理保护**：当前生效且非本程序设置的代理 → `SYSTEM_PROXY_FOREIGN_ACTIVE`，且**零写入**
+  - **注册表类型忠实**：`ProxyEnable` 写 `REG_DWORD`（真机冒烟抓到过"写成 `REG_SZ`"的缺陷，已修并单测固定）
+  - **写完读回比对**：不一致立即回退到接管前状态并删除记录（`SYSTEM_PROXY_VERIFY_FAILED`），不留半套配置
+  - 记录过期（用户或其它软件改过设置）时**不还原**，报 `STATE_CHANGED_BY_OTHERS`——把过期快照盖回去就是破坏用户配置
+  - 接管已有代理必须显式 `adopt=True`（用户明确的动作），默认拒绝
+- `core/fairwind/win7.py`（新）：Windows 7 Legacy 能力账本，**全部 `UNVERIFIED`**，`claims()` 恒为 `False`
+- `fairwind platform`（新命令，**只读**）：现代平台能力位 + 当前系统代理状态 + Win7 账本
+- `diagnose` 增加第 16 项 `system_proxy`（只读；存在未还原记录时 `WARN` + `SYSTEM_PROXY_RECOVERY_PENDING`，不自动覆盖）
+- `scripts/system_proxy_smoke.py`（新）：真机冒烟，每一步用**独立工具 `reg.exe`** 旁证，`finally` 保证还原
+
+真机验证（Windows 11，本机本来就有一个第三方代理 `127.0.0.1:10808`）：
+① 默认行为 → 拒绝接管，`reg.exe` 前后逐字段一致（用户配置未被改动）；
+② `--adopt` → 接管中 `reg.exe` 读到写入值 `127.0.0.1:9` → 还原后逐字段回到原值（含 `ProxyEnable` 的 DWORD 类型）。
+Windows 7 仍然**不宣称**任何能力：账本全 `UNVERIFIED`，需要真实 Win7 SP1 环境才能改。
+
 ### 改名：Smart Accelerator → Fairwind（顺风，2026-10-01）
 
 - 仓库名、产品名、Python 发行包与导入包（`core/accelerator/` → `core/fairwind/`）、CLI 命令（`accelerator` → `fairwind`）、脚本、CI 与文档统一改为 **Fairwind**；改写由一次性脚本完成（规则：路径 `core/accelerator`→`core/fairwind`、`from/import accelerator`→`fairwind`、`accelerator.cli`→`fairwind.cli`、`ACCELERATOR_*`→`FAIRWIND_*`、显示名 `Smart Accelerator`→`Fairwind`），脚本本身不留在版本库

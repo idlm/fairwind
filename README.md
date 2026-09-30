@@ -56,9 +56,10 @@ uv build
 | **数据面** | **CoreAdapter → 已批准核心 → 配置生成 → 进程生命周期 → 本地 SOCKS5 → 真实协议握手 → 真实流量** | **已实现并在本机回环验证**；公网节点仍未验收 | Gate A ✓ / 公网节点 `BLOCKED_TEST_FIXTURE` |
 | 数据面 | 真实代理出口验证（VLESS / VMess / Trojan / Shadowsocks） | **已实现**：四协议在本机回环完成真实握手并经出口验证（`tests/test_real_core_loopback.py`）；公网节点保持 `BLOCKED_TEST_FIXTURE` | Gate A ✓ |
 | 数据面 | 真实流量字节统计 | **已实现**：只回环统计 API（`xray api statsquery`），`traffic.measured=true` 时给出真实字节；未连接时为 `null` | Gate A ✓ |
-| 平台 | Windows 10/11：System Proxy → TUN → 游戏规则分流 → 安装包 | 未实现 | Gate B `PLATFORM_READY` |
+| 平台 | Windows 10/11：System Proxy（快照/接管/还原/异常退出恢复） | **已实现**（Windows 11 真机验证，`reg.exe` 逐字段核对；外来代理不覆盖） | `core/fairwind/system_proxy.py`、`scripts/system_proxy_smoke.py` |
+| 平台 | Windows 10/11：TUN → 游戏规则分流 → 安装包 | 未实现 | Gate B `PLATFORM_READY` |
 | 平台 | Android：VpnService → TUN → 按应用 VPN | 未实现（`apps/android/` 源码已可编译出 debug APK，未接入核心、未真机验证） | Gate B |
-| 平台 | Windows 7 Legacy（独立 runtime 与验收） | 未实现 | Gate B |
+| 平台 | Windows 7 Legacy（独立 runtime 与验收） | 未实现；能力账本全为 `UNVERIFIED`（`fairwind platform` 可查） | Gate B |
 | 平台 | iOS：NetworkExtension / entitlement / 真机 | 未实现 | Gate B + `NETWORK_EXTENSION_ENTITLEMENT_READY` |
 | 发布 | 代码签名、安装包、商店发布 | 未实现 | Gate C `SIGNING_READY` |
 
@@ -68,11 +69,12 @@ uv build
 
 **订阅管理原则**：源的身份是 URL 摘要的 12 位句柄（不可逆），完整 URL 只以密文保存且任何输出都不回显；用户在本机添加的源不会被 Master 漂移禁用；暂停只停止刷新（保留 LKG，样本按既有 6h 窗口自然退出候选）；移除是本地操作，仍在 Master 列表里的源会回来——输出用 `present_in_master` 如实标注。
 
-**排障入口**：`fairwind diagnose`（或面板「设置 → 诊断」，或 `GET /api/host/diagnostic`）做 15 项离线自检，每项给出 `PASS` / `WARN` / `FAIL` / `SKIP` 与固定错误码；不联网、不修改状态、不含凭据，缺密钥的检查标 `SKIP` 而不是"通过"。
+**排障入口**：`fairwind diagnose`（或面板「设置 → 诊断」，或 `GET /api/host/diagnostic`）做 16 项离线自检，每项给出 `PASS` / `WARN` / `FAIL` / `SKIP` 与固定错误码；不联网、不修改状态、不含凭据，缺密钥的检查标 `SKIP` 而不是"通过"。
 
 **可观测性**：`GET /api/host/metrics`（面板「设置 → 进程内指标」）按路由模板统计本进程真实发生的请求、状态码分类与固定错误码。它明确标注"重启即清零、不做持久化"，且 `traffic.measured=false`——未接入核心前不给任何流量数字。
 
-**尚未实现（不依赖它们做任何宣称）**：真实代理隧道连接、Windows TUN 与系统代理、Android VpnService、iOS NetworkExtension、任何代理核心的运行时接入、代码签名、Apple entitlement、真机验证。核心接入模型仍是 `docs/CORE_INTEGRATION_ADR.md` 的提议，属于 `v0.3.0-core-integration` 的 Gate A 收口范围；在核心获批并跑通真实握手之前，`connect` 类操作固定返回 `CORE_NOT_INTEGRATED`。
+**已实现（本机可验证）**：固定代理核心的接入（sidecar 进程、配置生成、生命周期、熔断）、真实协议握手与出口验证、真实流量字节（只回环统计 API）、`connect`/`disconnect`/`traffic`（CLI/API/面板）、Windows 10/11 系统代理（快照/接管/还原/异常退出恢复，Windows 11 真机验证）。
+**尚未实现（不依赖它们做任何宣称）**：真实公网节点验收（`BLOCKED_TEST_FIXTURE`）、UDP 转发与 IPv6 出口（未验证即不声明）、Windows TUN/按进程分流/安装包、Android VpnService、iOS NetworkExtension、代码签名、Apple entitlement、真机验证。
 
 能力边界与版本历史见 `CHANGELOG.md`；验证证据见 `docs/VALIDATION_REPORT.md`（人读）与对应 Release 的机器证据资产。
 

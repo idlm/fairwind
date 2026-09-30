@@ -2,9 +2,10 @@
 
 | 平台 | UI / 网络 | Runtime | 当前验证 |
 |---|---|---|---|
-| Windows 10/11 | 原生客户端 / System Proxy + TUN | 独立 Modern 工具链 | BLOCKED_EXTERNAL_REQUIREMENT：目标 VM、驱动和核心审查 |
+| Windows 10/11 | 系统代理（快照/接管/还原/异常退出恢复） | **已实现**（参考引擎 + Windows 11 真机验证） | `core/fairwind/system_proxy.py`、`scripts/system_proxy_smoke.py`、`tests/test_system_proxy.py` |
+| Windows 10/11 | 原生客户端 / TUN / 按进程分流 / 安装包 | 未实现 | Gate B `PLATFORM_READY`；`BLOCKED_EXTERNAL_REQUIREMENT`：驱动、签名证书 |
 | Android | Kotlin / VpnService | Android 原生 + 获审核心 | BLOCKED_EXTERNAL_REQUIREMENT：SDK、真机与核心 |
-| Windows 7 | 独立 Legacy 客户端 | 尚待技术验证，不能使用现代 Python 兼容声明 | BLOCKED_EXTERNAL_REQUIREMENT：Win7 VM、可运行核心与 TLS 验证 |
+| Windows 7 | 独立 Legacy 客户端 | 尚待技术验证，不能使用现代 Python 兼容声明；能力账本 `core/fairwind/win7.py` 全部为 `UNVERIFIED`（`fairwind platform` 可查看） | BLOCKED_EXTERNAL_REQUIREMENT：Win7 VM、可运行核心与 TLS 验证 |
 | iOS | Swift / NetworkExtension | Apple 工具链 | BLOCKED_EXTERNAL_REQUIREMENT：macOS、签名、entitlement、真机 |
 | Linux CLI | Python reference engine | Python 3.11+ | 本次本地测试目标；非 V1 GUI 平台 |
 

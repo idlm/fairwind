@@ -42,7 +42,7 @@ Done:
 - AES-GCM SecretVault、普通 SQLite 脱敏、事务替换、LKG、重启恢复和跨进程写锁，以及引用感知 GC（维护入口 `scripts/vault_gc.py`）。
 - schema 版本门禁与一致性备份/恢复（`scripts/backup.py`，恢复保留 `.previous`；备份含密文快照与完整性校验，缺密文即拒绝恢复）。
 - 本地订阅管理：`subscriptions list/add/pause/resume/remove`（面板与控制面同源）。句柄是 URL 摘要的 12 位前缀；URL 立即校验并以密文保存，任何输出都不回显；用户添加的手动源不会被 Master 漂移禁用；暂停只停止刷新（保留 LKG，样本按既有 6h 窗口自然退出候选，并计入 `UpdateSummary.paused` 而不混入 `RETRY_PAUSED`）；恢复清空退避，下一轮无需 `--force` 即刷新；移除清理该源与其独占节点，并如实标注 Master 是否会让它回来。
-- 离线自检诊断：`fairwind diagnose` / `GET /api/host/diagnostic` / 面板「设置 → 诊断」。15 项检查覆盖权限、schema、完整性、密钥匹配、密文覆盖、Master、订阅调度、节点与候选数、路由规则、Profile 信任根与核心状态；每项 `PASS`/`WARN`/`FAIL`/`SKIP` 并带固定错误码，不联网、不修改状态、不回显数据目录名或凭据，缺密钥的检查标 `SKIP`。
+- 离线自检诊断：`fairwind diagnose` / `GET /api/host/diagnostic` / 面板「设置 → 诊断」。16 项检查覆盖权限、schema、完整性、密钥匹配、密文覆盖、Master、订阅调度、节点与候选数、路由规则、Profile 信任根、系统代理状态与核心状态；每项 `PASS`/`WARN`/`FAIL`/`SKIP` 并带固定错误码，不联网、不修改状态、不回显数据目录名或凭据，缺密钥的检查标 `SKIP`。
 - 进程内可观测性：`GET /api/host/metrics` / 面板「设置 → 进程内指标」。按路由模板统计请求数、状态码分类与固定错误码（路径中的用户输入不进入指标），附运行时长与最慢请求耗时；明确标注重启即清零（不做持久化）与 `traffic.measured=false`（未测量不给数字）。指标属于控制面进程状态，因此不设 HostService 操作、也不提供一次性 CLI 命令。
 - 参考 CLI 与 Linux/Windows CI 配置、wheel/sdist 构建（后续周期已扩展到解释、订阅管理、诊断与指标）。
 
@@ -78,6 +78,23 @@ Remaining:
 - 获审核心的 VLESS/VMess/Trojan/SS 真实代理握手和端到端测试。
 - 长期稳定性与真实网络的丢包基线；未知项保持 null。
 - 真实核心运行时 Failover 与 DNS/IPv6 泄漏验收。
+
+Milestone 4 · Platform（Gate B 起步，进行中）
+██░░░░░░░░ 20%（Windows 10/11 系统代理已落地并真机验证；TUN/分流/安装包与其它平台未做）
+
+Done:
+- **Windows 10/11 系统代理**（`core/fairwind/system_proxy.py`）：快照 → 接管 → 还原，逐字段忠实（含 `ProxyEnable` 的 DWORD 类型、原本不存在的项按"删除"还原）。
+- **外来代理保护**：当前生效且不是本程序设置的代理一律拒绝覆盖（`SYSTEM_PROXY_FOREIGN_ACTIVE`），且**零写入**；真机上用 `reg.exe` 前后逐字段核对确认未改动用户配置。
+- **异常退出恢复**：接管记录原子写入 `<data_dir>/system-proxy.json`（0600）；记录过期（用户/其它软件改过）时**不还原**，如实报 `STATE_CHANGED_BY_OTHERS`，绝不把我们过期的快照盖回去。
+- **验证写入结果**：写完立刻读回比对，不一致则回退到接管前状态并删除记录（`SYSTEM_PROXY_VERIFY_FAILED`），不留半套配置。
+- **真机冒烟**（`scripts/system_proxy_smoke.py`）：每一步都用独立工具 `reg.exe` 旁证；两个场景 PASS——拒绝接管第三方代理（未被修改）、显式 `--adopt` 接管后完整还原。
+- 对外表面：`fairwind platform`（能力声明 + 当前状态）、`diagnose` 新增第 16 项 `system_proxy`（**只读**，有未还原记录时 `WARN` + `SYSTEM_PROXY_RECOVERY_PENDING`，不自动覆盖）。
+- **Windows 7 Legacy 能力账本**（`core/fairwind/win7.py`）：全部 `UNVERIFIED`，`fairwind platform` 可见；只有真实 Win7 SP1 验证过的项才允许改成 `VERIFIED`。
+
+Remaining:
+- TUN、按进程分流、游戏规则分流、安装包与签名（Gate B `PLATFORM_READY` / Gate C）。
+- DPAPI 凭据存储、提权边界与 ACL。
+- Android / iOS / Win7 的原生客户端与真机验收。
 
 Milestone 3 · Core Integration（v0.3.0，数据面）
 ████████░░ 80%（本机回环已真实验证；公网节点与平台层未做）
